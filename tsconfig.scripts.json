@@ -4,6 +4,14 @@
     "types": ["node"],
     "lib": ["ES2022"]
   },
-  "include": ["scripts/**/*.ts", "src/**/*.ts", "src/**/*.json"],
-  "exclude": ["src/**/*.tsx"]
+  // Only what the CLI scripts actually reach: the pure domain layer and the seed
+  // data. `src/db` and `src/sync` are browser-bound (IndexedDB, window, fetch) and
+  // would need DOM libs here, which would then let Node-only code compile against
+  // browser globals it will never have.
+  "include": [
+    "scripts/**/*.ts",
+    "src/domain/**/*.ts",
+    "src/data/**/*.ts",
+    "src/data/**/*.json"
+  ]
 }

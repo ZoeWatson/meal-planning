@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from './App';
 import { ensureSeeded } from './db/repository';
+import { getSyncMeta } from './db/syncWrites';
+import { startAutoSync } from './sync/syncManager';
 import './styles.css';
 
 /**
@@ -19,4 +21,10 @@ void ensureSeeded()
         <App />
       </StrictMode>,
     );
+
+    // Started after render, and only when this device is actually linked — an
+    // unlinked device should never touch the network at all.
+    void getSyncMeta().then((meta) => {
+      if (meta.spaceId) startAutoSync();
+    });
   });

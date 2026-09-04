@@ -11,6 +11,7 @@ import { db, DEFAULT_SETTINGS, SEED_VERSION, type AppSettings, type GroceryCheck
 import { loadSeedData } from '../data/seed';
 import { importBundle, type ImportBundle, type ImportResult } from '../domain/import/importer';
 import { toJson } from '../domain/import/export';
+import { syncedBulkPut, syncedDelete, syncedPut } from './syncWrites';
 import type {
   Id, PantryItem, SalePrice, StapleItem, WeekPlan,
 } from '../domain/types';
@@ -57,7 +58,9 @@ export async function getSettings(): Promise<AppSettings> {
 
 export async function updateSettings(patch: Partial<AppSettings>): Promise<void> {
   const current = await getSettings();
-  await db.settings.put({ ...current, ...patch, id: 'settings' });
+  // The changed keys are passed through so settings merge per field: changing the
+  // region on the laptop must not discard a unit-system change made on the phone.
+  await syncedPut('settings', { ...current, ...patch, id: 'settings' }, Object.keys(patch));
 }
 
 // ---------------------------------------------------------------------------
@@ -65,13 +68,8 @@ export async function updateSettings(patch: Partial<AppSettings>): Promise<void>
 // ---------------------------------------------------------------------------
 
 export async function savePlan(plan: WeekPlan, makeActive = true): Promise<void> {
-  await db.transaction('rw', db.plans, db.settings, async () => {
-    await db.plans.put(plan);
-    if (makeActive) {
-      const current = await getSettings();
-      await db.settings.put({ ...current, id: 'settings', activePlanId: plan.id });
-    }
-  });
+  await syncedPut('plans', plan as unknown as Record<string, unknown>);
+  if (makeActive) await updateSettings({ activePlanId: plan.id });
 }
 
 export async function getActivePlan(): Promise<WeekPlan | undefined> {
@@ -80,51 +78,48 @@ export async function getActivePlan(): Promise<WeekPlan | undefined> {
   return db.plans.get(settings.activePlanId);
 }
 
-/** Toggles a slot's pin. Pinned slots survive regeneration untouched. */
-export async function setSlotPinned(planId: Id, slotId: Id, pinned: boolean): Promise<void> {
+/** Applies an edit to a plan and queues the whole plan for sync. */
+async function editPlan(planId: Id, edit: (plan: WeekPlan) => WeekPlan): Promise<void> {
   const plan = await db.plans.get(planId);
   if (!plan) return;
-  await db.plans.put({
+  await syncedPut('plans', edit(plan) as unknown as Record<string, unknown>);
+}
+
+/** Toggles a slot's pin. Pinned slots survive regeneration untouched. */
+export async function setSlotPinned(planId: Id, slotId: Id, pinned: boolean): Promise<void> {
+  await editPlan(planId, (plan) => ({
     ...plan,
     slots: plan.slots.map((s) => (s.id === slotId ? { ...s, pinned } : s)),
-  });
+  }));
 }
 
 export async function setSlotServings(planId: Id, slotId: Id, servings: number): Promise<void> {
-  const plan = await db.plans.get(planId);
-  if (!plan) return;
-  await db.plans.put({
+  await editPlan(planId, (plan) => ({
     ...plan,
     slots: plan.slots.map((s) => (s.id === slotId ? { ...s, servings: Math.max(1, servings) } : s)),
-  });
+  }));
 }
 
 export async function setSlotRecipe(planId: Id, slotId: Id, recipeId: Id | null): Promise<void> {
-  const plan = await db.plans.get(planId);
-  if (!plan) return;
-  await db.plans.put({
+  await editPlan(planId, (plan) => ({
     ...plan,
     slots: plan.slots.map((s) => (s.id === slotId ? { ...s, recipeId } : s)),
-  });
+  }));
 }
 
 export async function setWildcardPromoted(planId: Id, ingredientId: Id, promoted: boolean): Promise<void> {
-  const plan = await db.plans.get(planId);
-  if (!plan) return;
-  await db.plans.put({
+  await editPlan(planId, (plan) => ({
     ...plan,
     wildcards: plan.wildcards.map((w) =>
       w.ingredientId === ingredientId ? { ...w, promoted } : w),
-  });
+  }));
 }
 
 export async function removeWildcard(planId: Id, ingredientId: Id): Promise<void> {
-  const plan = await db.plans.get(planId);
-  if (!plan) return;
-  await db.plans.put({
+  await editPlan(planId, (plan) => ({
     ...plan,
     wildcards: plan.wildcards.filter((w) => w.ingredientId !== ingredientId),
-  });
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -143,12 +138,15 @@ export async function setChecked(planId: Id, ingredientId: Id, checked: boolean)
     checked,
     updatedAtISO: new Date().toISOString(),
   };
-  await db.checks.put(entry);
+  await syncedPut('checks', entry as unknown as Record<string, unknown>);
 }
 
 export async function clearChecks(planId: Id): Promise<void> {
   const keys = await db.checks.where('planId').equals(planId).primaryKeys();
-  await db.checks.bulkDelete(keys);
+  // Deleted one at a time so each gets its own tombstone. Without those, the other
+  // device's next sync would simply re-upload its copies and every box would tick
+  // itself again.
+  for (const key of keys) await syncedDelete('checks', key);
 }
 
 // ---------------------------------------------------------------------------
@@ -156,19 +154,19 @@ export async function clearChecks(planId: Id): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function upsertStaple(item: StapleItem): Promise<void> {
-  await db.staples.put(item);
+  await syncedPut('staples', item as unknown as Record<string, unknown>);
 }
 
 export async function removeStaple(ingredientId: Id): Promise<void> {
-  await db.staples.delete(ingredientId);
+  await syncedDelete('staples', ingredientId);
 }
 
 export async function upsertPantryItem(item: PantryItem): Promise<void> {
-  await db.pantry.put(item);
+  await syncedPut('pantry', item as unknown as Record<string, unknown>);
 }
 
 export async function removePantryItem(ingredientId: Id): Promise<void> {
-  await db.pantry.delete(ingredientId);
+  await syncedDelete('pantry', ingredientId);
 }
 
 export async function cyclePantryStatus(ingredientId: Id): Promise<void> {
@@ -177,7 +175,7 @@ export async function cyclePantryStatus(ingredientId: Id): Promise<void> {
   const next: PantryItem['status'] =
     item.status === 'stocked' ? 'low' : item.status === 'low' ? 'out' : 'stocked';
 
-  await db.pantry.put({
+  await syncedPut('pantry', {
     ...item,
     status: next,
     // Returning to stocked means it was just bought — reset the "probably low?" counter.
@@ -188,19 +186,19 @@ export async function cyclePantryStatus(ingredientId: Id): Promise<void> {
 }
 
 export async function upsertSale(sale: SalePrice): Promise<void> {
-  await db.sales.put(sale);
+  await syncedPut('sales', sale as unknown as Record<string, unknown>);
 }
 
 export async function removeSale(ingredientId: Id): Promise<void> {
-  await db.sales.delete(ingredientId);
+  await syncedDelete('sales', ingredientId);
 }
 
 export async function setCarryOver(ingredientId: Id, grams: number): Promise<void> {
   if (grams <= 0) {
-    await db.carryOver.delete(ingredientId);
+    await syncedDelete('carryOver', ingredientId);
     return;
   }
-  await db.carryOver.put({ ingredientId, grams, updatedAtISO: new Date().toISOString() });
+  await syncedPut('carryOver', { ingredientId, grams, updatedAtISO: new Date().toISOString() });
 }
 
 /**
@@ -212,17 +210,10 @@ export async function setCarryOver(ingredientId: Id, grams: number): Promise<voi
 export async function recordCarryOverFromPlan(
   entries: ReadonlyArray<{ ingredientId: Id; grams: number }>,
 ): Promise<void> {
-  await db.transaction('rw', db.carryOver, async () => {
-    for (const entry of entries) {
-      const existing = await db.carryOver.get(entry.ingredientId);
-      const grams = (existing?.grams ?? 0) + entry.grams;
-      await db.carryOver.put({
-        ingredientId: entry.ingredientId,
-        grams,
-        updatedAtISO: new Date().toISOString(),
-      });
-    }
-  });
+  for (const entry of entries) {
+    const existing = await db.carryOver.get(entry.ingredientId);
+    await setCarryOver(entry.ingredientId, (existing?.grams ?? 0) + entry.grams);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -250,10 +241,10 @@ export async function dryRunImport(bundle: ImportBundle): Promise<ImportResult> 
  * recipes rather than whole recipes with holes in them.
  */
 export async function commitImport(result: ImportResult): Promise<{ ingredients: number; recipes: number }> {
-  await db.transaction('rw', db.ingredients, db.recipes, async () => {
-    if (result.ingredients.length > 0) await db.ingredients.bulkPut(result.ingredients);
-    if (result.recipes.length > 0) await db.recipes.bulkPut(result.recipes);
-  });
+  // Through the synced path, so an import on the laptop reaches the phone. Built-in
+  // library rows are seeded separately and stay device-local.
+  await syncedBulkPut('ingredients', result.ingredients as unknown as Record<string, unknown>[]);
+  await syncedBulkPut('recipes', result.recipes as unknown as Record<string, unknown>[]);
   return { ingredients: result.ingredients.length, recipes: result.recipes.length };
 }
 
