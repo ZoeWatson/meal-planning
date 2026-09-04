@@ -23,6 +23,9 @@ npm run sync-server    # optional, for syncing between devices
 - **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
   cooking time, in-season, ingredient count.
 - **Regional seasonality** — BC and Ontario ship; the picker is in Settings.
+- **Allergies.** Group-level (tree nuts, milk, wheat…) rather than per ingredient,
+  with name inference as a backstop for imported data. Removed from plans and the
+  shopping list, and flagged loudly wherever a recipe could still slip through.
 - **Weekly staples** always on the list, and a **pantry** whose stocked items are
   treated as free.
 - **A produce grab bag** of random in-season items, as the antidote to cooking the
@@ -41,12 +44,13 @@ src/domain/        pure logic — no React, no database, all testable
   units.ts         everything normalises to grams
   waste.ts         the objective function the planner minimises
   budget.ts        spending, months, and integer-cent money
+  allergens.ts     allergen groups, detection, and its own limits
   planner/         scoring and week generation
   import/          format, validator, prose parser, stub generator
   sync/            clocks and merge rules
 src/db/            Dexie schema and the single write choke point
 src/sync/          transport and orchestration
-src/screens/       the five tabs
+src/screens/       the six tabs
 server/            reference sync server (no dependencies)
 scripts/           tests and CLI tooling
 docs/              import format reference

@@ -36,6 +36,7 @@ const settings: PlannerSettings = {
   unitSystem: 'metric',
   regionId: DEFAULT_REGION_ID,
   diets: [],
+  allergens: [],
   excludedIngredients: [],
   weeklyTimeBudgetMinutes: 240,
   repeatWindowWeeks: 3,

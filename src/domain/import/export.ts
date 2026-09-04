@@ -42,6 +42,8 @@ export function ingredientToRaw(ing: Ingredient): RawIngredient {
     wasteRisk: ing.wasteRisk,
     seasonMonths: ing.seasonMonths ? [...ing.seasonMonths] : undefined,
     excludesDiets: ing.excludesDiets ? [...ing.excludesDiets] : undefined,
+    allergens: ing.allergens ? [...ing.allergens] : undefined,
+    allergensVerified: ing.allergensVerified,
     nutritionPer100g: ing.nutritionPer100g ? { ...ing.nutritionPer100g } : undefined,
   } as RawIngredient);
 }

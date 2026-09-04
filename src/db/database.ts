@@ -163,6 +163,7 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
   unitSystem: 'metric',
   regionId: 'bc-canada',
   diets: [],
+  allergens: [],
   excludedIngredients: [],
   weeklyTimeBudgetMinutes: 300,
   repeatWindowWeeks: 3,
@@ -184,13 +185,20 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
 /**
  * Bump to force the built-in library to be reloaded on next start.
  *
- * MUST be incremented whenever `src/data/seed-*.json` changes, or existing
- * installs keep the old library indefinitely and quietly diverge from the source
- * file — which looks exactly like a code bug and is very hard to spot.
+ * MUST be incremented whenever `src/data/seed-*.json` changes — AND whenever the
+ * importer starts carrying a field it previously dropped. Both change what ends
+ * up in the database; only the first is obvious.
+ *
+ * Existing installs otherwise keep the old library indefinitely and quietly
+ * diverge from the source file, which looks exactly like a code bug and is very
+ * hard to spot from the outside.
  *
  * 2: added `pinch`/`dash` count units to salt and pepper (so "salt to taste"
  *    parses), and split long-grain rice out from arborio.
+ * 3: declared allergens across the library.
+ * 4: the importer was silently dropping `allergens` when 3 was seeded, so every
+ *    device that took 3 has the data missing. Reseed.
  */
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 4;
 
 export type { GroceryList };
