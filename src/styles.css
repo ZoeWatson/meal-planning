@@ -1,0 +1,461 @@
+/*
+ * Phone-first. Every interactive target is at least 44px, the tab bar sits in
+ * thumb reach, and the grocery list is designed to be usable one-handed while
+ * holding a basket.
+ */
+
+:root {
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface-2: #f2f0ec;
+  --border: #e3e0da;
+  --text: #1d1c1a;
+  --text-dim: #6b6862;
+  --text-faint: #9a968e;
+  --accent: #1f6f4a;
+  --accent-soft: #e6f1eb;
+  --warn: #a8541b;
+  --warn-soft: #fbeee3;
+  --danger: #a32d2d;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --tab-h: 60px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12160f;
+    --surface: #1b1f18;
+    --surface-2: #232820;
+    --border: #313629;
+    --text: #eceae4;
+    --text-dim: #a5a297;
+    --text-faint: #75736a;
+    --accent: #6bbd8f;
+    --accent-soft: #1e2e25;
+    --warn: #d99155;
+    --warn-soft: #2e2418;
+    --danger: #e08585;
+
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+/* ---------------------------------------------------------------- layout */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px calc(var(--tab-h) + env(safe-area-inset-bottom) + 24px);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  padding: max(12px, env(safe-area-inset-top)) 0 10px;
+  margin: 0 -16px 4px;
+  padding-left: 16px;
+  padding-right: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.header .sub {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ------------------------------------------------------------- tab bar */
+
+.tabs {
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabs button {
+  flex: 1;
+  height: var(--tab-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabs button svg { width: 22px; height: 22px; }
+.tabs button[aria-current='page'] { color: var(--accent); }
+
+/* --------------------------------------------------------------- cards */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.card.tight { padding: 10px 14px; }
+
+.section-title {
+  margin: 22px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.row.between { justify-content: space-between; }
+.grow { flex: 1; min-width: 0; }
+.dim { color: var(--text-dim); }
+.faint { color: var(--text-faint); }
+.small { font-size: 13px; }
+.tiny { font-size: 12px; }
+.strong { font-weight: 600; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ------------------------------------------------------------- buttons */
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  min-height: 44px;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active { background: var(--surface-2); }
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn.primary { color: #0d1410; }
+}
+
+.btn.block { width: 100%; }
+.btn.small { min-height: 36px; padding: 7px 11px; font-size: 13px; }
+.btn.ghost { background: none; border-color: transparent; color: var(--text-dim); }
+.btn.danger { color: var(--danger); border-color: var(--danger); }
+.btn:disabled { opacity: 0.45; }
+
+/* --------------------------------------------------------------- chips */
+
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 16px 12px;
+  margin: 0 -16px;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 38px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------- grocery list */
+
+.aisle {
+  margin: 20px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.gline {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  min-height: 56px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gline:active { background: var(--surface-2); }
+.gline.done { opacity: 0.5; }
+.gline.done .gname { text-decoration: line-through; }
+
+.tickbox {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border: 2px solid var(--text-faint);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: transparent;
+}
+
+.gline.done .tickbox {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.gname { font-weight: 500; }
+.gmeta { margin-top: 2px; font-size: 12.5px; color: var(--text-dim); }
+.gqty { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.accent { background: var(--accent-soft); color: var(--accent); }
+
+/* -------------------------------------------------------------- progress */
+
+.progress {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
+/* ---------------------------------------------------------------- forms */
+
+.field { margin-bottom: 14px; }
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.field .hint {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin-top: 5px;
+}
+
+select, input[type='number'], input[type='text'] {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stepper button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.stepper .val {
+  min-width: 34px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.segmented button {
+  flex: 1;
+  min-height: 42px;
+  border: 0;
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.segmented button + button { border-left: 1px solid var(--border); }
+
+/* ---------------------------------------------------------------- misc */
+
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-dim);
+}
+
+.empty h2 { font-size: 17px; color: var(--text); margin: 0 0 8px; }
+.empty p { margin: 0 0 20px; font-size: 14px; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  text-align: center;
+}
+
+.stat .v { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  max-height: 82vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 16px calc(env(safe-area-inset-bottom) + 20px);
+}
+
+.sheet-grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  margin: 8px auto 12px;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Desktop is secondary, but should not look like a stretched phone. */
+@media (min-width: 720px) {
+  .app { max-width: 680px; margin: 0 auto; border-inline: 1px solid var(--border); }
+}
