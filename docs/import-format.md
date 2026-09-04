@@ -78,6 +78,8 @@ a 500-recipe library, and it is worth doing carefully once.
 | `wasteRisk` | no | `0..1` override of the computed spoil risk. Rarely needed. |
 | `seasonMonths` | no | Months `1-12`. Omit for year-round. |
 | `excludesDiets` | no | Diets this violates, e.g. `["vegetarian"]`. |
+| `allergens` | no | Allergen group ids, e.g. `["milk"]`. See **Allergens** below. |
+| `allergensVerified` | no | `true` when `allergens` is complete and checked, which turns off name inference for this ingredient. |
 
 Categories: `produce`, `meat`, `seafood`, `dairy`, `bakery`, `grain`, `legume`,
 `canned`, `frozen`, `spice`, `condiment`, `oil`, `baking`, `beverage`, `other`.
@@ -91,6 +93,21 @@ the optimizer will start finding second uses for opened packages on its own.
 
 **`gramsPerPack`** should be the *smallest* real purchase size, not the one you
 usually buy. If rice comes in 1 kg and 5 kg bags, put 1000.
+
+### Allergens
+
+Groups: `peanuts`, `tree-nuts`, `milk`, `eggs`, `fish`, `shellfish`, `sesame`,
+`soy`, `wheat`, `mustard`, `sulphites`.
+
+Leaving `allergens` off does **not** mean allergen-free. Anything without it is
+run through name matching instead, so an imported "cashew butter" is still caught
+as tree nuts. Declare it where the name would not give it away — mayonnaise
+(eggs), Worcestershire sauce (fish), soy sauce (soy *and* wheat).
+
+Set `allergensVerified: true` only when you have actually checked, since it turns
+inference off for that ingredient. It exists to stop generic keywords misfiring on
+curated data: without it, "coconut milk" and "butternut squash" both match the
+dairy keyword list. For anything imported in bulk, leave it off and keep the net.
 
 ### The waste fields
 

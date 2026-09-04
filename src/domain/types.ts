@@ -111,6 +111,20 @@ export interface Ingredient {
 
   /** Dietary flags this ingredient violates, e.g. ["vegetarian", "gluten-free"]. */
   readonly excludesDiets?: readonly string[];
+  /**
+   * Allergen group ids this ingredient contains, e.g. ["milk"]. See `allergens.ts`.
+   *
+   * Omitting it does NOT mean allergen-free — the checker falls back to matching
+   * the ingredient's name, so an untagged "cashew butter" is still caught. Declare
+   * it wherever the name would not give it away (mayonnaise, Worcestershire).
+   */
+  readonly allergens?: readonly string[];
+  /**
+   * True when `allergens` has been checked by hand and is complete, which turns
+   * off name inference for this ingredient. Set on the curated library only —
+   * anything imported keeps the inference safety net.
+   */
+  readonly allergensVerified?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -313,7 +327,12 @@ export interface PlannerSettings {
    */
   readonly regionId: string;
   readonly diets: readonly string[];
-  /** Ingredient ids to never plan, whatever the reason. */
+  /**
+   * Active allergen group ids. Expanded to ingredient exclusions at plan time,
+   * and surfaced as warnings anywhere a matching recipe could still appear.
+   */
+  readonly allergens: readonly string[];
+  /** Ingredient ids to never plan — dislikes rather than allergies. */
   readonly excludedIngredients: readonly Id[];
   /** Soft cap on total active cooking minutes for the week. */
   readonly weeklyTimeBudgetMinutes: number;

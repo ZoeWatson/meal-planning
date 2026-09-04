@@ -13,6 +13,7 @@ import { db, DEFAULT_SETTINGS, type AppSettings } from '../db/database';
 import { getSettings, savePlan } from '../db/repository';
 import { buildGroceryList, renderGroceryList, type DisplayLine } from '../domain/grocery';
 import { getRegion } from '../domain/seasonality';
+import { excludedByAllergens } from '../domain/allergens';
 import { DEFAULT_WASTE_SETTINGS } from '../domain/waste';
 import { generateWeekPlan, pickWildcards } from '../domain/planner/generate';
 import type { PlanningContext } from '../domain/planner/scoring';
@@ -33,6 +34,8 @@ export interface AppState {
   readonly staples: readonly StapleItem[];
   readonly pantry: readonly PantryItem[];
   readonly sales: readonly SalePrice[];
+  /** Ingredient ids ruled out by the active allergens, for UI that explains why. */
+  readonly allergenExclusions: readonly Id[];
 }
 
 const EMPTY_SETTINGS: AppSettings = { ...DEFAULT_SETTINGS, id: 'settings' };
@@ -87,6 +90,19 @@ export function useAppState(): AppState {
     return out;
   }, [planRows, settings?.activePlanId]);
 
+  /**
+   * Active allergens expanded to concrete ingredient ids.
+   *
+   * Folded into `excludedIngredients` rather than given a parallel mechanism, so
+   * allergens travel through the exclusion path that generation, the grocery list
+   * and the wildcard draw already use — code that is exercised constantly and
+   * cannot quietly drift out of step with a second one.
+   */
+  const allergenExclusions = useMemo(
+    () => excludedByAllergens(ingredients.values(), settings?.allergens ?? []),
+    [ingredients, settings?.allergens],
+  );
+
   const ctx = useMemo<PlanningContext | null>(() => {
     if (!settings || !ready) return null;
     return {
@@ -95,14 +111,20 @@ export function useAppState(): AppState {
       staples: staples ?? [],
       pantry: new Map((pantryRows ?? []).map((p) => [p.ingredientId, p])),
       sales: new Map((saleRows ?? []).map((s) => [s.ingredientId, s])),
-      settings,
+      settings: {
+        ...settings,
+        excludedIngredients: [
+          ...new Set([...settings.excludedIngredients, ...allergenExclusions]),
+        ],
+      },
       recentlyUsed,
       month: new Date().getMonth() + 1,
       region: getRegion(settings.regionId),
       carriedOver: new Map((carryOverRows ?? []).map((c) => [c.ingredientId, c.grams])),
       wasteSettings: { ...DEFAULT_WASTE_SETTINGS, cycleDays: settings.cycleDays },
     };
-  }, [settings, ready, ingredients, recipes, staples, pantryRows, saleRows, recentlyUsed, carryOverRows]);
+  }, [settings, ready, ingredients, recipes, staples, pantryRows, saleRows, recentlyUsed,
+      carryOverRows, allergenExclusions]);
 
   const groceryList = useMemo(() => {
     if (!plan || !ctx) return null;
@@ -141,6 +163,7 @@ export function useAppState(): AppState {
     staples: staples ?? [],
     pantry: pantryRows ?? [],
     sales: saleRows ?? [],
+    allergenExclusions,
   };
 }
 

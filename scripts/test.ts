@@ -270,6 +270,20 @@ test('export then re-import is lossless', () => {
     }
     assert.deepEqual([...copy.diets].sort(), [...original.diets].sort(), `${original.id} diets`);
   }
+
+  // Allergen data was dropped silently by the importer once, because the
+  // round trip only checked grams and diets. Anything safety-relevant that
+  // survives the wire format has to be asserted here explicitly.
+  for (const original of seed.ingredients) {
+    const copy = round.ingredients.find((i) => i.id === original.id);
+    if (!copy) assert.fail(`${original.id} did not survive the round trip`);
+    assert.deepEqual(
+      [...(copy.allergens ?? [])].sort(), [...(original.allergens ?? [])].sort(),
+      `${original.id} allergens`,
+    );
+    assert.equal(copy.allergensVerified, original.allergensVerified,
+      `${original.id} allergensVerified`);
+  }
 });
 
 // ---------------------------------------------------------------------------

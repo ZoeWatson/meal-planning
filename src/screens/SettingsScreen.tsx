@@ -4,6 +4,7 @@ import type { AppState } from '../state/useAppState';
 import { resetAll, updateSettings } from '../db/repository';
 import { REGIONS } from '../domain/seasonality';
 import { DERIVABLE_DIETS } from '../domain/nutrition';
+import { AllergySection } from './AllergySection';
 import { ImportSheet } from './ImportSheet';
 import { SyncSheet } from './SyncSheet';
 import type { MealType } from '../domain/types';
@@ -151,6 +152,8 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
           );
         })}
       </div>
+
+      <AllergySection state={state} />
 
       {/* --- Shopping ----------------------------------------------------- */}
       <h2 className="section-title">Shopping</h2>

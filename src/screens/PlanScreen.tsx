@@ -10,6 +10,7 @@ import { applyFilter } from '../domain/filters';
 import { formatQuantity } from '../domain/units';
 import { recipeNutrition } from '../domain/nutrition';
 import { seasonStatus } from '../domain/seasonality';
+import { checkRecipe, describeMatches } from '../domain/allergens';
 import type { Id, MealType, PlanSlot } from '../domain/types';
 import { PinIcon, ShuffleIcon } from '../components/icons';
 import { Sheet } from '../components/Sheet';
@@ -35,6 +36,24 @@ export function PlanScreen({
     () => (plan && ctx ? scorePlan(plan.slots, plan.wildcards, ctx) : null),
     [plan, ctx],
   );
+
+  /**
+   * Allergens in the plan as it currently stands.
+   *
+   * Generation already excludes them, so this should normally be empty — but a
+   * plan made before an allergy was set, a pinned slot, or a recipe chosen by hand
+   * all bypass that filter. Those are exactly the cases where a silent filter
+   * gives false confidence, so they are checked again here and shown.
+   */
+  const allergenAlerts = useMemo(() => {
+    if (!plan || settings.allergens.length === 0) return [];
+    return plan.slots.flatMap((slot) => {
+      const recipe = slot.recipeId ? recipes.get(slot.recipeId) : null;
+      if (!recipe) return [];
+      const report = checkRecipe(recipe, ingredients, settings.allergens);
+      return report.hasMatch ? [{ recipe, report }] : [];
+    });
+  }, [plan, recipes, ingredients, settings.allergens]);
 
   async function regenerate(): Promise<void> {
     if (!ctx) return;
@@ -66,10 +85,41 @@ export function PlanScreen({
 
   const byType = (type: MealType): PlanSlot[] => plan.slots.filter((s) => s.mealType === type);
   const pinnedCount = plan.slots.filter((s) => s.pinned).length;
+  const emptyCount = plan.slots.filter((s) => s.recipeId === null).length;
+
+  // Restrictions can leave the library with too few recipes to fill a week. That
+  // is correct behaviour, but a column of "Empty slot" with no explanation looks
+  // like a bug — and the fix (loosen something, or add recipes) is not guessable.
+  const restrictions = [
+    settings.allergens.length > 0 ? 'your allergies' : null,
+    settings.diets.length > 0 ? 'your diet filters' : null,
+    settings.excludedIngredients.length > 0 ? 'your excluded ingredients' : null,
+  ].filter(Boolean) as string[];
 
   return (
     <main className="screen">
       <Header subtitle={weekLabel(plan.weekStartISO)} />
+
+      {allergenAlerts.length > 0 && (
+        <div
+          className="card"
+          style={{ borderColor: 'var(--danger)', marginTop: 12 }}
+          role="alert"
+        >
+          <div className="strong" style={{ color: 'var(--danger)' }}>
+            {allergenAlerts.length} meal{allergenAlerts.length === 1 ? '' : 's'} in this
+            plan contain{allergenAlerts.length === 1 ? 's' : ''} something you avoid
+          </div>
+          {allergenAlerts.map(({ recipe, report }) => (
+            <div className="tiny dim" style={{ marginTop: 6 }} key={recipe.id}>
+              <strong>{recipe.name}</strong> — {describeMatches(report.matches)}
+            </div>
+          ))}
+          <div className="tiny faint" style={{ marginTop: 8 }}>
+            Swap or unpin these. Regenerating will not pick them again.
+          </div>
+        </div>
+      )}
 
       {score && (
         <div className="stat-grid" style={{ marginTop: 12 }}>
@@ -98,7 +148,21 @@ export function PlanScreen({
         <button className="btn" onClick={onShop}>Shop</button>
       </div>
 
-      {pinnedCount === 0 && (
+      {emptyCount > 0 && (
+        <div className="card" style={{ borderColor: 'var(--warn)', marginTop: 10 }}>
+          <div className="strong" style={{ color: 'var(--warn)' }}>
+            {emptyCount} slot{emptyCount === 1 ? '' : 's'} could not be filled
+          </div>
+          <div className="small dim" style={{ marginTop: 4 }}>
+            {restrictions.length > 0
+              ? `Not enough recipes get past ${restrictions.join(' and ')}. `
+              : 'Not enough recipes match the current filters. '}
+            Add more recipes, loosen a restriction, or shrink the week in Settings.
+          </div>
+        </div>
+      )}
+
+      {pinnedCount === 0 && emptyCount === 0 && (
         <p className="tiny faint" style={{ marginTop: 8 }}>
           Pin a meal to keep it when you regenerate.
         </p>

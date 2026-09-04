@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { AppState } from '../state/useAppState';
 import { FILTER_PRESETS, explainFilter, type RecipeFilter } from '../domain/filters';
 import { recipeNutrition } from '../domain/nutrition';
+import { checkRecipe, describeMatches } from '../domain/allergens';
 import { formatQuantity } from '../domain/units';
 import { scaledGrams, type Recipe } from '../domain/types';
 import { Sheet } from '../components/Sheet';
@@ -28,6 +29,7 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   const [active, setActive] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Recipe | null>(null);
+  const [showAvoided, setShowAvoided] = useState(false);
 
   const filter = useMemo<RecipeFilter>(() => {
     const merged: RecipeFilter[] = FILTER_PRESETS
@@ -51,6 +53,24 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
     });
   }, [recipes, filter, ingredients, ctx]);
 
+  /**
+   * Splits matches into what is safe to cook and what is not.
+   *
+   * Hidden by default — this is the "never want to see" list — but revealable,
+   * because someone managing an allergy is entitled to check the app's reasoning
+   * rather than take a silent omission on faith.
+   */
+  const { safe, avoided } = useMemo(() => {
+    if (settings.allergens.length === 0) return { safe: matched, avoided: [] as typeof matched };
+    const safeList: Recipe[] = [];
+    const avoidList: Recipe[] = [];
+    for (const recipe of matched) {
+      (checkRecipe(recipe, ingredients, settings.allergens).hasMatch ? avoidList : safeList)
+        .push(recipe);
+    }
+    return { safe: safeList, avoided: avoidList };
+  }, [matched, ingredients, settings.allergens]);
+
   function toggle(id: string): void {
     setActive((prev) => {
       const next = new Set(prev);
@@ -64,7 +84,10 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
     <main className="screen">
       <div className="header">
         <h1>Recipes</h1>
-        <div className="sub">{matched.length} of {recipes.size}</div>
+        <div className="sub">
+          {safe.length} of {recipes.size}
+          {avoided.length > 0 && ` · ${avoided.length} hidden by your allergies`}
+        </div>
       </div>
 
       <input
@@ -88,7 +111,43 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         ))}
       </div>
 
-      {matched.length === 0 && (
+      {avoided.length > 0 && (
+        <button
+          className="btn block"
+          style={{ marginTop: 4, borderColor: 'var(--danger)', color: 'var(--danger)' }}
+          aria-pressed={showAvoided}
+          onClick={() => setShowAvoided((v) => !v)}
+        >
+          {showAvoided
+            ? 'Hide the ones you avoid'
+            : `Show ${avoided.length} hidden by your allergies`}
+        </button>
+      )}
+
+      {showAvoided && avoided.map((recipe) => {
+        const report = checkRecipe(recipe, ingredients, settings.allergens);
+        return (
+          <div className="card" key={recipe.id} style={{ borderColor: 'var(--danger)' }}>
+            <div className="row between">
+              <span className="strong">{recipe.name}</span>
+              <span className="badge" style={{ background: 'var(--danger)', color: '#fff' }}>
+                avoid
+              </span>
+            </div>
+            <div className="tiny" style={{ color: 'var(--danger)', marginTop: 4 }}>
+              {describeMatches(report.matches)}
+            </div>
+            {report.matches.some((m) => m.confidence === 'inferred') && (
+              <div className="tiny faint" style={{ marginTop: 4 }}>
+                Some of these were matched on the ingredient name rather than
+                checked data — worth confirming yourself.
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {safe.length === 0 && (
         <div className="empty">
           <h2>Nothing matches</h2>
           {/* A bare "no results" is a dead end; naming the binding constraint
@@ -104,7 +163,7 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         </div>
       )}
 
-      {matched.map((recipe) => {
+      {safe.map((recipe) => {
         const n = recipeNutrition(recipe, ingredients);
         return (
           <button

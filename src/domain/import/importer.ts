@@ -44,6 +44,8 @@ export interface RawIngredient {
   wasteRisk?: number;
   seasonMonths?: number[];
   excludesDiets?: string[];
+  allergens?: string[];
+  allergensVerified?: boolean;
   nutritionPer100g?: NutritionFacts;
 }
 
@@ -190,6 +192,8 @@ function parseIngredient(raw: RawIngredient, path: string, issues: ImportIssue[]
     wasteRisk: raw.wasteRisk,
     seasonMonths: raw.seasonMonths,
     excludesDiets: raw.excludesDiets,
+    allergens: raw.allergens,
+    allergensVerified: raw.allergensVerified,
     nutritionPer100g: raw.nutritionPer100g,
   };
 }
