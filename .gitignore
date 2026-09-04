@@ -1,4 +1,22 @@
 node_modules/
 dist/
-*.log
+dev-dist/
+
+# Sync server state — one NDJSON log per space. This is user data, and the space
+# ids are derived from pairing codes, so it should never be committed.
+server/data/
+
+# Scratch output from the import CLI
+ingredient-stubs.json
+merged-bundle.json
+library-export.json
+*.local.json
+
 .DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/

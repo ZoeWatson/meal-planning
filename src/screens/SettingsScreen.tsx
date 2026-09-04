@@ -5,6 +5,7 @@ import { resetAll, updateSettings } from '../db/repository';
 import { REGIONS } from '../domain/seasonality';
 import { DERIVABLE_DIETS } from '../domain/nutrition';
 import { ImportSheet } from './ImportSheet';
+import { SyncSheet } from './SyncSheet';
 import type { MealType } from '../domain/types';
 
 const MEAL_LABELS: Record<MealType, string> = {
@@ -17,6 +18,7 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
   const { settings } = state;
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const region = REGIONS.find((r) => r.id === settings.regionId) ?? REGIONS[0];
 
@@ -214,14 +216,20 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
         </div>
       </div>
 
+      {/* --- Sync --------------------------------------------------------- */}
+      <h2 className="section-title">Sync</h2>
+      <div className="card small dim">
+        Everything works offline first and lives on this device. Link a second
+        device to keep plans and shopping lists in step — generate a list on the
+        laptop, tick it off in the shop with no signal, and it catches up when you
+        reconnect.
+      </div>
+      <button className="btn block" style={{ marginBottom: 10 }} onClick={() => setSyncing(true)}>
+        Sync settings
+      </button>
+
       {/* --- Data --------------------------------------------------------- */}
       <h2 className="section-title">Data</h2>
-      <div className="card small dim">
-        Everything lives on this device and works with no signal. Nothing is sent
-        anywhere. Syncing between phone and laptop is not built yet — until it is,
-        an export is your only backup.
-      </div>
-
       <button className="btn block" style={{ marginBottom: 10 }} onClick={() => setImporting(true)}>
         Import &amp; export recipes
       </button>
@@ -250,6 +258,7 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
       </p>
 
       {importing && <ImportSheet onClose={() => setImporting(false)} />}
+      {syncing && <SyncSheet onClose={() => setSyncing(false)} />}
     </main>
   );
 }

@@ -17,6 +17,7 @@ import type {
   GroceryList, Id, Ingredient, PantryItem, Recipe, SalePrice, SlotSpec,
   PlannerSettings, StapleItem, WeekPlan,
 } from '../domain/types';
+import type { Change, SyncedCollection } from '../domain/sync/types';
 
 /** A single ticked box, keyed by plan and ingredient. */
 export interface GroceryCheck {
@@ -46,6 +47,48 @@ export interface AppSettings extends PlannerSettings {
   readonly seedVersion: number;
 }
 
+/**
+ * Sync bookkeeping for one record, kept in its own table rather than on the
+ * record itself.
+ *
+ * Two reasons. Domain types stay free of `_hlc` and `_deleted` fields that mean
+ * nothing to the planner — and tombstones become natural: a deleted record is
+ * genuinely gone from its table, with only a small marker left behind, instead of
+ * every table needing filtering to hide soft-deleted rows from ordinary queries.
+ */
+export interface RecordMeta {
+  /** `${collection}:${id}` */
+  readonly key: string;
+  readonly collection: SyncedCollection;
+  readonly id: string;
+  /** Serialised HLC of the last write. */
+  readonly hlc: string;
+  readonly deleted?: boolean;
+  /** Per-field stamps, settings only — see `mergeSettings`. */
+  readonly fieldHlc?: Record<string, string>;
+}
+
+/** A local change waiting to be pushed. Survives restarts; drains when online. */
+export interface OutboxEntry extends Change {
+  readonly localSeq?: number;
+}
+
+/** Device-level sync state. Single row. */
+export interface SyncMeta {
+  readonly id: 'sync';
+  /** Stable per-device id, also the HLC tie-breaker. */
+  readonly deviceId: string;
+  readonly hlcPhysical: number;
+  readonly hlcCounter: number;
+  /** Namespace on the server. Null until this device is linked. */
+  readonly spaceId: string | null;
+  readonly serverUrl: string | null;
+  /** Highest server sequence this device has pulled. */
+  readonly lastPulledSeq: number;
+  readonly lastSyncedAtISO: string | null;
+  readonly lastError: string | null;
+}
+
 export class MealPlanningDatabase extends Dexie {
   ingredients!: Table<Ingredient, string>;
   recipes!: Table<Recipe, string>;
@@ -57,8 +100,13 @@ export class MealPlanningDatabase extends Dexie {
   carryOver!: Table<CarryOverEntry, string>;
   settings!: Table<AppSettings, string>;
 
+  recordMeta!: Table<RecordMeta, string>;
+  outbox!: Table<OutboxEntry, number>;
+  syncMeta!: Table<SyncMeta, string>;
+
   constructor() {
     super('meal-planning');
+
     this.version(1).stores({
       ingredients: 'id, category, name',
       recipes: 'id, mealType, name, builtIn',
@@ -70,6 +118,16 @@ export class MealPlanningDatabase extends Dexie {
       carryOver: 'ingredientId',
       settings: 'id',
     });
+
+    this.version(2).stores({
+      recordMeta: 'key, collection, hlc',
+      outbox: '++localSeq, collection, id',
+      syncMeta: 'id',
+    });
+    // Existing rows deliberately get no meta here. They are stamped on first link
+    // by `enqueueEverything`, which needs a clock that does not exist yet at
+    // migration time — and stamping them now would mean a device that never syncs
+    // pays for bookkeeping it never uses.
   }
 }
 
