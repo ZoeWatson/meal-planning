@@ -18,10 +18,19 @@ const STATUS_LABEL: Record<PantryItem['status'], string> = {
 };
 
 /**
- * Staples, pantry and leftovers — the three things that change what gets bought
+ * Staples, pantry and banked leftovers — the things that change what gets bought
  * without changing what gets cooked.
+ *
+ * `embedded` drops the screen chrome so the same component can live inside a
+ * sheet. It moved off the tab bar when Cook arrived — six tabs is the ceiling on a
+ * phone, and marking the pantry low is a monthly job while cooking is a daily one.
  */
-export function KitchenScreen({ state }: { state: AppState }): JSX.Element {
+export function KitchenScreen({
+  state, embedded = false,
+}: {
+  state: AppState;
+  embedded?: boolean;
+}): JSX.Element {
   const { ingredients, staples, pantry, settings } = state;
   const [picking, setPicking] = useState<'staple' | 'pantry' | null>(null);
 
@@ -36,10 +45,8 @@ export function KitchenScreen({ state }: { state: AppState }): JSX.Element {
     [pantry, ingredients],
   );
 
-  return (
-    <main className="screen">
-      <div className="header"><h1>Kitchen</h1></div>
-
+  const body = (
+    <>
       {/* --- Staples ------------------------------------------------------ */}
       <h2 className="section-title">Weekly staples</h2>
       <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
@@ -169,6 +176,14 @@ export function KitchenScreen({ state }: { state: AppState }): JSX.Element {
           }}
         />
       )}
+    </>
+  );
+
+  if (embedded) return body;
+  return (
+    <main className="screen">
+      <div className="header"><h1>Kitchen</h1></div>
+      {body}
     </main>
   );
 }

@@ -44,6 +44,14 @@ export const BookIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const PotIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 9h16v7a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" />
+    <path d="M2 9h20M6 9V7M18 9V7" />
+    <path d="M9 5c0-1 1-1.4 1-2.5M15 5c0-1 1-1.4 1-2.5" />
+  </Svg>
+);
+
 export const JarIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M8 3h8M7 7h10v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z" />

@@ -19,6 +19,7 @@ import type {
 } from '../domain/types';
 import type { Change, SyncedCollection } from '../domain/sync/types';
 import type { BarcodeEntry, CustomItem, Expense } from '../domain/budget';
+import type { CookedMeal, Leftover, MealLogEntry } from '../domain/cooking';
 
 /** A single ticked box, keyed by plan and ingredient. */
 export interface GroceryCheck {
@@ -119,6 +120,10 @@ export class MealPlanningDatabase extends Dexie {
   customItems!: Table<CustomItem, string>;
   barcodes!: Table<BarcodeEntry, string>;
 
+  cookedMeals!: Table<CookedMeal, string>;
+  leftovers!: Table<Leftover, string>;
+  mealLog!: Table<MealLogEntry, string>;
+
   recordMeta!: Table<RecordMeta, string>;
   outbox!: Table<OutboxEntry, number>;
   syncMeta!: Table<SyncMeta, string>;
@@ -153,6 +158,14 @@ export class MealPlanningDatabase extends Dexie {
       expenses: 'id, dateISO, kind, planId',
       customItems: 'id, planId',
       barcodes: 'barcode',
+    });
+
+    this.version(4).stores({
+      cookedMeals: 'id, recipeId, cookedAtISO, planId',
+      // `useByISO` indexed because the fridge view is always "what expires next".
+      leftovers: 'id, cookedMealId, useByISO, closedAtISO',
+      // `dateISO` indexed because the log is always read a week at a time.
+      mealLog: 'id, dateISO, source, recipeId',
     });
   }
 }

@@ -5,6 +5,8 @@ import { resetAll, updateSettings } from '../db/repository';
 import { REGIONS } from '../domain/seasonality';
 import { DERIVABLE_DIETS } from '../domain/nutrition';
 import { AllergySection } from './AllergySection';
+import { KitchenScreen } from './KitchenScreen';
+import { Sheet } from '../components/Sheet';
 import { ImportSheet } from './ImportSheet';
 import { SyncSheet } from './SyncSheet';
 import type { MealType } from '../domain/types';
@@ -20,6 +22,7 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [kitchen, setKitchen] = useState(false);
 
   const region = REGIONS.find((r) => r.id === settings.regionId) ?? REGIONS[0];
 
@@ -219,6 +222,16 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
         </div>
       </div>
 
+      {/* --- Kitchen ------------------------------------------------------ */}
+      <h2 className="section-title">Kitchen</h2>
+      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+        Weekly staples, what is in the pantry, and shelf-stable leftovers banked
+        from previous shops.
+      </p>
+      <button className="btn block" style={{ marginBottom: 10 }} onClick={() => setKitchen(true)}>
+        Staples &amp; pantry
+      </button>
+
       {/* --- Sync --------------------------------------------------------- */}
       <h2 className="section-title">Sync</h2>
       <div className="card small dim">
@@ -262,6 +275,11 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
 
       {importing && <ImportSheet onClose={() => setImporting(false)} />}
       {syncing && <SyncSheet onClose={() => setSyncing(false)} />}
+      {kitchen && (
+        <Sheet title="Staples & pantry" onClose={() => setKitchen(false)}>
+          <KitchenScreen state={state} embedded />
+        </Sheet>
+      )}
     </main>
   );
 }
