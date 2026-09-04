@@ -1,0 +1,361 @@
+[
+  {
+    "id": "lemon-garlic-chicken-traybake",
+    "name": "Lemon garlic chicken traybake",
+    "mealType": "full",
+    "baseServings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 40,
+    "tags": ["mediterranean", "roast", "one-pan"],
+    "primaryProtein": "chicken-thigh",
+    "ingredients": [
+      { "item": "chicken thighs", "quantity": 800, "unit": "g" },
+      { "item": "potatoes", "quantity": 600, "unit": "g" },
+      { "item": "carrots", "quantity": 300, "unit": "g" },
+      { "item": "garlic", "quantity": 5, "unit": "clove", "prep": "smashed" },
+      { "item": "lemon", "quantity": 1, "unit": "each", "prep": "quartered" },
+      { "item": "olive oil", "quantity": 3, "unit": "tbsp" },
+      { "item": "fresh parsley", "quantity": 10, "unit": "g", "prep": "chopped" },
+      { "item": "salt", "quantity": 1, "unit": "tsp" },
+      { "item": "black pepper", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      "Heat the oven to 220°C.",
+      "Halve the potatoes and cut the carrots into thick batons. Toss with two thirds of the oil, salt and pepper on a large tray.",
+      "Nestle the chicken thighs skin-side up among the vegetables. Tuck in the garlic and lemon quarters and brush the chicken with the remaining oil.",
+      "Roast 40 minutes, until the chicken skin is dark and the potatoes are crisp at the edges.",
+      "Squeeze the roasted lemon over everything and scatter with parsley."
+    ]
+  },
+  {
+    "id": "squash-chickpea-curry",
+    "name": "Butternut squash and chickpea curry",
+    "mealType": "full",
+    "baseServings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "tags": ["indian", "curry", "one-pot"],
+    "primaryProtein": "chickpeas",
+    "ingredients": [
+      { "item": "butternut squash", "quantity": 700, "unit": "g", "prep": "cubed" },
+      { "item": "canned chickpeas", "quantity": 540, "unit": "g", "prep": "drained" },
+      { "item": "coconut milk", "quantity": 400, "unit": "g" },
+      { "item": "onion", "quantity": 1, "unit": "each", "prep": "diced" },
+      { "item": "garlic", "quantity": 4, "unit": "clove", "prep": "minced" },
+      { "item": "ginger", "quantity": 20, "unit": "g", "prep": "grated" },
+      { "item": "curry powder", "quantity": 2, "unit": "tbsp" },
+      { "item": "baby spinach", "quantity": 100, "unit": "g" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" },
+      { "item": "salt", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      "Soften the onion in the oil over medium heat, 8 minutes.",
+      "Add the garlic, ginger and curry powder and fry 1 minute until fragrant.",
+      "Add the squash, chickpeas and coconut milk. Simmer covered 20 minutes, until the squash yields to a knife.",
+      "Stir through the spinach until it collapses. Season and serve."
+    ]
+  },
+  {
+    "id": "beef-broccoli-stir-fry",
+    "name": "Beef and broccoli stir fry",
+    "mealType": "full",
+    "baseServings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 15,
+    "tags": ["asian", "stir-fry", "quick"],
+    "primaryProtein": "ground-beef",
+    "ingredients": [
+      { "item": "ground beef", "quantity": 450, "unit": "g" },
+      { "item": "broccoli", "quantity": 350, "unit": "g", "prep": "cut into florets" },
+      { "item": "bell peppers", "quantity": 150, "unit": "g", "prep": "sliced" },
+      { "item": "garlic", "quantity": 4, "unit": "clove", "prep": "minced" },
+      { "item": "ginger", "quantity": 15, "unit": "g", "prep": "grated" },
+      { "item": "soy sauce", "quantity": 3, "unit": "tbsp" },
+      { "item": "long grain rice", "quantity": 300, "unit": "g" },
+      { "item": "olive oil", "quantity": 1, "unit": "tbsp" }
+    ],
+    "steps": [
+      "Start the rice.",
+      "Brown the beef hard in a very hot pan, breaking it up, 5 minutes. Remove.",
+      "Add the broccoli and peppers with a splash of water; cover and steam 3 minutes.",
+      "Return the beef, add garlic, ginger and soy sauce, and toss 2 minutes. Serve over rice."
+    ]
+  },
+  {
+    "id": "lentil-bolognese",
+    "name": "Red lentil bolognese",
+    "mealType": "full",
+    "baseServings": 4,
+    "prepMinutes": 10,
+    "cookMinutes": 35,
+    "tags": ["italian", "pasta", "batch-friendly"],
+    "primaryProtein": "red-lentils",
+    "ingredients": [
+      { "item": "red lentils", "quantity": 250, "unit": "g" },
+      { "item": "canned tomatoes", "quantity": 796, "unit": "g" },
+      { "item": "onion", "quantity": 1, "unit": "each", "prep": "finely diced" },
+      { "item": "carrots", "quantity": 150, "unit": "g", "prep": "finely diced" },
+      { "item": "garlic", "quantity": 4, "unit": "clove", "prep": "minced" },
+      { "item": "pasta", "quantity": 400, "unit": "g" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" },
+      { "item": "parmesan", "quantity": 40, "unit": "g", "prep": "grated", "optional": true },
+      { "item": "salt", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      "Sweat the onion, carrot and garlic in the oil over low heat, 10 minutes.",
+      "Add the lentils and tomatoes, plus a can of water. Simmer 25 minutes, until the lentils have gone soft and the sauce is thick.",
+      "Cook the pasta. Toss with the sauce and finish with parmesan."
+    ]
+  },
+  {
+    "id": "mushroom-kale-risotto",
+    "name": "Mushroom and kale risotto",
+    "mealType": "full",
+    "baseServings": 4,
+    "prepMinutes": 10,
+    "cookMinutes": 35,
+    "tags": ["italian", "risotto", "comfort"],
+    "primaryProtein": "parmesan",
+    "ingredients": [
+      { "item": "arborio rice", "quantity": 320, "unit": "g" },
+      { "item": "cremini mushrooms", "quantity": 300, "unit": "g", "prep": "sliced" },
+      { "item": "kale", "quantity": 100, "unit": "g", "prep": "stems removed, shredded" },
+      { "item": "onion", "quantity": 1, "unit": "each", "prep": "finely diced" },
+      { "item": "garlic", "quantity": 3, "unit": "clove", "prep": "minced" },
+      { "item": "vegetable stock", "quantity": 1200, "unit": "ml" },
+      { "item": "parmesan", "quantity": 60, "unit": "g", "prep": "grated" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" }
+    ],
+    "steps": [
+      "Fry the mushrooms in a dry pan until they squeak and brown. Set aside.",
+      "Soften the onion and garlic in the oil, then add the rice and toast 2 minutes.",
+      "Add hot stock a ladle at a time, stirring, until the rice is just tender — about 20 minutes.",
+      "Fold through the mushrooms, kale and parmesan. Rest 2 minutes before serving."
+    ]
+  },
+  {
+    "id": "salmon-roasted-veg",
+    "name": "Roast salmon with summer vegetables",
+    "mealType": "full",
+    "baseServings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 25,
+    "tags": ["mediterranean", "roast", "one-pan"],
+    "primaryProtein": "salmon-fillet",
+    "ingredients": [
+      { "item": "salmon", "quantity": 340, "unit": "g" },
+      { "item": "zucchini", "quantity": 200, "unit": "g", "prep": "thick sliced" },
+      { "item": "bell peppers", "quantity": 150, "unit": "g", "prep": "cut into strips" },
+      { "item": "potatoes", "quantity": 300, "unit": "g", "prep": "thinly sliced" },
+      { "item": "lemon", "quantity": 1, "unit": "each" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" },
+      { "item": "fresh parsley", "quantity": 8, "unit": "g", "prep": "chopped" }
+    ],
+    "steps": [
+      "Heat the oven to 200°C. Roast the potatoes in the oil for 15 minutes.",
+      "Add the zucchini and peppers, lay the salmon on top, and squeeze over half the lemon.",
+      "Roast a further 12 minutes, until the salmon flakes.",
+      "Finish with parsley and the remaining lemon."
+    ]
+  },
+
+  {
+    "id": "greek-salad-bowl",
+    "name": "Greek salad bowl",
+    "mealType": "light",
+    "baseServings": 2,
+    "prepMinutes": 12,
+    "cookMinutes": 0,
+    "tags": ["mediterranean", "salad", "no-cook"],
+    "primaryProtein": "feta",
+    "ingredients": [
+      { "item": "cucumber", "quantity": 200, "unit": "g", "prep": "chunked" },
+      { "item": "tomatoes", "quantity": 250, "unit": "g", "prep": "wedged" },
+      { "item": "feta", "quantity": 100, "unit": "g", "prep": "crumbled" },
+      { "item": "romaine", "quantity": 150, "unit": "g", "prep": "torn" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" },
+      { "item": "lemon", "quantity": 0.5, "unit": "each" },
+      { "item": "black pepper", "quantity": 0.5, "unit": "tsp" }
+    ],
+    "steps": [
+      "Combine the cucumber, tomatoes and lettuce.",
+      "Dress with oil, lemon and plenty of pepper, then crumble the feta over the top."
+    ]
+  },
+  {
+    "id": "kale-chickpea-salad",
+    "name": "Kale and chickpea salad with tahini",
+    "mealType": "light",
+    "baseServings": 2,
+    "prepMinutes": 15,
+    "cookMinutes": 0,
+    "tags": ["salad", "no-cook", "make-ahead"],
+    "primaryProtein": "chickpeas",
+    "ingredients": [
+      { "item": "kale", "quantity": 120, "unit": "g", "prep": "stems removed, shredded" },
+      { "item": "canned chickpeas", "quantity": 270, "unit": "g", "prep": "drained" },
+      { "item": "feta", "quantity": 60, "unit": "g", "prep": "crumbled" },
+      { "item": "tahini", "quantity": 2, "unit": "tbsp" },
+      { "item": "lemon", "quantity": 1, "unit": "each" },
+      { "item": "olive oil", "quantity": 1, "unit": "tbsp" },
+      { "item": "garlic", "quantity": 1, "unit": "clove", "prep": "grated" }
+    ],
+    "steps": [
+      "Whisk the tahini, lemon juice, garlic and oil with a splash of water into a pourable dressing.",
+      "Massage the dressing into the kale with your hands until it softens and darkens, about a minute.",
+      "Fold in the chickpeas and feta. Better after twenty minutes in the fridge."
+    ]
+  },
+  {
+    "id": "white-bean-tomato-soup",
+    "name": "White bean and tomato soup",
+    "mealType": "light",
+    "baseServings": 4,
+    "prepMinutes": 10,
+    "cookMinutes": 25,
+    "tags": ["italian", "soup", "one-pot", "batch-friendly"],
+    "primaryProtein": "white-beans",
+    "ingredients": [
+      { "item": "cannellini beans", "quantity": 540, "unit": "g", "prep": "drained" },
+      { "item": "canned tomatoes", "quantity": 400, "unit": "g" },
+      { "item": "onion", "quantity": 1, "unit": "each", "prep": "diced" },
+      { "item": "garlic", "quantity": 3, "unit": "clove", "prep": "sliced" },
+      { "item": "kale", "quantity": 80, "unit": "g", "prep": "shredded" },
+      { "item": "vegetable stock", "quantity": 700, "unit": "ml" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" },
+      { "item": "smoked paprika", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      "Soften the onion and garlic in the oil, then stir in the paprika.",
+      "Add the tomatoes, beans and stock. Simmer 20 minutes.",
+      "Crush some of the beans against the side of the pot to thicken, then stir in the kale for the last 3 minutes."
+    ]
+  },
+  {
+    "id": "spinach-egg-scramble",
+    "name": "Spinach scramble on toast",
+    "mealType": "light",
+    "baseServings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 8,
+    "tags": ["breakfast", "quick", "eggs"],
+    "primaryProtein": "egg",
+    "ingredients": [
+      { "item": "eggs", "quantity": 4, "unit": "each" },
+      { "item": "baby spinach", "quantity": 60, "unit": "g" },
+      { "item": "bread", "quantity": 2, "unit": "slice" },
+      { "item": "olive oil", "quantity": 1, "unit": "tbsp" },
+      { "item": "black pepper", "quantity": 0.5, "unit": "tsp" },
+      { "item": "parmesan", "quantity": 15, "unit": "g", "prep": "grated", "optional": true }
+    ],
+    "steps": [
+      "Wilt the spinach in the oil over low heat, then pour in the beaten eggs.",
+      "Stir slowly and take the pan off the heat while the eggs still look underdone.",
+      "Pile onto toast and grind over black pepper."
+    ]
+  },
+  {
+    "id": "black-bean-wrap",
+    "name": "Black bean and pepper wraps",
+    "mealType": "light",
+    "baseServings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 8,
+    "tags": ["mexican", "quick", "handheld"],
+    "primaryProtein": "black-beans",
+    "ingredients": [
+      { "item": "canned black beans", "quantity": 270, "unit": "g", "prep": "drained" },
+      { "item": "tortillas", "quantity": 2, "unit": "each" },
+      { "item": "bell peppers", "quantity": 150, "unit": "g", "prep": "sliced" },
+      { "item": "romaine", "quantity": 80, "unit": "g", "prep": "shredded" },
+      { "item": "greek yogurt", "quantity": 60, "unit": "g" },
+      { "item": "cumin", "quantity": 1, "unit": "tsp" },
+      { "item": "olive oil", "quantity": 1, "unit": "tbsp" },
+      { "item": "lemon", "quantity": 0.5, "unit": "each" }
+    ],
+    "steps": [
+      "Fry the peppers hard in the oil until they take on colour, then add the beans and cumin and crush lightly.",
+      "Warm the tortillas.",
+      "Fill with the bean mixture, lettuce and yogurt loosened with lemon juice."
+    ]
+  },
+
+  {
+    "id": "hummus-veg-sticks",
+    "name": "Hummus with vegetable sticks",
+    "mealType": "snack",
+    "baseServings": 4,
+    "prepMinutes": 10,
+    "cookMinutes": 0,
+    "tags": ["dip", "no-cook", "make-ahead"],
+    "primaryProtein": "chickpeas",
+    "ingredients": [
+      { "item": "canned chickpeas", "quantity": 400, "unit": "g", "prep": "drained" },
+      { "item": "tahini", "quantity": 3, "unit": "tbsp" },
+      { "item": "lemon", "quantity": 1, "unit": "each" },
+      { "item": "garlic", "quantity": 1, "unit": "clove" },
+      { "item": "carrots", "quantity": 200, "unit": "g", "prep": "cut into sticks" },
+      { "item": "cucumber", "quantity": 150, "unit": "g", "prep": "cut into sticks" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" }
+    ],
+    "steps": [
+      "Blend the chickpeas, tahini, lemon juice, garlic and oil with a few tablespoons of cold water until properly smooth.",
+      "Serve with the vegetable sticks."
+    ]
+  },
+  {
+    "id": "paprika-roasted-chickpeas",
+    "name": "Smoky roasted chickpeas",
+    "mealType": "snack",
+    "baseServings": 4,
+    "prepMinutes": 5,
+    "cookMinutes": 30,
+    "tags": ["roast", "make-ahead", "crunchy"],
+    "primaryProtein": "chickpeas",
+    "ingredients": [
+      { "item": "canned chickpeas", "quantity": 540, "unit": "g", "prep": "drained and dried" },
+      { "item": "olive oil", "quantity": 2, "unit": "tbsp" },
+      { "item": "smoked paprika", "quantity": 2, "unit": "tsp" },
+      { "item": "salt", "quantity": 1, "unit": "tsp" }
+    ],
+    "steps": [
+      "Heat the oven to 200°C.",
+      "Toss the chickpeas with oil, paprika and salt and spread out on a tray.",
+      "Roast 30 minutes, shaking twice, until they rattle. They crisp further as they cool."
+    ]
+  },
+  {
+    "id": "apple-peanut-butter",
+    "name": "Apple with peanut butter",
+    "mealType": "snack",
+    "baseServings": 2,
+    "prepMinutes": 3,
+    "cookMinutes": 0,
+    "tags": ["no-cook", "fruit"],
+    "primaryProtein": "peanut-butter",
+    "ingredients": [
+      { "item": "apples", "quantity": 2, "unit": "each", "prep": "sliced" },
+      { "item": "peanut butter", "quantity": 40, "unit": "g" }
+    ],
+    "steps": ["Slice the apples and serve with the peanut butter for dipping."]
+  },
+  {
+    "id": "yogurt-blueberry-oats",
+    "name": "Yogurt with blueberries and toasted oats",
+    "mealType": "snack",
+    "baseServings": 2,
+    "prepMinutes": 5,
+    "cookMinutes": 5,
+    "tags": ["no-cook", "fruit", "breakfast"],
+    "primaryProtein": "greek-yogurt",
+    "ingredients": [
+      { "item": "greek yogurt", "quantity": 400, "unit": "g" },
+      { "item": "blueberries", "quantity": 150, "unit": "g" },
+      { "item": "rolled oats", "quantity": 60, "unit": "g" }
+    ],
+    "steps": [
+      "Toast the oats in a dry pan until they smell nutty, 4 minutes. Cool.",
+      "Layer with the yogurt and blueberries."
+    ]
+  }
+]
