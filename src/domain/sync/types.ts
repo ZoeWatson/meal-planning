@@ -15,6 +15,9 @@ export const SYNCED_COLLECTIONS = [
   // Spending. Barcodes are included because what a scan means is worth learning
   // once across all your devices, not once per device.
   'expenses', 'customItems', 'barcodes',
+  // Cooking. Leftovers especially: knowing what is in the fridge is useless if it
+  // only exists on the device that happened to do the cooking.
+  'cookedMeals', 'leftovers', 'mealLog',
 ] as const;
 
 export type SyncedCollection = (typeof SYNCED_COLLECTIONS)[number];

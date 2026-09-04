@@ -13,6 +13,11 @@ import { importBundle, type ImportBundle, type ImportResult } from '../domain/im
 import { toJson } from '../domain/import/export';
 import { syncedBulkPut, syncedDelete, syncedPut } from './syncWrites';
 import type { BarcodeEntry, CustomItem, Expense } from '../domain/budget';
+import {
+  addDays, estimateKeeping, localDate,
+  type CookedMeal, type Leftover, type MealLogEntry, type MealSource, type StorageKind,
+} from '../domain/cooking';
+import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
   Id, PantryItem, SalePrice, StapleItem, WeekPlan,
 } from '../domain/types';
@@ -331,6 +336,180 @@ export async function rememberBarcode(entry: Omit<BarcodeEntry, 'updatedAtISO'>)
 
 export async function lookupBarcode(barcode: string): Promise<BarcodeEntry | undefined> {
   return db.barcodes.get(barcode);
+}
+
+// ---------------------------------------------------------------------------
+// Cooking
+// ---------------------------------------------------------------------------
+
+/**
+ * Records a cooking session, banking any leftovers and logging one serving eaten.
+ *
+ * All three in one call because they are one real-world event. Splitting them
+ * across separate user actions would mean the common case — cooked it, ate some,
+ * fridged the rest — takes three taps and gets abandoned halfway, leaving the
+ * data in a state that never happened.
+ */
+export async function recordCooked(input: {
+  recipe: Recipe;
+  ingredients: ReadonlyMap<Id, Ingredient>;
+  servingsMade: number;
+  servingsEaten: number;
+  storage: StorageKind;
+  slotId?: Id;
+  planId?: Id;
+  notes?: string;
+  dateISO?: string;
+}): Promise<{ cooked: CookedMeal; leftover: Leftover | null }> {
+  const dateISO = input.dateISO ?? localDate();
+  const cooked: CookedMeal = {
+    id: newId('cook'),
+    recipeId: input.recipe.id,
+    recipeName: input.recipe.name,
+    slotId: input.slotId,
+    planId: input.planId,
+    cookedAtISO: new Date().toISOString(),
+    servingsMade: input.servingsMade,
+    notes: input.notes,
+  };
+  await syncedPut('cookedMeals', cooked as unknown as Record<string, unknown>);
+
+  if (input.servingsEaten > 0) {
+    await logMeal({
+      dateISO,
+      mealType: input.recipe.mealType,
+      source: 'cooked',
+      label: input.recipe.name,
+      servings: input.servingsEaten,
+      recipeId: input.recipe.id,
+      cookedMealId: cooked.id,
+    });
+  }
+
+  const remaining = input.servingsMade - input.servingsEaten;
+  if (remaining <= 0) return { cooked, leftover: null };
+
+  // The keeping window is computed once and stored, not recomputed on read: it
+  // depends on when the dish went in the fridge, and a recipe edited later must
+  // not silently move the use-by date on food already sitting there.
+  const keeping = estimateKeeping(input.recipe, input.ingredients, input.storage);
+  const leftover: Leftover = {
+    id: newId('left'),
+    cookedMealId: cooked.id,
+    recipeId: input.recipe.id,
+    label: input.recipe.name,
+    servingsRemaining: remaining,
+    storedAtISO: dateISO,
+    storage: input.storage,
+    useByISO: addDays(dateISO, keeping.days),
+  };
+  await syncedPut('leftovers', leftover as unknown as Record<string, unknown>);
+
+  return { cooked, leftover };
+}
+
+/** Eats from a leftover, logging it and closing the record when it runs out. */
+export async function eatLeftover(
+  leftoverId: Id,
+  servings: number,
+  mealType: MealType | 'other' = 'other',
+): Promise<void> {
+  const leftover = await db.leftovers.get(leftoverId);
+  if (!leftover) return;
+
+  const taken = Math.min(servings, leftover.servingsRemaining);
+  const remaining = leftover.servingsRemaining - taken;
+
+  await syncedPut('leftovers', {
+    ...leftover,
+    servingsRemaining: remaining,
+    ...(remaining === 0 ? { closedAtISO: new Date().toISOString() } : {}),
+  } as unknown as Record<string, unknown>);
+
+  await logMeal({
+    dateISO: localDate(),
+    mealType,
+    source: 'leftover',
+    label: leftover.label,
+    servings: taken,
+    recipeId: leftover.recipeId,
+    leftoverId: leftover.id,
+  });
+}
+
+/**
+ * Closes a leftover without logging it as eaten.
+ *
+ * Kept distinct from eating it: food thrown away is not food consumed, and
+ * conflating the two would quietly overstate what the household actually ate.
+ */
+export async function discardLeftover(leftoverId: Id): Promise<void> {
+  const leftover = await db.leftovers.get(leftoverId);
+  if (!leftover) return;
+  await syncedPut('leftovers', {
+    ...leftover, closedAtISO: new Date().toISOString(), discarded: true,
+  } as unknown as Record<string, unknown>);
+}
+
+export async function updateLeftover(id: Id, patch: Partial<Leftover>): Promise<void> {
+  const existing = await db.leftovers.get(id);
+  if (!existing) return;
+  await syncedPut('leftovers', { ...existing, ...patch, id } as unknown as Record<string, unknown>);
+}
+
+// --- meal log ---------------------------------------------------------------
+
+export async function logMeal(
+  input: Omit<MealLogEntry, 'id' | 'createdAtISO'> & { id?: Id },
+): Promise<MealLogEntry> {
+  const entry: MealLogEntry = {
+    ...input,
+    id: input.id ?? newId('meal'),
+    createdAtISO: new Date().toISOString(),
+  };
+  await syncedPut('mealLog', entry as unknown as Record<string, unknown>);
+  return entry;
+}
+
+export async function removeMealLogEntry(id: Id): Promise<void> {
+  await syncedDelete('mealLog', id);
+}
+
+/**
+ * Logs a meal out, optionally recording what it cost.
+ *
+ * One action, because eating out is one event — logging the meal and then
+ * separately remembering to add the spend is how the budget quietly drifts from
+ * reality.
+ */
+export async function logMealOut(input: {
+  label: string;
+  servings: number;
+  mealType: MealType | 'other';
+  dateISO: string;
+  amountCents?: number;
+  source?: MealSource;
+}): Promise<void> {
+  let expenseId: Id | undefined;
+
+  if (input.amountCents !== undefined && input.amountCents > 0) {
+    const expense = await addExpense({
+      kind: 'dining',
+      dateISO: input.dateISO,
+      amountCents: input.amountCents,
+      label: input.label,
+    });
+    expenseId = expense.id;
+  }
+
+  await logMeal({
+    dateISO: input.dateISO,
+    mealType: input.mealType,
+    source: input.source ?? 'out',
+    label: input.label,
+    servings: input.servings,
+    expenseId,
+  });
 }
 
 // ---------------------------------------------------------------------------

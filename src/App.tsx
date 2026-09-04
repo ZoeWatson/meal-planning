@@ -5,11 +5,11 @@ import { PlanScreen } from './screens/PlanScreen';
 import { GroceryScreen } from './screens/GroceryScreen';
 import { BudgetScreen } from './screens/BudgetScreen';
 import { RecipesScreen } from './screens/RecipesScreen';
-import { KitchenScreen } from './screens/KitchenScreen';
+import { CookScreen } from './screens/CookScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { BookIcon, CalendarIcon, CartIcon, GearIcon, JarIcon, WalletIcon } from './components/icons';
+import { BookIcon, CalendarIcon, CartIcon, GearIcon, PotIcon, WalletIcon } from './components/icons';
 
-type Tab = 'plan' | 'grocery' | 'budget' | 'recipes' | 'kitchen' | 'settings';
+type Tab = 'plan' | 'grocery' | 'cook' | 'budget' | 'recipes' | 'settings';
 
 // Six tabs is the practical ceiling on a 375px phone — roughly 62px each, which
 // still clears a 44px touch target. Labels are kept to one short word for that
@@ -17,9 +17,9 @@ type Tab = 'plan' | 'grocery' | 'budget' | 'recipes' | 'kitchen' | 'settings';
 const TABS: ReadonlyArray<{ id: Tab; label: string; Icon: (p: { size?: number }) => JSX.Element }> = [
   { id: 'plan', label: 'Week', Icon: CalendarIcon },
   { id: 'grocery', label: 'Shop', Icon: CartIcon },
+  { id: 'cook', label: 'Cook', Icon: PotIcon },
   { id: 'budget', label: 'Spend', Icon: WalletIcon },
   { id: 'recipes', label: 'Recipes', Icon: BookIcon },
-  { id: 'kitchen', label: 'Kitchen', Icon: JarIcon },
   { id: 'settings', label: 'More', Icon: GearIcon },
 ];
 
@@ -42,9 +42,9 @@ export function App(): JSX.Element {
     <div className="app">
       {tab === 'plan' && <PlanScreen state={state} onShop={() => setTab('grocery')} />}
       {tab === 'grocery' && <GroceryScreen state={state} onPlan={() => setTab('plan')} />}
+      {tab === 'cook' && <CookScreen state={state} />}
       {tab === 'budget' && <BudgetScreen state={state} />}
       {tab === 'recipes' && <RecipesScreen state={state} />}
-      {tab === 'kitchen' && <KitchenScreen state={state} />}
       {tab === 'settings' && <SettingsScreen state={state} />}
 
       <nav className="tabs">

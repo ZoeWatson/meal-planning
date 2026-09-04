@@ -26,6 +26,12 @@ npm run sync-server    # optional, for syncing between devices
 - **Allergies.** Group-level (tree nuts, milk, wheat…) rather than per ingredient,
   with name inference as a backstop for imported data. Removed from plans and the
   shopping list, and flagged loudly wherever a recipe could still slip through.
+- **Cooking.** The week's meals ready to cook, plus "what can I make from what I
+  already have" — which counts anything ticked off the shopping list, not just the
+  pantry. Mark a meal cooked and the portions you don't eat become tracked
+  leftovers with a use-by date.
+- **A meal log** of what actually got eaten each day, split by cooked, leftovers
+  and eaten out.
 - **Weekly staples** always on the list, and a **pantry** whose stocked items are
   treated as free.
 - **A produce grab bag** of random in-season items, as the antidote to cooking the
@@ -45,6 +51,7 @@ src/domain/        pure logic — no React, no database, all testable
   waste.ts         the objective function the planner minimises
   budget.ts        spending, months, and integer-cent money
   allergens.ts     allergen groups, detection, and its own limits
+  cooking.ts       cooking, leftovers, keeping times, the meal log
   planner/         scoring and week generation
   import/          format, validator, prose parser, stub generator
   sync/            clocks and merge rules
