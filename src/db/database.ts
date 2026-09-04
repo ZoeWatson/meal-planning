@@ -18,6 +18,7 @@ import type {
   PlannerSettings, StapleItem, WeekPlan,
 } from '../domain/types';
 import type { Change, SyncedCollection } from '../domain/sync/types';
+import type { BarcodeEntry, CustomItem, Expense } from '../domain/budget';
 
 /** A single ticked box, keyed by plan and ingredient. */
 export interface GroceryCheck {
@@ -26,7 +27,15 @@ export interface GroceryCheck {
   readonly planId: Id;
   readonly ingredientId: Id;
   readonly checked: boolean;
-  /** The field a future sync will reconcile last-write-wins. */
+  /**
+   * What this line actually cost, in cents. Entered at the shelf or the till.
+   *
+   * Lives on the check rather than in its own table because it is the same unit
+   * of work — one line of one shop — and reusing the record means one sync entry
+   * per line instead of two racing each other.
+   */
+  readonly amountCents?: number;
+  /** The field sync reconciles last-write-wins. */
   readonly updatedAtISO: string;
 }
 
@@ -40,6 +49,12 @@ export interface CarryOverEntry {
 export interface AppSettings extends PlannerSettings {
   readonly id: 'settings';
   readonly spec: SlotSpec;
+  /** Monthly food budget in cents. Null means no goal set. */
+  readonly monthlyBudgetCents: number | null;
+  /** ISO 4217 code, used only for formatting. No conversion happens anywhere. */
+  readonly currency: string;
+  /** Whether eating out counts toward the monthly goal. */
+  readonly budgetIncludesDining: boolean;
   /** Days between shopping trips. Feeds the waste model's survival horizon. */
   readonly cycleDays: number;
   readonly activePlanId: Id | null;
@@ -100,6 +115,10 @@ export class MealPlanningDatabase extends Dexie {
   carryOver!: Table<CarryOverEntry, string>;
   settings!: Table<AppSettings, string>;
 
+  expenses!: Table<Expense, string>;
+  customItems!: Table<CustomItem, string>;
+  barcodes!: Table<BarcodeEntry, string>;
+
   recordMeta!: Table<RecordMeta, string>;
   outbox!: Table<OutboxEntry, number>;
   syncMeta!: Table<SyncMeta, string>;
@@ -128,6 +147,13 @@ export class MealPlanningDatabase extends Dexie {
     // by `enqueueEverything`, which needs a clock that does not exist yet at
     // migration time — and stamping them now would mean a device that never syncs
     // pays for bookkeeping it never uses.
+
+    this.version(3).stores({
+      // `dateISO` indexed because every budget query is "this month".
+      expenses: 'id, dateISO, kind, planId',
+      customItems: 'id, planId',
+      barcodes: 'barcode',
+    });
   }
 }
 
@@ -142,6 +168,9 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
   repeatWindowWeeks: 3,
   wildcardCount: 6,
   cycleDays: 7,
+  monthlyBudgetCents: null,
+  currency: 'CAD',
+  budgetIncludesDining: true,
   spec: {
     full: 5,
     light: 5,

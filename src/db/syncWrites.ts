@@ -26,6 +26,9 @@ const KEY_FIELD: Readonly<Record<SyncedCollection, string>> = {
   carryOver: 'ingredientId',
   recipes: 'id',
   ingredients: 'id',
+  expenses: 'id',
+  customItems: 'id',
+  barcodes: 'barcode',
 };
 
 export function idOf(collection: SyncedCollection, record: Record<string, unknown>): string {

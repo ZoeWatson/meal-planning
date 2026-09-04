@@ -30,6 +30,9 @@ npm run sync-server    # optional, for syncing between devices
 - **Metric and imperial**, toggled at display time.
 - **Bulk import** with a prose-line parser, and export as backup.
 - **Sync** between devices, last-write-wins over hybrid logical clocks.
+- **Spending tracker.** Price items at the shelf with a running total, record what
+  the till actually said, log meals out, and track a monthly goal. Barcode
+  scanning where the browser supports it. All money is integer cents.
 
 ## Layout
 
@@ -37,6 +40,7 @@ npm run sync-server    # optional, for syncing between devices
 src/domain/        pure logic — no React, no database, all testable
   units.ts         everything normalises to grams
   waste.ts         the objective function the planner minimises
+  budget.ts        spending, months, and integer-cent money
   planner/         scoring and week generation
   import/          format, validator, prose parser, stub generator
   sync/            clocks and merge rules
