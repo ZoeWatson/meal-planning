@@ -1,0 +1,43 @@
+{
+  "name": "meal-planning",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.scripts.json --noEmit",
+    "test": "tsx scripts/test.ts",
+    "demo": "tsx scripts/demo.ts",
+    "tune": "tsx scripts/tune.ts",
+    "import": "tsx scripts/import.ts",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "engines": {
+    "node": ">=18.18"
+  },
+  "comment:overrides": "Two of workbox's transitive deps assume Node 20+: lru-cache v11 calls diagnostics_channel.tracingChannel, and serialize-javascript 6.0.2 uses the global `crypto`. Both are pinned to the last version that runs on Node 18. Delete this whole block once the toolchain moves to Node 20+ — nothing in the app depends on it.",
+  "overrides": {
+    "path-scurry": {
+      "lru-cache": "^10.4.3"
+    },
+    "serialize-javascript": "6.0.0"
+  },
+  "dependencies": {
+    "dexie": "^4.0.10",
+    "dexie-react-hooks": "^1.1.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-plugin-pwa": "^0.21.1"
+  }
+}
