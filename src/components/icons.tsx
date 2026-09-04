@@ -52,6 +52,14 @@ export const JarIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const WalletIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1" />
+    <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
+    <path d="M21 14h-4a2 2 0 0 1 0-4h4z" />
+  </Svg>
+);
+
 export const GearIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="3" />

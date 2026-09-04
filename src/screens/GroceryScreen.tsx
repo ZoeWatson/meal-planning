@@ -1,46 +1,122 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 import type { AppState } from '../state/useAppState';
-import { clearChecks, recordCarryOverFromPlan, setChecked } from '../db/repository';
+import { db } from '../db/database';
+import {
+  addCustomItem, clearChecks, lookupBarcode, recordCarryOverFromPlan, recordShopTotal,
+  rememberBarcode, removeCustomItem, setChecked, setLinePrice, updateCustomItem,
+} from '../db/repository';
 import { carryOverOf } from '../domain/waste';
-import type { DisplayLine } from '../domain/grocery';
+import { scorePlan } from '../domain/planner/scoring';
+import {
+  centsToInput, formatMoney, parseMoney, todayISO, type CustomItem,
+} from '../domain/budget';
 import { CheckIcon } from '../components/icons';
+import { BarcodeScanner, isScanningSupported } from '../components/BarcodeScanner';
+import { Sheet } from '../components/Sheet';
 
 const AISLE_LABELS: Record<string, string> = {
-  produce: 'Produce',
-  bakery: 'Bakery',
-  meat: 'Meat',
-  seafood: 'Seafood',
-  dairy: 'Dairy & eggs',
-  frozen: 'Frozen',
-  grain: 'Grains & pasta',
-  legume: 'Legumes',
-  canned: 'Tins & jars',
-  condiment: 'Condiments',
-  oil: 'Oils',
-  spice: 'Spices',
-  baking: 'Baking',
-  beverage: 'Drinks',
-  other: 'Other',
+  produce: 'Produce', bakery: 'Bakery', meat: 'Meat', seafood: 'Seafood',
+  dairy: 'Dairy & eggs', frozen: 'Frozen', grain: 'Grains & pasta', legume: 'Legumes',
+  canned: 'Tins & jars', condiment: 'Condiments', oil: 'Oils', spice: 'Spices',
+  baking: 'Baking', beverage: 'Drinks', other: 'Other',
 };
 
+/** A planned line and an ad-hoc one, flattened so the list renders uniformly. */
+interface Row {
+  readonly key: string;
+  readonly name: string;
+  readonly category: string;
+  readonly qtyText: string;
+  readonly meta: string;
+  readonly badges: readonly { text: string; tone?: 'warn' | 'accent' }[];
+  readonly checked: boolean;
+  readonly amountCents?: number;
+  readonly custom?: CustomItem;
+  readonly ingredientId?: string;
+  readonly usedBy: readonly string[];
+}
+
 export function GroceryScreen({
-  state,
-  onPlan,
+  state, onPlan,
 }: {
   state: AppState;
   onPlan: () => void;
 }): JSX.Element {
-  const { plan, groceryLines, groceryList, ingredients } = state;
+  const { plan, groceryLines, groceryList, ingredients, ctx, settings } = state;
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hideDone, setHideDone] = useState(false);
+  const [pricing, setPricing] = useState<Row | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
-  const done = groceryLines.filter((l) => l.checked).length;
-  const total = groceryLines.length;
-  const remainingWaste = useMemo(
-    () => groceryLines.reduce((sum, l) => sum + l.wasteCost, 0),
-    [groceryLines],
+  // No default argument: `useLiveQuery`'s third parameter infers `never[]` from an
+  // empty literal and poisons the element type. `?? []` after the fact keeps the
+  // real one.
+  const customItems = useLiveQuery(
+    () => (plan
+      ? db.customItems.where('planId').equals(plan.id).toArray()
+      : Promise.resolve<CustomItem[]>([])),
+    [plan?.id],
+  ) ?? [];
+
+  const checks = useLiveQuery(() => db.checks.toArray(), []) ?? [];
+  const priceByIngredient = useMemo(
+    () => new Map(checks.filter((c) => c.amountCents !== undefined)
+      .map((c) => [c.ingredientId, c.amountCents!])),
+    [checks],
   );
+
+  const rows = useMemo<Row[]>(() => {
+    const planned: Row[] = groceryLines.map((line) => ({
+      key: `p:${line.ingredientId}`,
+      name: line.name,
+      category: line.category,
+      qtyText: line.buyText,
+      meta: [
+        line.needText ? `needs ${line.needText}` : null,
+        line.usedBy.length > 0
+          ? `${line.usedBy.length} meal${line.usedBy.length === 1 ? '' : 's'}`
+          : null,
+      ].filter(Boolean).join(' · '),
+      badges: [
+        ...(line.fromStaples ? [{ text: 'staple' }] : []),
+        ...(line.fromPantry ? [{ text: 'pantry' }] : []),
+        ...(line.fromWildcard ? [{ text: 'grab bag', tone: 'accent' as const }] : []),
+        ...(line.wasteCost > 0.35 ? [{ text: 'may spoil', tone: 'warn' as const }] : []),
+      ],
+      checked: line.checked,
+      amountCents: priceByIngredient.get(line.ingredientId),
+      ingredientId: line.ingredientId,
+      usedBy: line.usedBy,
+    }));
+
+    const extra: Row[] = customItems.map((item) => ({
+      key: `c:${item.id}`,
+      name: item.label,
+      category: item.category,
+      qtyText: item.quantityText ?? '',
+      meta: 'added by you',
+      badges: [{ text: 'added', tone: 'accent' as const }],
+      checked: item.checked,
+      amountCents: item.amountCents,
+      custom: item,
+      usedBy: [],
+    }));
+
+    return [...planned, ...extra];
+  }, [groceryLines, customItems, priceByIngredient]);
+
+  const done = rows.filter((r) => r.checked).length;
+  const total = rows.length;
+  const enteredCents = rows.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
+  const pricedCount = rows.filter((r) => r.amountCents !== undefined).length;
+
+  const estimatedCents = useMemo(() => {
+    if (!plan || !ctx) return 0;
+    return Math.round(scorePlan(plan.slots, plan.wildcards, ctx).spend * 100);
+  }, [plan, ctx]);
 
   if (!plan || total === 0) {
     return (
@@ -55,25 +131,13 @@ export function GroceryScreen({
     );
   }
 
-  const visible = hideDone ? groceryLines.filter((l) => !l.checked) : groceryLines;
-  const groups = groupByAisle(visible);
   const planId = plan.id;
+  const visible = hideDone ? rows.filter((r) => !r.checked) : rows;
+  const groups = groupByAisle(visible);
 
-  /**
-   * Ends the shop: shelf-stable surplus becomes next week's starting stock, so the
-   * 1 kg bag of rice you opened for a 320 g recipe stops being charged as waste
-   * every week thereafter.
-   */
-  async function finishShop(): Promise<void> {
-    if (!groceryList) return;
-    const entries = groceryList.lines.flatMap((line) => {
-      const ing = ingredients.get(line.ingredientId);
-      if (!ing || carryOverOf(ing) !== 'pantry') return [];
-      const leftover = line.purchaseGrams - line.neededGrams;
-      return leftover > 0 ? [{ ingredientId: line.ingredientId, grams: leftover }] : [];
-    });
-    await recordCarryOverFromPlan(entries);
-    await clearChecks(planId);
+  async function toggle(row: Row): Promise<void> {
+    if (row.custom) await updateCustomItem(row.custom.id, { checked: !row.checked });
+    else if (row.ingredientId) await setChecked(planId, row.ingredientId, !row.checked);
   }
 
   return (
@@ -86,86 +150,384 @@ export function GroceryScreen({
           </span>
         </div>
         <div className="progress">
-          <div style={{ width: `${total === 0 ? 0 : (done / total) * 100}%` }} />
+          <div style={{ width: `${(done / total) * 100}%` }} />
         </div>
+        {/* The running total is the point of entering prices at the shelf: you
+            find out you are over before the till, not after. */}
+        {pricedCount > 0 && (
+          <div className="row between" style={{ marginTop: 6 }}>
+            <span className="tiny faint">{pricedCount} of {total} priced</span>
+            <span className="small strong" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatMoney(enteredCents, settings.currency)}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="chips" style={{ marginTop: 10 }}>
         <button className="chip" aria-pressed={hideDone} onClick={() => setHideDone((v) => !v)}>
           {hideDone ? 'Showing what is left' : 'Hide what is in the basket'}
         </button>
+        <button className="chip" onClick={() => setAdding(true)}>+ Add item</button>
         <button className="chip" onClick={() => void clearChecks(planId)}>Untick all</button>
       </div>
 
-      {groups.map(([category, lines]) => (
+      {groups.map(([category, items]) => (
         <section key={category}>
           <h2 className="aisle">{AISLE_LABELS[category] ?? category}</h2>
-          {lines.map((line) => (
-            <button
-              key={line.ingredientId}
-              className={`gline${line.checked ? ' done' : ''}`}
-              onClick={() => void setChecked(planId, line.ingredientId, !line.checked)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setExpanded(expanded === line.ingredientId ? null : line.ingredientId);
-              }}
-            >
-              <span className="tickbox"><CheckIcon /></span>
+          {items.map((row) => (
+            <div className={`gline${row.checked ? ' done' : ''}`} key={row.key}>
+              <button
+                className="tickbox"
+                aria-label={row.checked ? `Untick ${row.name}` : `Tick ${row.name}`}
+                aria-pressed={row.checked}
+                onClick={() => void toggle(row)}
+              >
+                <CheckIcon />
+              </button>
 
-              <span className="grow">
-                <span className="gname">{line.name}</span>
+              <button
+                className="grow"
+                style={{ background: 'none', border: 0, padding: 0, textAlign: 'left' }}
+                onClick={() => setExpanded(expanded === row.key ? null : row.key)}
+              >
+                <span className="gname">{row.name}</span>
                 <span className="gmeta">
-                  {line.fromStaples && <span className="badge">staple</span>}
-                  {line.fromPantry && <span className="badge">pantry</span>}
-                  {line.fromWildcard && <span className="badge accent">grab bag</span>}
-                  {line.wasteCost > 0.35 && <span className="badge warn">may spoil</span>}
-                  {line.needText ? `needs ${line.needText}` : null}
-                  {line.usedBy.length > 0 && (
-                    <>
-                      {line.needText ? ' · ' : ''}
-                      {expanded === line.ingredientId
-                        ? line.usedBy.join(', ')
-                        : `${line.usedBy.length} meal${line.usedBy.length === 1 ? '' : 's'}`}
-                    </>
-                  )}
+                  {row.badges.map((b) => (
+                    <span className={`badge${b.tone ? ` ${b.tone}` : ''}`} key={b.text}>{b.text}</span>
+                  ))}
+                  {expanded === row.key && row.usedBy.length > 0 ? row.usedBy.join(', ') : row.meta}
                 </span>
-              </span>
+              </button>
 
-              <span className="gqty">{line.buyText}</span>
-            </button>
+              <span className="gqty" style={{ marginRight: 6 }}>{row.qtyText}</span>
+
+              <button
+                className={`price-chip${row.amountCents !== undefined ? ' set' : ''}`}
+                aria-label={`Price for ${row.name}`}
+                onClick={() => setPricing(row)}
+              >
+                {row.amountCents !== undefined
+                  ? formatMoney(row.amountCents, settings.currency)
+                  : '＋$'}
+              </button>
+            </div>
           ))}
         </section>
       ))}
 
-      <div className="card" style={{ marginTop: 24 }}>
-        <div className="small dim">
-          Roughly <strong>${remainingWaste.toFixed(2)}</strong> of this shop is surplus
-          likely to be thrown away — mostly fresh items sold in packs bigger than the
-          week needs. Long-press a line to see which meals want it.
-        </div>
-      </div>
-
       <button
-        className="btn block"
-        style={{ marginTop: 10 }}
-        onClick={() => void finishShop()}
-        disabled={done === 0}
+        className="btn primary block"
+        style={{ marginTop: 24 }}
+        onClick={() => setFinishing(true)}
       >
-        Finish shop — bank the leftovers
+        Finish shop
       </button>
       <p className="tiny faint" style={{ marginTop: 6, textAlign: 'center' }}>
-        Records shelf-stable surplus so next week's plan knows you already have it.
+        Records what it cost and banks any shelf-stable leftovers for next week.
       </p>
+
+      {pricing && (
+        <PriceSheet
+          row={pricing}
+          planId={planId}
+          currency={settings.currency}
+          onClose={() => setPricing(null)}
+        />
+      )}
+      {adding && (
+        <AddItemSheet
+          planId={planId}
+          currency={settings.currency}
+          onClose={() => setAdding(false)}
+        />
+      )}
+      {finishing && (
+        <FinishShopSheet
+          planId={planId}
+          currency={settings.currency}
+          enteredCents={enteredCents}
+          estimatedCents={estimatedCents}
+          pricedCount={pricedCount}
+          totalCount={total}
+          onClose={() => setFinishing(false)}
+          onDone={async () => {
+            if (!groceryList) return;
+            const entries = groceryList.lines.flatMap((line) => {
+              const ing = ingredients.get(line.ingredientId);
+              if (!ing || carryOverOf(ing) !== 'pantry') return [];
+              const leftover = line.purchaseGrams - line.neededGrams;
+              return leftover > 0 ? [{ ingredientId: line.ingredientId, grams: leftover }] : [];
+            });
+            await recordCarryOverFromPlan(entries);
+            await clearChecks(planId);
+            for (const item of customItems) await removeCustomItem(item.id);
+          }}
+        />
+      )}
     </main>
   );
 }
 
-function groupByAisle(lines: readonly DisplayLine[]): Array<[string, DisplayLine[]]> {
-  const groups = new Map<string, DisplayLine[]>();
-  for (const line of lines) {
-    const existing = groups.get(line.category);
-    if (existing) existing.push(line);
-    else groups.set(line.category, [line]);
+function groupByAisle(rows: readonly Row[]): Array<[string, Row[]]> {
+  const groups = new Map<string, Row[]>();
+  for (const row of rows) {
+    const existing = groups.get(row.category);
+    if (existing) existing.push(row);
+    else groups.set(row.category, [row]);
   }
   return [...groups.entries()];
+}
+
+// ---------------------------------------------------------------------------
+
+function PriceSheet({
+  row, planId, currency, onClose,
+}: {
+  row: Row; planId: string; currency: string; onClose: () => void;
+}): JSX.Element {
+  const [value, setValue] = useState(
+    row.amountCents !== undefined ? centsToInput(row.amountCents) : '',
+  );
+  const cents = parseMoney(value);
+
+  async function save(): Promise<void> {
+    if (row.custom) await updateCustomItem(row.custom.id, { amountCents: cents ?? undefined });
+    else if (row.ingredientId) await setLinePrice(planId, row.ingredientId, cents);
+
+    // A scanned item remembers its price, so next month it fills itself in.
+    if (row.custom?.barcode && cents !== null) {
+      await rememberBarcode({
+        barcode: row.custom.barcode, label: row.custom.label, lastAmountCents: cents,
+      });
+    }
+    onClose();
+  }
+
+  return (
+    <Sheet title={row.name} onClose={onClose}>
+      <div className="field">
+        <label htmlFor="price">What did it cost?</label>
+        <input
+          id="price" type="text" inputMode="decimal" autoFocus
+          value={value} onChange={(e) => setValue(e.target.value)}
+          placeholder="0.00"
+          onKeyDown={(e) => { if (e.key === 'Enter') void save(); }}
+        />
+        <div className="hint">Buying {row.qtyText || 'this'}.</div>
+      </div>
+
+      <button className="btn primary block" onClick={() => void save()}>
+        {cents !== null ? `Save ${formatMoney(cents, currency)}` : 'Save'}
+      </button>
+      {row.amountCents !== undefined && (
+        <button
+          className="btn block ghost"
+          style={{ marginTop: 8 }}
+          onClick={() => { setValue(''); void save(); }}
+        >
+          Clear price
+        </button>
+      )}
+    </Sheet>
+  );
+}
+
+function AddItemSheet({
+  planId, currency, onClose,
+}: {
+  planId: string; currency: string; onClose: () => void;
+}): JSX.Element {
+  const [scanning, setScanning] = useState(false);
+  const [label, setLabel] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [price, setPrice] = useState('');
+  const [barcode, setBarcode] = useState<string | null>(null);
+  const [recognised, setRecognised] = useState(false);
+
+  const cents = parseMoney(price);
+
+  async function onDetected(code: string): Promise<void> {
+    setScanning(false);
+    setBarcode(code);
+
+    // Known barcodes fill themselves in; the first scan of anything still needs
+    // a name, because a barcode carries no product information on its own.
+    const known = await lookupBarcode(code);
+    if (known) {
+      setLabel(known.label);
+      setRecognised(true);
+      if (known.lastAmountCents !== undefined) setPrice(centsToInput(known.lastAmountCents));
+    }
+  }
+
+  async function save(): Promise<void> {
+    const name = label.trim();
+    if (name === '') return;
+
+    await addCustomItem({
+      planId, label: name, category: 'other', checked: false,
+      quantityText: quantity.trim() || undefined,
+      amountCents: cents ?? undefined,
+      barcode: barcode ?? undefined,
+    });
+
+    if (barcode) {
+      await rememberBarcode({
+        barcode, label: name, lastAmountCents: cents ?? undefined,
+      });
+    }
+    onClose();
+  }
+
+  return (
+    <Sheet title="Add an item" onClose={onClose}>
+      {scanning ? (
+        <BarcodeScanner
+          onDetected={(code) => void onDetected(code)}
+          onCancel={() => setScanning(false)}
+        />
+      ) : (
+        <>
+          {isScanningSupported() && (
+            <button className="btn block" style={{ marginBottom: 12 }} onClick={() => setScanning(true)}>
+              Scan a barcode
+            </button>
+          )}
+
+          {barcode && (
+            <div className="card tight small dim">
+              {recognised
+                ? <>Recognised <strong>{label}</strong> from a previous scan.</>
+                : <>New barcode <code>{barcode}</code> — name it once and it will be
+                   recognised next time.</>}
+            </div>
+          )}
+
+          <div className="field">
+            <label htmlFor="item-name">Item</label>
+            <input
+              id="item-name" type="text" value={label} autoFocus={!barcode}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Dish soap"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="item-qty">How much (optional)</label>
+            <input
+              id="item-qty" type="text" value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="2 packs"
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="item-price">Price (optional)</label>
+            <input
+              id="item-price" type="text" inputMode="decimal" value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+
+          <button
+            className="btn primary block"
+            disabled={label.trim() === ''}
+            onClick={() => void save()}
+          >
+            {cents !== null ? `Add — ${formatMoney(cents, currency)}` : 'Add to list'}
+          </button>
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+function FinishShopSheet({
+  planId, currency, enteredCents, estimatedCents, pricedCount, totalCount, onClose, onDone,
+}: {
+  planId: string;
+  currency: string;
+  enteredCents: number;
+  estimatedCents: number;
+  pricedCount: number;
+  totalCount: number;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+}): JSX.Element {
+  // Prefilled from prices entered at the shelf, but always editable — the till is
+  // the authority, and it knows about discounts and deposits that the shelf did not.
+  const [total, setTotal] = useState(enteredCents > 0 ? centsToInput(enteredCents) : '');
+  const [label, setLabel] = useState('');
+  const [date, setDate] = useState(() => todayISO());
+  const [busy, setBusy] = useState(false);
+
+  const cents = parseMoney(total);
+  const valid = cents !== null && cents > 0;
+
+  async function finish(): Promise<void> {
+    if (!valid) return;
+    setBusy(true);
+    try {
+      await recordShopTotal(planId, cents, label.trim() || 'Groceries', date);
+      await onDone();
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Sheet title="Finish shop" onClose={onClose}>
+      <div className="field">
+        <label htmlFor="total">Total at the till</label>
+        <input
+          id="total" type="text" inputMode="decimal" autoFocus
+          value={total} onChange={(e) => setTotal(e.target.value)}
+          placeholder="0.00"
+        />
+        <div className="hint">
+          {pricedCount > 0
+            ? `From ${pricedCount} of ${totalCount} items priced. Change it to the receipt total.`
+            : 'Enter what the receipt says.'}
+        </div>
+      </div>
+
+      {/* The only feedback available on how wrong the per-kilo estimates are. */}
+      {valid && estimatedCents > 0 && (
+        <div className="card tight small dim">
+          Planned estimate was {formatMoney(estimatedCents, currency)}
+          {cents > estimatedCents
+            ? ` — ${formatMoney(cents - estimatedCents, currency)} over.`
+            : ` — ${formatMoney(estimatedCents - cents, currency)} under.`}
+          <div className="tiny faint" style={{ marginTop: 4 }}>
+            Estimates come from rough per-kilo prices, so a steady gap means those
+            need adjusting rather than that you overspent.
+          </div>
+        </div>
+      )}
+
+      <div className="field" style={{ marginTop: 12 }}>
+        <label htmlFor="shop">Where</label>
+        <input
+          id="shop" type="text" value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Shop name"
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="shop-date">When</label>
+        <input id="shop-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </div>
+
+      <button className="btn primary block" disabled={!valid || busy} onClick={() => void finish()}>
+        {busy ? 'Saving…' : valid ? `Record ${formatMoney(cents, currency)}` : 'Record shop'}
+      </button>
+      <p className="tiny faint" style={{ marginTop: 6, textAlign: 'center' }}>
+        Clears the ticks, banks shelf-stable leftovers, and adds this to the month.
+      </p>
+    </Sheet>
+  );
 }

@@ -3,19 +3,24 @@ import { useState } from 'react';
 import { useAppState } from './state/useAppState';
 import { PlanScreen } from './screens/PlanScreen';
 import { GroceryScreen } from './screens/GroceryScreen';
+import { BudgetScreen } from './screens/BudgetScreen';
 import { RecipesScreen } from './screens/RecipesScreen';
 import { KitchenScreen } from './screens/KitchenScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { BookIcon, CalendarIcon, CartIcon, GearIcon, JarIcon } from './components/icons';
+import { BookIcon, CalendarIcon, CartIcon, GearIcon, JarIcon, WalletIcon } from './components/icons';
 
-type Tab = 'plan' | 'grocery' | 'recipes' | 'kitchen' | 'settings';
+type Tab = 'plan' | 'grocery' | 'budget' | 'recipes' | 'kitchen' | 'settings';
 
+// Six tabs is the practical ceiling on a 375px phone — roughly 62px each, which
+// still clears a 44px touch target. Labels are kept to one short word for that
+// reason.
 const TABS: ReadonlyArray<{ id: Tab; label: string; Icon: (p: { size?: number }) => JSX.Element }> = [
   { id: 'plan', label: 'Week', Icon: CalendarIcon },
   { id: 'grocery', label: 'Shop', Icon: CartIcon },
+  { id: 'budget', label: 'Spend', Icon: WalletIcon },
   { id: 'recipes', label: 'Recipes', Icon: BookIcon },
   { id: 'kitchen', label: 'Kitchen', Icon: JarIcon },
-  { id: 'settings', label: 'Settings', Icon: GearIcon },
+  { id: 'settings', label: 'More', Icon: GearIcon },
 ];
 
 export function App(): JSX.Element {
@@ -37,6 +42,7 @@ export function App(): JSX.Element {
     <div className="app">
       {tab === 'plan' && <PlanScreen state={state} onShop={() => setTab('grocery')} />}
       {tab === 'grocery' && <GroceryScreen state={state} onPlan={() => setTab('plan')} />}
+      {tab === 'budget' && <BudgetScreen state={state} />}
       {tab === 'recipes' && <RecipesScreen state={state} />}
       {tab === 'kitchen' && <KitchenScreen state={state} />}
       {tab === 'settings' && <SettingsScreen state={state} />}

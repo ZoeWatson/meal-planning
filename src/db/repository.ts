@@ -12,6 +12,7 @@ import { loadSeedData } from '../data/seed';
 import { importBundle, type ImportBundle, type ImportResult } from '../domain/import/importer';
 import { toJson } from '../domain/import/export';
 import { syncedBulkPut, syncedDelete, syncedPut } from './syncWrites';
+import type { BarcodeEntry, CustomItem, Expense } from '../domain/budget';
 import type {
   Id, PantryItem, SalePrice, StapleItem, WeekPlan,
 } from '../domain/types';
@@ -53,7 +54,13 @@ export async function ensureSeeded(): Promise<void> {
 
 export async function getSettings(): Promise<AppSettings> {
   const stored = await db.settings.get('settings');
-  return stored ?? { ...DEFAULT_SETTINGS, id: 'settings' };
+
+  // Defaults are merged UNDER the stored row rather than used only as a fallback.
+  // A settings row written before a field existed simply lacks it, and returning
+  // it raw hands `undefined` to code expecting a number — which is how a missing
+  // budget became `$NaN` on screen rather than an unset goal. Merging means every
+  // field added from now on gets its default on existing installs for free.
+  return { ...DEFAULT_SETTINGS, ...stored, id: 'settings' };
 }
 
 export async function updateSettings(patch: Partial<AppSettings>): Promise<void> {
@@ -214,6 +221,116 @@ export async function recordCarryOverFromPlan(
     const existing = await db.carryOver.get(entry.ingredientId);
     await setCarryOver(entry.ingredientId, (existing?.grams ?? 0) + entry.grams);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Spending
+// ---------------------------------------------------------------------------
+
+function newId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export async function addExpense(
+  input: Omit<Expense, 'id' | 'createdAtISO'> & { id?: Id },
+): Promise<Expense> {
+  const expense: Expense = {
+    ...input,
+    id: input.id ?? newId('exp'),
+    createdAtISO: new Date().toISOString(),
+  };
+  await syncedPut('expenses', expense as unknown as Record<string, unknown>);
+  return expense;
+}
+
+export async function updateExpense(id: Id, patch: Partial<Expense>): Promise<void> {
+  const existing = await db.expenses.get(id);
+  if (!existing) return;
+  await syncedPut('expenses', { ...existing, ...patch, id } as unknown as Record<string, unknown>);
+}
+
+export async function removeExpense(id: Id): Promise<void> {
+  await syncedDelete('expenses', id);
+}
+
+/**
+ * Records what a shop actually cost.
+ *
+ * `planId` is kept so estimated and actual can be compared later — the only
+ * feedback available on how wrong the per-kilo price guesses are.
+ */
+export async function recordShopTotal(
+  planId: Id,
+  amountCents: number,
+  label: string,
+  dateISO: string,
+): Promise<Expense> {
+  return addExpense({ kind: 'groceries', planId, amountCents, label, dateISO });
+}
+
+// --- per-line prices --------------------------------------------------------
+
+/**
+ * Sets what one planned line cost.
+ *
+ * Upserts the check record, because a price can be entered for a line that has
+ * not been ticked yet — you scan the shelf, then put it in the basket.
+ */
+export async function setLinePrice(
+  planId: Id,
+  ingredientId: Id,
+  amountCents: number | null,
+): Promise<void> {
+  const id = checkId(planId, ingredientId);
+  const existing = await db.checks.get(id);
+
+  await syncedPut('checks', {
+    id,
+    planId,
+    ingredientId,
+    checked: existing?.checked ?? false,
+    ...(amountCents === null ? {} : { amountCents }),
+    updatedAtISO: new Date().toISOString(),
+  });
+}
+
+// --- ad-hoc items -----------------------------------------------------------
+
+export async function addCustomItem(
+  input: Omit<CustomItem, 'id' | 'updatedAtISO'> & { id?: Id },
+): Promise<CustomItem> {
+  const item: CustomItem = {
+    ...input,
+    id: input.id ?? newId('item'),
+    updatedAtISO: new Date().toISOString(),
+  };
+  await syncedPut('customItems', item as unknown as Record<string, unknown>);
+  return item;
+}
+
+export async function updateCustomItem(id: Id, patch: Partial<CustomItem>): Promise<void> {
+  const existing = await db.customItems.get(id);
+  if (!existing) return;
+  await syncedPut('customItems', {
+    ...existing, ...patch, id, updatedAtISO: new Date().toISOString(),
+  } as unknown as Record<string, unknown>);
+}
+
+export async function removeCustomItem(id: Id): Promise<void> {
+  await syncedDelete('customItems', id);
+}
+
+// --- barcodes ---------------------------------------------------------------
+
+/** What a scanned barcode turned out to be. Learned once, reused forever. */
+export async function rememberBarcode(entry: Omit<BarcodeEntry, 'updatedAtISO'>): Promise<void> {
+  await syncedPut('barcodes', {
+    ...entry, updatedAtISO: new Date().toISOString(),
+  } as unknown as Record<string, unknown>);
+}
+
+export async function lookupBarcode(barcode: string): Promise<BarcodeEntry | undefined> {
+  return db.barcodes.get(barcode);
 }
 
 // ---------------------------------------------------------------------------
