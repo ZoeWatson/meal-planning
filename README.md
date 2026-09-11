@@ -45,6 +45,9 @@ npm run sync-server    # optional, for syncing between devices
   the till actually said, log meals out, and track a monthly goal. Barcode
   scanning where the browser supports it. All money is integer cents.
 
+- **Works cited** in Settings — plain English on how each system decides things
+  and where its numbers came from, including which ones are unverified estimates.
+
 ## Layout
 
 ```
