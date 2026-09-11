@@ -577,3 +577,69 @@ select, input[type='number'], input[type='text'] {
 @media (min-width: 720px) {
   .app { max-width: 680px; margin: 0 auto; border-inline: 1px solid var(--border); }
 }
+
+/* ---------------------------------------------------------- works cited */
+
+.cite {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+/*
+ * `display: flex` is load-bearing here, not cosmetic: a summary defaults to
+ * `display: list-item`, which stacks the title and its badge instead of putting
+ * them on one row.
+ */
+.cite > summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  min-height: 56px;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cite > summary::-webkit-details-marker { display: none; }
+.cite > summary::marker { content: ''; }
+.cite > summary .badge { flex: 0 0 auto; margin-right: 0; }
+.cite[open] > summary { border-bottom: 1px solid var(--border); }
+.cite > summary:active { background: var(--surface-2); }
+
+.cite-body {
+  padding: 4px 14px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.cite-body p { margin: 10px 0; }
+.cite-body strong { color: var(--text); }
+
+.cite-caveat {
+  border-left: 3px solid var(--warn);
+  padding-left: 10px;
+  font-size: 13px;
+}
+
+.cite-refs-title {
+  margin-top: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.cite-refs {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.cite-refs li { margin-bottom: 4px; }

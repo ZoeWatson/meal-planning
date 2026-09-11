@@ -9,6 +9,7 @@ import { KitchenScreen } from './KitchenScreen';
 import { Sheet } from '../components/Sheet';
 import { ImportSheet } from './ImportSheet';
 import { SyncSheet } from './SyncSheet';
+import { WorksCitedSheet } from './WorksCitedSheet';
 import type { MealType } from '../domain/types';
 
 const MEAL_LABELS: Record<MealType, string> = {
@@ -23,6 +24,7 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [kitchen, setKitchen] = useState(false);
+  const [cited, setCited] = useState(false);
 
   const region = REGIONS.find((r) => r.id === settings.regionId) ?? REGIONS[0];
 
@@ -269,12 +271,23 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
         </div>
       )}
 
+      {/* --- Works cited -------------------------------------------------- */}
+      <h2 className="section-title">Works cited</h2>
+      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+        Plain English on how each part of the app decides things, where its numbers
+        came from, and how much to trust them.
+      </p>
+      <button className="btn block" onClick={() => setCited(true)}>
+        How this app works &amp; where its data comes from
+      </button>
+
       <p className="tiny faint" style={{ textAlign: 'center', marginTop: 24 }}>
         {state.recipes.size} recipes · {state.ingredients.size} ingredients
       </p>
 
       {importing && <ImportSheet onClose={() => setImporting(false)} />}
       {syncing && <SyncSheet onClose={() => setSyncing(false)} />}
+      {cited && <WorksCitedSheet onClose={() => setCited(false)} />}
       {kitchen && (
         <Sheet title="Staples & pantry" onClose={() => setKitchen(false)}>
           <KitchenScreen state={state} embedded />
