@@ -140,6 +140,82 @@ const ON_CANADA: Region = {
 };
 
 /**
+ * Las Vegas — Mojave Desert, plus the valleys the city actually eats from.
+ *
+ * This table is deliberately built on a different basis from the Canadian ones,
+ * and it is worth saying why rather than quietly diverging.
+ *
+ * Southern Nevada has almost no commercial agriculture. Modelling only what grows
+ * in the Las Vegas Valley would produce a table that is accurate, tiny and
+ * useless — it would mark practically everything out of season all year. What a
+ * Las Vegas shopper actually experiences is the Southwest supply chain: Yuma,
+ * Arizona is four hours away and grows most of the United States' winter lettuce
+ * and brassicas; the Imperial and Coachella valleys cover spring; California's
+ * Central Valley covers summer stone fruit. So these are supply seasons, not
+ * backyard seasons.
+ *
+ * The result inverts the Canadian pattern in two ways that matter:
+ *
+ *  - **Winter is the good season for greens.** Lettuce, spinach, kale and
+ *    broccoli peak from November to March, when BC has none. Planning salads in
+ *    January is a reasonable thing to do here and a silly one in Vancouver.
+ *  - **High summer is a gap, not a peak.** Desert-grown warm crops stop setting
+ *    fruit above roughly 35°C, so local tomatoes and squash come in two waves
+ *    either side of July and August rather than one long summer.
+ */
+const LAS_VEGAS: Region = {
+  id: 'las-vegas',
+  name: 'Las Vegas, Nevada',
+  description:
+    'Southwest supply — desert growing plus the Arizona and California valleys ' +
+    'Las Vegas shops draw from. Winter greens, spring and autumn harvests, and a summer gap.',
+  seasons: {
+    // --- cool season: the productive half of the desert year ---
+    lettuce: { peak: [11, 12, 1, 2, 3], available: [10, 11, 12, 1, 2, 3, 4] },
+    spinach: { peak: [11, 12, 1, 2, 3], available: [10, 11, 12, 1, 2, 3, 4] },
+    kale: { peak: [11, 12, 1, 2, 3], available: [10, 11, 12, 1, 2, 3, 4] },
+    broccoli: { peak: [11, 12, 1, 2, 3], available: ALL_YEAR },
+    cauliflower: { peak: [11, 12, 1, 2, 3], available: [10, 11, 12, 1, 2, 3, 4] },
+    cabbage: { peak: [11, 12, 1, 2, 3], available: [10, 11, 12, 1, 2, 3, 4, 5] },
+    'brussels-sprouts': { peak: [12, 1, 2], available: [11, 12, 1, 2, 3] },
+    radish: { peak: [10, 11, 12, 1, 2, 3, 4], available: [9, 10, 11, 12, 1, 2, 3, 4, 5] },
+    beet: { peak: [11, 12, 1, 2, 3, 4], available: [10, 11, 12, 1, 2, 3, 4, 5] },
+    leek: { peak: [11, 12, 1, 2, 3], available: [10, 11, 12, 1, 2, 3, 4] },
+    parsnip: { peak: [12, 1, 2], available: [11, 12, 1, 2, 3] },
+    'green-peas': { peak: [2, 3, 4], available: [2, 3, 4, 10, 11] },
+    asparagus: { peak: [2, 3, 4, 5], available: [2, 3, 4, 5, 6] },
+    rhubarb: { peak: [3, 4, 5] },
+
+    // --- warm season: two waves, with the July/August heat between them ---
+    tomato: { peak: [5, 6, 7, 9, 10], available: [4, 5, 6, 7, 8, 9, 10, 11] },
+    'bell-pepper': { peak: [6, 7, 9, 10], available: [5, 6, 7, 8, 9, 10, 11] },
+    zucchini: { peak: [5, 6, 9, 10], available: [4, 5, 6, 7, 8, 9, 10] },
+    cucumber: { peak: [5, 6, 9, 10], available: [4, 5, 6, 7, 8, 9, 10] },
+    'green-beans': { peak: [5, 6, 9, 10], available: [4, 5, 6, 7, 9, 10, 11] },
+    'sweet-corn': { peak: [6, 7, 8], available: [5, 6, 7, 8, 9] },
+    // Basil is the exception: it loves the heat, given water.
+    basil: { peak: [4, 5, 6, 7, 8, 9, 10], available: [3, 4, 5, 6, 7, 8, 9, 10, 11] },
+
+    // --- fruit ---
+    strawberry: { peak: [3, 4, 5], available: [2, 3, 4, 5, 6] },
+    raspberry: { peak: [5, 6, 9, 10], available: [4, 5, 6, 7, 8, 9, 10] },
+    blueberry: { peak: [4, 5, 6, 7], available: [3, 4, 5, 6, 7, 8] },
+    cherry: { peak: [5, 6], available: [5, 6, 7] },
+    peach: { peak: [5, 6, 7, 8], available: [5, 6, 7, 8, 9] },
+    apple: { peak: [8, 9, 10, 11], available: ALL_YEAR },
+    pear: { peak: [8, 9, 10], available: [1, 2, 8, 9, 10, 11, 12] },
+
+    // --- storage and cultivated: local harvest, then year-round supply ---
+    potato: { peak: [5, 6], available: ALL_YEAR },
+    'yellow-onion': { peak: [5, 6], available: ALL_YEAR },
+    garlic: { peak: [5, 6], available: ALL_YEAR },
+    carrot: { peak: [11, 12, 1, 2, 3, 4], available: ALL_YEAR },
+    'butternut-squash': { peak: [9, 10, 11], available: [8, 9, 10, 11, 12, 1, 2] },
+    mushroom: { peak: ALL_YEAR },
+  },
+};
+
+/**
  * Opt-out. For people who shop a globally-supplied grocery store and do not want
  * seasonality steering their plans at all.
  */
@@ -150,7 +226,7 @@ const YEAR_ROUND: Region = {
   seasons: {},
 };
 
-export const REGIONS: readonly Region[] = [BC_CANADA, ON_CANADA, YEAR_ROUND];
+export const REGIONS: readonly Region[] = [BC_CANADA, ON_CANADA, LAS_VEGAS, YEAR_ROUND];
 
 export const DEFAULT_REGION_ID = 'bc-canada';
 

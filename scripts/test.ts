@@ -16,6 +16,7 @@ import { importBundle, type RawRecipe } from '../src/domain/import/importer';
 import { toBundle } from '../src/domain/import/export';
 import { guessCategory, stubsFromResult } from '../src/domain/import/stubs';
 import { loadSeedData } from '../src/data/seed';
+import { REGIONS, getRegion, seasonStatus } from '../src/domain/seasonality';
 
 let passed = 0;
 let failed = 0;
@@ -241,6 +242,82 @@ test('stubs carry a TODO and are ordered by demand', () => {
   assert.equal(stubs[0].id, 'cauliflower', 'most-wanted first');
   assert.equal(stubs[0]._usedBy, 2);
   assert.ok(stubs[0].TODO.includes('purchase.divisible'));
+});
+
+group('Regional seasonality');
+
+test('region ids are unique and resolvable', () => {
+  const ids = REGIONS.map((r) => r.id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const id of ids) assert.equal(getRegion(id).id, id);
+});
+
+test('every region has a name and a description', () => {
+  for (const region of REGIONS) {
+    assert.ok(region.name.length > 0, `${region.id} has no name`);
+    assert.ok(region.description.length > 0, `${region.id} has no description`);
+  }
+});
+
+test('all months are 1-12', () => {
+  for (const region of REGIONS) {
+    for (const [ingredientId, entry] of Object.entries(region.seasons)) {
+      for (const month of [...entry.peak, ...(entry.available ?? [])]) {
+        assert.ok(
+          Number.isInteger(month) && month >= 1 && month <= 12,
+          `${region.id}/${ingredientId}: ${month}`,
+        );
+      }
+    }
+  }
+});
+
+test('available always covers peak', () => {
+  // Otherwise a month is simultaneously "peak" and absent from availability. Peak
+  // is checked first so nothing breaks, but the data would be self-contradictory
+  // and the next person to read it would be right to be confused.
+  for (const region of REGIONS) {
+    for (const [ingredientId, entry] of Object.entries(region.seasons)) {
+      if (!entry.available) continue;
+      for (const month of entry.peak) {
+        assert.ok(
+          entry.available.includes(month),
+          `${region.id}/${ingredientId}: month ${month} is peak but not available`,
+        );
+      }
+    }
+  }
+});
+
+test('no duplicate months within a list', () => {
+  for (const region of REGIONS) {
+    for (const [ingredientId, entry] of Object.entries(region.seasons)) {
+      assert.equal(new Set(entry.peak).size, entry.peak.length, `${region.id}/${ingredientId} peak`);
+    }
+  }
+});
+
+test('Las Vegas inverts the Canadian pattern for greens', () => {
+  // The whole point of a separate desert table. Winter lettuce is the norm in the
+  // Southwest and unavailable in BC; if these ever agree, one of them is wrong.
+  const lettuce = loadSeedData().ingredients.find((i) => i.id === 'lettuce');
+  if (!lettuce) assert.fail('seed library lost its lettuce');
+
+  assert.equal(seasonStatus(lettuce, 1, getRegion('las-vegas')), 'peak', 'January in Vegas');
+  assert.equal(seasonStatus(lettuce, 1, getRegion('bc-canada')), 'out-of-season', 'January in BC');
+  assert.equal(seasonStatus(lettuce, 7, getRegion('bc-canada')), 'peak', 'July in BC');
+});
+
+test('Las Vegas has a high-summer gap for warm crops', () => {
+  // Desert tomatoes stop setting fruit in the July/August heat, so August is a
+  // trough between two harvests rather than the peak it is further north.
+  const tomato = loadSeedData().ingredients.find((i) => i.id === 'tomato');
+  if (!tomato) assert.fail('seed library lost its tomato');
+
+  const vegas = getRegion('las-vegas');
+  assert.equal(seasonStatus(tomato, 6, vegas), 'peak', 'June wave');
+  assert.equal(seasonStatus(tomato, 8, vegas), 'available', 'August gap');
+  assert.equal(seasonStatus(tomato, 9, vegas), 'peak', 'September wave');
 });
 
 group('Export round-trip');
