@@ -22,7 +22,9 @@ npm run sync-server    # optional, for syncing between devices
 - **Portions per recipe**, adjustable per slot.
 - **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
   cooking time, in-season, ingredient count.
-- **Regional seasonality** — BC and Ontario ship; the picker is in Settings.
+- **Regional seasonality** — BC, Ontario and Las Vegas ship; the picker is in
+  Settings. The desert table inverts the Canadian one: winter greens, and a gap in
+  high summer.
 - **Allergies.** Group-level (tree nuts, milk, wheat…) rather than per ingredient,
   with name inference as a backstop for imported data. Removed from plans and the
   shopping list, and flagged loudly wherever a recipe could still slip through.
