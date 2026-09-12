@@ -5,6 +5,12 @@ you build later — scraping, an LLM extraction pass, hand-authoring, converting
 existing collection — its job is to emit **this** shape. Everything downstream
 assumes the data has already been through here.
 
+> **Adding one recipe?** Use **Add a recipe** on the Recipes tab instead — it
+> takes a link, a photo or pasted text and walks you through a review screen. It
+> emits this same shape and runs the same validator; see
+> [Capturing a single recipe](#capturing-a-single-recipe) at the bottom. This
+> document is for building a library, where a file is the right unit of work.
+
 ## Why it is strict
 
 The planner treats `grams` as ground truth. It uses those numbers to decide what
@@ -306,3 +312,106 @@ Suggested order, because each step makes the next cheaper:
    optimizer will happily plan chicken seven nights running.
 
 Export early and often: until sync exists, an export file is the only backup.
+
+## Capturing a single recipe
+
+The in-app **Add a recipe** button is the other end of the same pipe. It exists
+because a file is the wrong unit of work for one recipe found on a phone, and
+because most of what people want to import is not in this format and never will
+be.
+
+Three sources, one destination:
+
+```
+a link  (paste the page)  ──┐
+a photo (OCR on device)   ──┼──►  RecipeDraft  ──►  review  ──►  importBundle()
+text    (paste it)        ──┘
+```
+
+A `RecipeDraft` is a recipe still in its written form — ingredient lines as
+prose, plus the guesses made while extracting it. It is what the review screen
+edits. `draftToRawRecipe()` then turns it into the `RawRecipe` documented above,
+with each line as a `raw` string, and it goes through `importBundle()` unchanged.
+
+**There is no laxer path into the library.** A captured recipe whose ingredients
+cannot all be resolved to real grams is rejected exactly as a bundled one would
+be. The difference is only that the rejection is shown next to the line that
+caused it, with the fix one tap away, rather than printed as a report.
+
+### Links
+
+Pasting the page rather than fetching it is deliberate. A browser cannot fetch
+another site's pages, and routing them through a proxy would mean sending every
+recipe you read to a third party — a poor trade for saving one paste.
+
+Extraction has three tiers, best first:
+
+| Tier | What it reads | Accuracy |
+|---|---|---|
+| JSON-LD | `schema.org/Recipe` in a `<script type="application/ld+json">` | The author's own data. Near-exact. |
+| Microdata | `itemprop="recipeIngredient"` and friends | Good. Common on older blogs. |
+| Page text | Tags stripped, then the prose parser | Rough. Navigation and comments can leak in, and the review screen says so. |
+
+Most sites publish JSON-LD because search engines require it for rich results,
+so tier one is the usual case. A page carrying several recipes offers all of
+them rather than picking one.
+
+### Photos
+
+Text recognition runs on the device with Tesseract. The photo is never uploaded.
+The runtime is ~20 MB — wasm cores plus a language model — so it is loaded the
+first time someone imports a photo and never on an ordinary visit, and it is
+staged into `public/tesseract/` by `npm run ocr-assets` rather than committed.
+
+OCR reads a flat, well-lit printed page well and a curved spine, an angled
+photograph or handwriting badly. A few mangled lines per page is normal, and
+survivable only because a mangled line fails to parse, and a line that fails to
+parse is shown to you rather than guessed at. Mean confidence is reported,
+because a low number means retake the photo and only you can do that.
+
+### Text
+
+Ingredients, then method, with a title on top. `Ingredients` and `Method`
+headings are used when present and trusted completely — under a heading,
+"Salt and pepper to taste" is an ingredient, which no amount of line-shape
+analysis would conclude on its own.
+
+Without headings, lines are classified by shape: length, a leading enumerator, an
+opening imperative verb, and whether the line parses as an ingredient at all. The
+longest run of ingredient-looking lines becomes the list. This is a guess, and it
+is declared as one on the review screen.
+
+### What is guessed, and what never is
+
+| Guessed | Never guessed |
+|---|---|
+| Meal type, from the name | Any quantity |
+| Servings, when unstated (four, flagged) | Any unit |
+| Section boundaries, when unheaded | Which ingredient a name refers to |
+| Category and pack size on a new ingredient (marked TODO) | Whether a line resolved |
+
+The split is the whole design. A wrong `mealType` puts a cake in the dinner
+rotation and announces itself the moment you look at the plan. A wrong quantity
+sends you to a shop for the wrong amount of food and says nothing at all.
+
+### Near-miss matching
+
+The most common failure is not a missing ingredient but a differently-spelled
+one: a page says "salmon fillets", the library says "Salmon fillet". The obvious
+fix — create the second record — is the wrong one. It splits one food into two
+that the optimizer never treats as the same purchase, so it stops overlapping
+them, and the waste model quietly stops working on that ingredient forever.
+
+So the review screen offers the near match **first**, and taking it writes the
+spelling onto the existing ingredient's `aliases`, where it resolves by itself
+from then on. Creating a new record is still available, one button along.
+
+Matching is asymmetric on purpose. A library entry that is *broader* than the
+recipe's wording is offered ("salmon" → *Salmon fillet*); one that is *narrower*
+is not ("coconut milk" is not offered *Milk*, and "peanut butter" is not offered
+*Butter*). Merging those would be as damaging as splitting, and in the same
+invisible way. See `src/domain/import/suggest.ts`.
+
+The same principle governs units: "1 can coconut milk" against an ingredient
+with no `can` weight asks for the weight and records it on that ingredient. It
+does not offer to create "canned coconut milk".
