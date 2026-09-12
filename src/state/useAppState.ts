@@ -10,16 +10,16 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { db, DEFAULT_SETTINGS, type AppSettings } from '../db/database';
-import { getSettings, savePlan } from '../db/repository';
+import { getSettings, savePlan, setWildcards } from '../db/repository';
 import { buildGroceryList, renderGroceryList, type DisplayLine } from '../domain/grocery';
 import { getRegion } from '../domain/seasonality';
 import { excludedByAllergens } from '../domain/allergens';
 import { DEFAULT_WASTE_SETTINGS } from '../domain/waste';
-import { generateWeekPlan, pickWildcards } from '../domain/planner/generate';
+import { type WildcardSizes, fitWildcards, generateWeekPlan } from '../domain/planner/generate';
 import type { PlanningContext } from '../domain/planner/scoring';
 import type { RecipeFilter } from '../domain/filters';
 import type {
-  GroceryList, Id, Ingredient, PantryItem, Recipe, SalePrice, StapleItem, WeekPlan,
+  GroceryList, Id, Ingredient, PantryItem, PlannerSettings, Recipe, SalePrice, StapleItem, WeekPlan,
 } from '../domain/types';
 
 export interface AppState {
@@ -187,16 +187,61 @@ export async function generateAndSave(
 
   // Promoted wildcards are kept; the rest are redrawn so the grab bag stays fresh.
   const keptWildcards = (options.keepPinnedFrom?.wildcards ?? []).filter((w) => w.promoted);
-  const fresh = pickWildcards(ctx, Math.max(0, settings.wildcardCount - keptWildcards.length), seed);
 
   const result = generateWeekPlan(ctx, {
     spec: settings.spec,
     pinnedSlots,
-    wildcards: [...keptWildcards, ...fresh],
+    wildcards: fitWildcards(ctx, wildcardSizes(settings), seed, keptWildcards),
     filter: options.filter,
     seed,
   });
 
   await savePlan(result.plan);
   return result.plan;
+}
+
+/** The grab bag half of settings, in the shape the draw wants. */
+export function wildcardSizes(settings: PlannerSettings): WildcardSizes {
+  return {
+    split: settings.wildcardSplit,
+    count: settings.wildcardCount,
+    fruitCount: settings.wildcardFruitCount,
+    vegCount: settings.wildcardVegCount,
+  };
+}
+
+/**
+ * Redraws the grab bag without touching the meals.
+ *
+ * The bag and the plan answer different questions — "what should I cook" versus
+ * "what else is worth having in the house" — and a draw you do not like is not a
+ * reason to lose a week of meals you do. Promoted items survive, because those
+ * are the ones the plan was built around.
+ */
+export async function redrawWildcards(ctx: PlanningContext, plan: WeekPlan): Promise<void> {
+  const settings = await getSettings();
+  const keep = plan.wildcards.filter((w) => w.promoted);
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  await setWildcards(plan.id, fitWildcards(ctx, wildcardSizes(settings), seed, keep));
+}
+
+/**
+ * Brings the current bag to whatever size the settings now ask for, keeping the
+ * items already in it.
+ *
+ * Called after a size or split change so the control the user just moved has a
+ * visible effect immediately. Only what is needed changes: raising the count adds
+ * items, lowering it removes them, and nothing already on screen is reshuffled.
+ */
+export async function resizeWildcards(ctx: PlanningContext, plan: WeekPlan): Promise<void> {
+  const settings = await getSettings();
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  const next = fitWildcards(ctx, wildcardSizes(settings), seed, plan.wildcards);
+
+  const unchanged =
+    next.length === plan.wildcards.length &&
+    next.every((w, i) => w.ingredientId === plan.wildcards[i].ingredientId);
+  if (unchanged) return;
+
+  await setWildcards(plan.id, next);
 }

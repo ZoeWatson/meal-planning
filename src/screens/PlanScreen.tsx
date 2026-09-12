@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { AppState } from '../state/useAppState';
-import { generateAndSave } from '../state/useAppState';
+import { generateAndSave, redrawWildcards } from '../state/useAppState';
 import {
   removeWildcard, setSlotPinned, setSlotRecipe, setSlotServings, setWildcardPromoted,
 } from '../db/repository';
@@ -10,9 +10,11 @@ import { applyFilter } from '../domain/filters';
 import { formatQuantity } from '../domain/units';
 import { recipeNutrition } from '../domain/nutrition';
 import { seasonStatus } from '../domain/seasonality';
+import { type ProduceKind, PRODUCE_KINDS, PRODUCE_KIND_LABELS, produceKind } from '../domain/produce';
 import { checkRecipe, describeMatches } from '../domain/allergens';
-import type { Id, MealType, PlanSlot } from '../domain/types';
+import type { Id, MealType, PlanSlot, WildcardItem } from '../domain/types';
 import { PinIcon, ShuffleIcon } from '../components/icons';
+import { GrabBagControls } from '../components/GrabBagControls';
 import { Sheet } from '../components/Sheet';
 
 const MEAL_LABELS: Record<MealType, string> = {
@@ -30,6 +32,7 @@ export function PlanScreen({
 }): JSX.Element {
   const { plan, ctx, recipes, ingredients, settings } = state;
   const [busy, setBusy] = useState(false);
+  const [redrawing, setRedrawing] = useState(false);
   const [swapping, setSwapping] = useState<PlanSlot | null>(null);
 
   const score = useMemo(
@@ -54,6 +57,35 @@ export function PlanScreen({
       return report.hasMatch ? [{ recipe, report }] : [];
     });
   }, [plan, recipes, ingredients, settings.allergens]);
+
+  /**
+   * The grab bag as it should be displayed: one bag, or fruit and veg separately.
+   *
+   * Grouped here rather than relying on draw order, because promoting and removing
+   * items edit the list in place and a plan drawn before the split was turned on
+   * has no order to rely on in the first place.
+   */
+  const bags = useMemo((): Array<{ kind: ProduceKind | null; items: WildcardItem[] }> => {
+    const items = plan?.wildcards ?? [];
+    if (!settings.wildcardSplit) return [{ kind: null, items: [...items] }];
+    return PRODUCE_KINDS.map((kind) => ({
+      kind,
+      items: items.filter((w) => {
+        const ing = ingredients.get(w.ingredientId);
+        return ing !== undefined && produceKind(ing) === kind;
+      }),
+    }));
+  }, [plan?.wildcards, settings.wildcardSplit, ingredients]);
+
+  async function redraw(): Promise<void> {
+    if (!ctx || !plan) return;
+    setRedrawing(true);
+    try {
+      await redrawWildcards(ctx, plan);
+    } finally {
+      setRedrawing(false);
+    }
+  }
 
   async function regenerate(): Promise<void> {
     if (!ctx) return;
@@ -187,49 +219,74 @@ export function PlanScreen({
         );
       })}
 
-      {plan.wildcards.length > 0 && (
-        <section>
-          <h2 className="section-title">Produce grab bag</h2>
-          <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
-            A random draw weighted to what is in season and on sale — the antidote to
-            cooking the same eight things forever. Promote one to build next week's
-            plan around it.
-          </p>
-          {plan.wildcards.map((w) => {
-            const ing = ingredients.get(w.ingredientId);
-            if (!ing) return null;
-            const status = ctx ? seasonStatus(ing, ctx.month, ctx.region) : 'unknown';
-            return (
-              <div className="card tight row between" key={w.ingredientId}>
-                <div className="grow">
-                  <div className="row" style={{ gap: 6 }}>
-                    <span className="strong">{ing.name}</span>
-                    {status === 'peak' && <span className="badge accent">peak</span>}
+      <section>
+        <div className="row between" style={{ alignItems: 'baseline' }}>
+          <h2 className="section-title grow">Produce grab bag</h2>
+          <button
+            className="btn small"
+            disabled={redrawing || !ctx}
+            onClick={() => void redraw()}
+          >
+            <span className="row" style={{ gap: 6 }}>
+              <ShuffleIcon size={15} />
+              {redrawing ? 'Drawing…' : 'Redraw'}
+            </span>
+          </button>
+        </div>
+        <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+          A random draw weighted to what is in season and on sale — the antidote to
+          cooking the same eight things forever. Promote one to build next week's
+          plan around it, or redraw the bag without touching the meals.
+        </p>
+
+        <GrabBagControls state={state} />
+
+        {bags.map(({ kind, items }) => (
+          <div key={kind ?? 'all'}>
+            {kind && <h3 className="sub-title">{PRODUCE_KIND_LABELS[kind]}</h3>}
+            {items.length === 0 && (
+              <p className="tiny faint" style={{ margin: '6px 0 10px' }}>
+                {emptyBagReason(kind, settings.wildcardSplit
+                  ? (kind === 'fruit' ? settings.wildcardFruitCount : settings.wildcardVegCount)
+                  : settings.wildcardCount)}
+              </p>
+            )}
+            {items.map((w) => {
+              const ing = ingredients.get(w.ingredientId);
+              if (!ing) return null;
+              const status = ctx ? seasonStatus(ing, ctx.month, ctx.region) : 'unknown';
+              return (
+                <div className="card tight row between" key={w.ingredientId}>
+                  <div className="grow">
+                    <div className="row" style={{ gap: 6 }}>
+                      <span className="strong">{ing.name}</span>
+                      {status === 'peak' && <span className="badge accent">peak</span>}
+                    </div>
+                    <div className="tiny dim">
+                      {formatQuantity(w.grams, ing, settings.unitSystem).text}
+                    </div>
                   </div>
-                  <div className="tiny dim">
-                    {formatQuantity(w.grams, ing, settings.unitSystem).text}
-                  </div>
+                  <button
+                    className="btn small"
+                    aria-pressed={w.promoted}
+                    style={w.promoted ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+                    onClick={() => void setWildcardPromoted(plan.id, w.ingredientId, !w.promoted)}
+                  >
+                    {w.promoted ? 'Promoted' : 'Promote'}
+                  </button>
+                  <button
+                    className="btn small ghost"
+                    aria-label={`Remove ${ing.name}`}
+                    onClick={() => void removeWildcard(plan.id, w.ingredientId)}
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  className="btn small"
-                  aria-pressed={w.promoted}
-                  style={w.promoted ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
-                  onClick={() => void setWildcardPromoted(plan.id, w.ingredientId, !w.promoted)}
-                >
-                  {w.promoted ? 'Promoted' : 'Promote'}
-                </button>
-                <button
-                  className="btn small ghost"
-                  aria-label={`Remove ${ing.name}`}
-                  onClick={() => void removeWildcard(plan.id, w.ingredientId)}
-                >
-                  ✕
-                </button>
-              </div>
-            );
-          })}
-        </section>
-      )}
+              );
+            })}
+          </div>
+        ))}
+      </section>
 
       {swapping && ctx && (
         <Sheet title={`Swap ${MEAL_LABELS[swapping.mealType].toLowerCase().replace(/s$/, '')}`} onClose={() => setSwapping(null)}>
@@ -341,4 +398,15 @@ function weekLabel(iso: string): string {
   const fmt = (d: Date): string =>
     d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   return `${fmt(start)} – ${fmt(end)}`;
+}
+
+/**
+ * Why a bag came back empty. A zero size is a choice; anything else means the
+ * library has nothing left to offer once exclusions are applied, and saying so is
+ * the difference between a fixable problem and a screen that looks broken.
+ */
+function emptyBagReason(kind: ProduceKind | null, target: number): string {
+  if (target === 0) return 'Turned off.';
+  const what = kind === null ? 'produce' : PRODUCE_KIND_LABELS[kind].toLowerCase();
+  return `No ${what} left to draw — add more to the library, or check what you have excluded.`;
 }

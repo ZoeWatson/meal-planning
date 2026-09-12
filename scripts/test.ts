@@ -17,6 +17,10 @@ import { toBundle } from '../src/domain/import/export';
 import { guessCategory, stubsFromResult } from '../src/domain/import/stubs';
 import { loadSeedData } from '../src/data/seed';
 import { REGIONS, getRegion, seasonStatus } from '../src/domain/seasonality';
+import { produceKind } from '../src/domain/produce';
+import { fitWildcards, type WildcardSizes } from '../src/domain/planner/generate';
+import type { PlanningContext } from '../src/domain/planner/scoring';
+import type { Id, Ingredient, PlannerSettings, Recipe, WildcardItem } from '../src/domain/types';
 
 let passed = 0;
 let failed = 0;
@@ -363,6 +367,190 @@ test('export then re-import is lossless', () => {
     assert.equal(copy.allergensVerified, original.allergensVerified,
       `${original.id} allergensVerified`);
   }
+});
+
+
+group('Produce: fruit or vegetable');
+
+/** Builds a bare ingredient. Only the fields the classifier reads are real. */
+function fakeIngredient(name: string, aliases: string[] = []): Ingredient {
+  return {
+    id: name.toLowerCase().replace(/[^a-z]+/g, '-'),
+    name,
+    aliases,
+    category: 'produce',
+    purchase: { unit: 'each', gramsPerPack: 100, divisible: true, costPerKg: 4 },
+    shelfLifeDays: 7,
+  };
+}
+
+function kindOf(name: string, aliases: string[] = []): string {
+  return produceKind(fakeIngredient(name, aliases));
+}
+
+test('the seed library splits the way a shopper would', () => {
+  const seed = loadSeedData();
+  const byId = new Map(seed.ingredients.map((i) => [i.id, i]));
+  const kind = (id: Id): string => {
+    const ing = byId.get(id);
+    if (!ing) assert.fail(`seed library has no ${id}`);
+    return produceKind(ing);
+  };
+
+  assert.equal(kind('apple'), 'fruit');
+  assert.equal(kind('blueberry'), 'fruit');
+  assert.equal(kind('lemon'), 'fruit');
+
+  // Botanically fruit, every one of them. A fruit bag full of these would be a
+  // bug report, not a clever classification.
+  for (const id of ['tomato', 'cucumber', 'zucchini', 'bell-pepper', 'butternut-squash']) {
+    assert.equal(kind(id), 'vegetable', id);
+  }
+  for (const id of ['potato', 'kale', 'garlic', 'mushroom', 'parsley']) {
+    assert.equal(kind(id), 'vegetable', id);
+  }
+});
+
+test('plurals and compounds land on the right side', () => {
+  assert.equal(kindOf('Strawberries'), 'fruit');
+  assert.equal(kindOf('Cherries'), 'fruit');
+  assert.equal(kindOf('Peaches'), 'fruit');
+  assert.equal(kindOf('Watermelon'), 'fruit');
+  assert.equal(kindOf('Dragonfruit'), 'fruit');
+  assert.equal(kindOf('Granny Smith apples'), 'fruit');
+
+  // "apple" inside "pineapple" must not be what decides it — matching on
+  // substrings rather than words is how "crab apple" logic goes wrong.
+  assert.equal(kindOf('Pineapple'), 'fruit');
+  assert.equal(kindOf('Eggplant'), 'vegetable');
+
+  // The fruit word describes the size, not the thing. A vegetable word in the
+  // name wins over a fruit one wherever both appear.
+  assert.equal(kindOf('Cherry tomatoes', ['grape tomatoes']), 'vegetable');
+  assert.equal(kindOf('Snap peas'), 'vegetable');
+  assert.equal(kindOf('Cilantro'), 'vegetable');
+});
+
+test('an alias is enough — imports rarely use the tidy name', () => {
+  assert.equal(kindOf('Mandarins', ['clementine']), 'fruit');
+  assert.equal(kindOf('Courgette', ['zucchini']), 'vegetable');
+});
+
+group('Grab bag draw');
+
+function planningContext(): PlanningContext {
+  const seed = loadSeedData();
+  const settings: PlannerSettings = {
+    unitSystem: 'metric',
+    regionId: 'bc-canada',
+    diets: [],
+    allergens: [],
+    excludedIngredients: [],
+    weeklyTimeBudgetMinutes: 240,
+    repeatWindowWeeks: 3,
+    wildcardCount: 4,
+    wildcardSplit: false,
+    wildcardFruitCount: 2,
+    wildcardVegCount: 2,
+  };
+  return {
+    ingredients: new Map<Id, Ingredient>(seed.ingredients.map((i) => [i.id, i])),
+    recipes: new Map<Id, Recipe>(seed.recipes.map((r) => [r.id, r])),
+    staples: [],
+    pantry: new Map(),
+    sales: new Map(),
+    settings,
+    recentlyUsed: new Map(),
+    month: 8,
+    region: getRegion('bc-canada'),
+  };
+}
+
+const SIZES: WildcardSizes = { split: false, count: 5, fruitCount: 2, vegCount: 3 };
+
+function kindsOf(ctx: PlanningContext, items: readonly WildcardItem[]): string[] {
+  return items.map((w) => {
+    const ing = ctx.ingredients.get(w.ingredientId);
+    if (!ing) assert.fail(`drew ${w.ingredientId}, which is not in the library`);
+    return produceKind(ing);
+  });
+}
+
+test('an unsplit bag comes back at the asked-for size, with no repeats', () => {
+  const ctx = planningContext();
+  const bag = fitWildcards(ctx, SIZES, 1234);
+
+  assert.equal(bag.length, 5);
+  assert.equal(new Set(bag.map((w) => w.ingredientId)).size, 5, 'drew the same thing twice');
+});
+
+test('a split bag hits both targets, not just the total', () => {
+  const ctx = planningContext();
+  // The reason the toggle exists: one weighted pool can legitimately return five
+  // vegetables, and "some fruit this week" has to be guaranteed, not hoped for.
+  const bag = fitWildcards(ctx, { ...SIZES, split: true }, 99);
+  const kinds = kindsOf(ctx, bag);
+
+  assert.equal(kinds.filter((k) => k === 'fruit').length, 2, 'fruit');
+  assert.equal(kinds.filter((k) => k === 'vegetable').length, 3, 'vegetables');
+});
+
+test('a bag bigger than the library is capped, not padded', () => {
+  const ctx = planningContext();
+  const fruitAvailable = [...ctx.ingredients.values()].filter(
+    (i) => i.category === 'produce' && produceKind(i) === 'fruit',
+  ).length;
+
+  const bag = fitWildcards(ctx, { split: true, count: 0, fruitCount: 50, vegCount: 0 }, 7);
+
+  assert.equal(bag.length, fruitAvailable, 'asked for fifty, library has fewer');
+  assert.ok(kindsOf(ctx, bag).every((k) => k === 'fruit'), 'padded the fruit bag with vegetables');
+});
+
+test('topping up keeps what is already in the bag and adds no duplicates', () => {
+  const ctx = planningContext();
+  const start = fitWildcards(ctx, { ...SIZES, count: 2 }, 4242);
+  const grown = fitWildcards(ctx, { ...SIZES, count: 5 }, 555, start);
+
+  assert.equal(grown.length, 5);
+  assert.equal(new Set(grown.map((w) => w.ingredientId)).size, 5);
+  for (const w of start) {
+    assert.ok(grown.some((g) => g.ingredientId === w.ingredientId), `${w.ingredientId} was dropped`);
+  }
+});
+
+test('shrinking drops un-promoted items first', () => {
+  const ctx = planningContext();
+  const start = fitWildcards(ctx, { ...SIZES, count: 4 }, 8080);
+  // Promote the last one, which is exactly the one a naive trim would discard.
+  const promoted = start.map((w, i) => (i === start.length - 1 ? { ...w, promoted: true } : w));
+
+  const shrunk = fitWildcards(ctx, { ...SIZES, count: 2 }, 8081, promoted);
+
+  assert.equal(shrunk.length, 2);
+  assert.ok(
+    shrunk.some((w) => w.ingredientId === promoted[promoted.length - 1].ingredientId),
+    'threw away the item the plan was built around',
+  );
+});
+
+test('excluded produce never turns up in the bag', () => {
+  const base = planningContext();
+  // Derived rather than listed: the assertion is about every fruit being
+  // excluded, and a hardcoded list quietly stops meaning that as the library grows.
+  const everyFruit = [...base.ingredients.values()]
+    .filter((i) => i.category === 'produce' && produceKind(i) === 'fruit')
+    .map((i) => i.id);
+  const ctx: PlanningContext = {
+    ...base,
+    settings: { ...base.settings, excludedIngredients: everyFruit },
+  };
+
+  // Every fruit in the library is excluded, so the fruit bag must come back empty
+  // rather than quietly reaching for something the user said no to.
+  const bag = fitWildcards(ctx, { split: true, count: 0, fruitCount: 3, vegCount: 2 }, 31337);
+  assert.ok(kindsOf(ctx, bag).every((k) => k === 'vegetable'));
+  assert.equal(bag.length, 2);
 });
 
 // ---------------------------------------------------------------------------

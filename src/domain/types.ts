@@ -338,5 +338,15 @@ export interface PlannerSettings {
   readonly weeklyTimeBudgetMinutes: number;
   /** Recipes used within this many weeks are penalized, to keep the rotation moving. */
   readonly repeatWindowWeeks: number;
+  /** Grab bag size when it is drawn as one bag. Ignored when `wildcardSplit` is on. */
   readonly wildcardCount: number;
+  /**
+   * Draw fruit and vegetables as two separate bags with their own sizes.
+   *
+   * One pool is weighted by season and sale price alone, so a week can come back
+   * with no fruit at all. Splitting is how you say "some of each, every week".
+   */
+  readonly wildcardSplit: boolean;
+  readonly wildcardFruitCount: number;
+  readonly wildcardVegCount: number;
 }

@@ -6,6 +6,7 @@ import { REGIONS } from '../domain/seasonality';
 import { DERIVABLE_DIETS } from '../domain/nutrition';
 import { AllergySection } from './AllergySection';
 import { KitchenScreen } from './KitchenScreen';
+import { GrabBagControls } from '../components/GrabBagControls';
 import { Sheet } from '../components/Sheet';
 import { ImportSheet } from './ImportSheet';
 import { SyncSheet } from './SyncSheet';
@@ -195,22 +196,6 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
           <div className="hint">A soft cap. Going over costs the plan a little, it is not forbidden.</div>
         </div>
 
-        <div className="field">
-          <label htmlFor="wildcards">Produce grab bag size</label>
-          <input
-            id="wildcards"
-            type="number"
-            min={0}
-            max={20}
-            value={settings.wildcardCount}
-            onChange={(e) => void updateSettings({ wildcardCount: Number(e.target.value) || 0 })}
-          />
-          <div className="hint">
-            Random in-season produce added each week to break the rut. Set to 0 to
-            turn it off.
-          </div>
-        </div>
-
         <div className="field" style={{ marginBottom: 0 }}>
           <label htmlFor="repeat">Do not repeat recipes for (weeks)</label>
           <input
@@ -223,6 +208,14 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
           />
         </div>
       </div>
+
+      {/* --- Grab bag ----------------------------------------------------- */}
+      <h2 className="section-title">Produce grab bag</h2>
+      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+        Random in-season produce added each week to break the rut. Changes apply to
+        this week's bag straight away; redraw it from the plan screen.
+      </p>
+      <GrabBagControls state={state} />
 
       {/* --- Kitchen ------------------------------------------------------ */}
       <h2 className="section-title">Kitchen</h2>

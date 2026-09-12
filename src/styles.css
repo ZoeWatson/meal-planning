@@ -151,6 +151,15 @@ button { cursor: pointer; }
   color: var(--text-faint);
 }
 
+/* Subdivides a section — the fruit/veg halves of the grab bag. Quieter than
+   `.section-title` so the section still reads as one thing. */
+.sub-title {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
 .row {
   display: flex;
   align-items: center;

@@ -19,7 +19,7 @@ import {
 } from '../domain/cooking';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
-  Id, PantryItem, SalePrice, StapleItem, WeekPlan,
+  Id, PantryItem, SalePrice, StapleItem, WeekPlan, WildcardItem,
 } from '../domain/types';
 
 /**
@@ -125,6 +125,11 @@ export async function setWildcardPromoted(planId: Id, ingredientId: Id, promoted
     wildcards: plan.wildcards.map((w) =>
       w.ingredientId === ingredientId ? { ...w, promoted } : w),
   }));
+}
+
+/** Replaces the whole grab bag. Used by the redraw and by the size controls. */
+export async function setWildcards(planId: Id, wildcards: readonly WildcardItem[]): Promise<void> {
+  await editPlan(planId, (plan) => ({ ...plan, wildcards }));
 }
 
 export async function removeWildcard(planId: Id, ingredientId: Id): Promise<void> {
