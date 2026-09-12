@@ -79,8 +79,14 @@ interface CategoryDefaults {
  * model, so they are the two fields to check first on every stub.
  */
 const DEFAULTS: Readonly<Record<IngredientCategory, CategoryDefaults>> = {
+  // `handful` and `pinch` are here because recipes write herbs that way far more
+  // often than they weigh them, and a stub without them fails conversion on the
+  // very next pass — sending the user off to define a unit on an ingredient they
+  // have only just created. Both are vague by nature and flagged as such by the
+  // line parser, so the weights are honest placeholders rather than claims.
   produce:   { unit: 'kg',     gramsPerPack: 100,  divisible: true,  costPerKg: 5,   shelfLifeDays: 7,
-               countUnits: { each: 150, bunch: 100, head: 400, sprig: 3, clove: 3, stalk: 40 } },
+               countUnits: { each: 150, bunch: 100, head: 400, sprig: 3, clove: 3, stalk: 40,
+                             handful: 25, pinch: 1 } },
   meat:      { unit: 'pack',   gramsPerPack: 500,  divisible: false, costPerKg: 14,  shelfLifeDays: 3,
                countUnits: { each: 150, fillet: 150, piece: 150 } },
   seafood:   { unit: 'pack',   gramsPerPack: 300,  divisible: false, costPerKg: 28,  shelfLifeDays: 2,
