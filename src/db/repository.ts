@@ -545,6 +545,24 @@ export async function commitImport(result: ImportResult): Promise<{ ingredients:
 }
 
 /**
+ * Writes ingredient records that capture had to CHANGE rather than create.
+ *
+ * The case this exists for: a recipe says "1 can coconut milk", the ingredient
+ * already exists, and it simply has no `can` weight. The fix is a `countUnits`
+ * entry on the record that is already there — emphatically not a second
+ * "canned coconut milk" ingredient, which would split the dictionary in two and
+ * make the optimizer treat one food as two that never overlap.
+ *
+ * Separate from `commitImport` because that one only ever writes new records,
+ * and conflating the two would let an import quietly overwrite an ingredient a
+ * user had corrected by hand.
+ */
+export async function updateIngredients(ingredients: readonly Ingredient[]): Promise<void> {
+  if (ingredients.length === 0) return;
+  await syncedBulkPut('ingredients', ingredients as unknown as Record<string, unknown>[]);
+}
+
+/**
  * The whole library as an import bundle.
  *
  * Doubles as the only backup there is until sync exists, which is why the round
