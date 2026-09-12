@@ -7,6 +7,7 @@ import { checkRecipe, describeMatches } from '../domain/allergens';
 import { formatQuantity } from '../domain/units';
 import { scaledGrams, type Recipe } from '../domain/types';
 import { Sheet } from '../components/Sheet';
+import { AddRecipeSheet } from './AddRecipeSheet';
 
 const REJECTION_LABELS: Record<string, string> = {
   'meal-type': 'meal type',
@@ -30,6 +31,7 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Recipe | null>(null);
   const [showAvoided, setShowAvoided] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const filter = useMemo<RecipeFilter>(() => {
     const merged: RecipeFilter[] = FILTER_PRESETS
@@ -89,6 +91,13 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
           {avoided.length > 0 && ` · ${avoided.length} hidden by your allergies`}
         </div>
       </div>
+
+      {/* Adding a recipe belongs on the screen full of recipes, not buried in
+          Settings next to the bulk JSON importer — those are different jobs done
+          by different people on different days. */}
+      <button className="btn primary block" style={{ marginTop: 10 }} onClick={() => setAdding(true)}>
+        Add a recipe
+      </button>
 
       <input
         type="text"
@@ -192,6 +201,8 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
           <RecipeDetail recipe={open} state={state} unitSystem={settings.unitSystem} />
         </Sheet>
       )}
+
+      {adding && <AddRecipeSheet state={state} onClose={() => setAdding(false)} />}
     </main>
   );
 }
