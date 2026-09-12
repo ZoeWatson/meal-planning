@@ -39,6 +39,8 @@ npm run sync-server    # optional, for syncing between devices
 - **A produce grab bag** of random in-season items, as the antidote to cooking the
   same eight things forever.
 - **Metric and imperial**, toggled at display time.
+- **Import a recipe** from a link, a photo or a block of text. All three become
+  the same editable draft, reviewed line by line before anything is saved.
 - **Bulk import** with a prose-line parser, and export as backup.
 - **Sync** between devices, last-write-wins over hybrid logical clocks.
 - **Spending tracker.** Price items at the shelf with a running total, record what
@@ -59,6 +61,7 @@ src/domain/        pure logic — no React, no database, all testable
   cooking.ts       cooking, leftovers, keeping times, the meal log
   planner/         scoring and week generation
   import/          format, validator, prose parser, stub generator
+                   capture from links, photos and text; near-miss matching
   sync/            clocks and merge rules
 src/db/            Dexie schema and the single write choke point
 src/sync/          transport and orchestration
@@ -81,15 +84,31 @@ npm test               # all tests
 npm run tune           # waste model tuning harness and optimizer benchmark
 npm run demo           # end-to-end planner run, printed
 npm run import         # bulk import CLI — see docs/import-format.md
+npm run ocr-assets     # stage the on-device OCR runtime (also runs on install)
 npm run sync-server    # reference sync server — see server/README.md
 ```
 
 ## Adding recipes
 
-See [docs/import-format.md](docs/import-format.md). The short version: recipe
-lines can be written as prose (`"2 cloves garlic, minced"`), the importer rejects
-anything it cannot fully resolve rather than importing it with holes, and
-`npm run import stub` generates the ingredient dictionary for whatever is missing.
+**One at a time**, from the Recipes tab: paste a page, photograph a cookbook, or
+paste the text. Most recipe sites publish schema.org data, which is read as data
+rather than guessed at from the page. Photos are read on-device with Tesseract.
+
+Whichever route, you land on the same review screen, where each ingredient line
+is marked resolved or not and the guesses the parser made are listed. Nothing is
+written until you say so. Where a line names something the library does not have,
+the near match is offered first — "salmon fillets" suggests the existing *Salmon
+fillet* rather than creating a second record, because a duplicate splits one food
+into two the planner will never overlap.
+
+**In bulk**, from a file: see [docs/import-format.md](docs/import-format.md). The
+short version: recipe lines can be written as prose (`"2 cloves garlic, minced"`),
+the importer rejects anything it cannot fully resolve rather than importing it
+with holes, and `npm run import stub` generates the ingredient dictionary for
+whatever is missing.
+
+Both routes go through the same importer. There is no laxer path into the
+library.
 
 ## Notes
 
@@ -98,3 +117,9 @@ anything it cannot fully resolve rather than importing it with holes, and
 - The sync server has no authentication — the pairing code is the only credential.
   Read `server/README.md` before exposing it to the internet.
 - Seed prices are BC estimates, fine for tuning and wrong for budgeting.
+- Photo import needs an OCR runtime — wasm cores copied out of `node_modules`
+  plus a 2 MB language model — staged into `public/tesseract/` by `postinstall`.
+  It is gitignored and excluded from the service worker's precache, so nobody
+  pays 22 MB for a feature they never open. If you install offline, run
+  `npm run ocr-assets` later; until then the model is fetched from the Tesseract
+  project's CDN on first use, and the app says so on screen.

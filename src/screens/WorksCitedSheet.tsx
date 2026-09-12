@@ -344,6 +344,52 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
         </p>
       </Entry>
 
+      <Entry
+        title="Importing from a link, a photo or text"
+        kind="design"
+        what="How a captured recipe is read, and what is guessed."
+      >
+        <p>
+          Three sources, one destination. A page, a photograph and a paste all
+          become the same editable draft, and that draft goes through the same
+          importer as a hand-authored bundle — an ingredient that cannot be
+          resolved to real grams rejects the recipe rather than entering the
+          library with a hole in it.
+        </p>
+        <p>
+          <strong>Links.</strong> Most recipe sites publish their recipes as
+          schema.org structured data, because search engines require it. That is
+          read as data — the author's own ingredient list and yield — rather than
+          guessed at from the page text. Where a page publishes none, the text is
+          parsed instead, and the review screen says so.
+        </p>
+        <p>
+          <strong>Photos.</strong> Text recognition runs on your device using
+          Tesseract; the photo is not uploaded. It reads flat, well-lit printed
+          pages well and handwriting badly. A confidence figure is shown because a
+          low one means retake the photo, which is something only you can do.
+        </p>
+        <p>
+          <strong>What is guessed.</strong> Meal type, from the recipe's name.
+          Servings, when the source states none — four is assumed and flagged.
+          Section boundaries, when a pasted text has no headings. Every one of
+          these appears on the review screen before anything is saved.
+        </p>
+        <Caveat>
+          Quantities are never guessed. A line the parser cannot read with
+          confidence is rejected and shown to you, because a mis-read quantity
+          corrupts the grocery list in a way nobody notices until they are in a
+          shop with the wrong food.
+        </Caveat>
+        <p>
+          On copyright: this imports recipes into your own library on your own
+          device, which is an ordinary personal use. Lists of ingredients are not
+          themselves protected in most jurisdictions, though the written method
+          usually is. Nothing here republishes anything, and bulk-scraping a site
+          would breach most sites' terms even though this would not.
+        </p>
+      </Entry>
+
       <h3 className="section-title">If you only change one thing</h3>
       <div className="card small dim">
         Pack sizes and whether an item is sold loose drive the entire waste
