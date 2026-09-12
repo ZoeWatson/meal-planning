@@ -181,6 +181,9 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
   weeklyTimeBudgetMinutes: 300,
   repeatWindowWeeks: 3,
   wildcardCount: 6,
+  wildcardSplit: false,
+  wildcardFruitCount: 2,
+  wildcardVegCount: 4,
   cycleDays: 7,
   monthlyBudgetCents: null,
   currency: 'CAD',
@@ -211,7 +214,10 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
  * 3: declared allergens across the library.
  * 4: the importer was silently dropping `allergens` when 3 was seeded, so every
  *    device that took 3 has the data missing. Reseed.
+ * 5: added 100 vegetarian recipes and the 118 ingredients they need, and made
+ *    every milk-containing ingredient exclude `dairy-free` — cheese was only
+ *    excluding `vegan`, so a parmesan pasta was being reported as dairy-free.
  */
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 
 export type { GroceryList };
