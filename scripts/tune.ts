@@ -41,6 +41,9 @@ const settings: PlannerSettings = {
   weeklyTimeBudgetMinutes: 240,
   repeatWindowWeeks: 3,
   wildcardCount: 4,
+  wildcardSplit: false,
+  wildcardFruitCount: 2,
+  wildcardVegCount: 2,
 };
 
 const staples: StapleItem[] = [

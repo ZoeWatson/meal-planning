@@ -27,6 +27,7 @@
 
 import type { Id, MealType, PlanSlot, Recipe, SlotSpec, WeekPlan, WildcardItem } from '../types';
 import { type RecipeFilter, explainFilter } from '../filters';
+import { type ProduceKind, PRODUCE_KINDS, produceKind } from '../produce';
 import { seasonStatus } from '../seasonality';
 import { type PlanningContext, type ScoreWeights, DEFAULT_WEIGHTS, scorePlan } from './scoring';
 
@@ -283,6 +284,13 @@ export function generateWeekPlan(ctx: PlanningContext, opts: GenerateOptions): G
   };
 }
 
+export interface WildcardDrawOptions {
+  /** Restrict the pool to one half of the produce shelf. Omit to draw from all of it. */
+  readonly kind?: ProduceKind;
+  /** Ingredients already in the bag. Never drawn again, so a top-up cannot duplicate. */
+  readonly exclude?: ReadonlySet<Id>;
+}
+
 /**
  * Picks the produce grab-bag: a random selection biased toward what is in season
  * and what is on sale.
@@ -291,11 +299,20 @@ export function generateWeekPlan(ctx: PlanningContext, opts: GenerateOptions): G
  * cost-minimizing optimizer inevitably falls into, so making it obey the same
  * objective would defeat the point.
  */
-export function pickWildcards(ctx: PlanningContext, count: number, seed: number): WildcardItem[] {
+export function pickWildcards(
+  ctx: PlanningContext,
+  count: number,
+  seed: number,
+  options: WildcardDrawOptions = {},
+): WildcardItem[] {
   const rng = makeRng(seed);
 
   const pool = [...ctx.ingredients.values()].filter(
-    (ing) => ing.category === 'produce' && !ctx.settings.excludedIngredients.includes(ing.id),
+    (ing) =>
+      ing.category === 'produce' &&
+      !ctx.settings.excludedIngredients.includes(ing.id) &&
+      !options.exclude?.has(ing.id) &&
+      (options.kind === undefined || produceKind(ing) === options.kind),
   );
 
   const weighted = pool.map((ing) => {
@@ -326,4 +343,78 @@ export function pickWildcards(ctx: PlanningContext, count: number, seed: number)
   }
 
   return picked;
+}
+
+// ---------------------------------------------------------------------------
+// Grab bag sizing
+// ---------------------------------------------------------------------------
+
+/**
+ * How big the bag should be, and whether it is one bag or two.
+ *
+ * Split mode is not cosmetic: drawing fruit and veg from one weighted pool means
+ * a week's draw can legitimately come back all vegetables, which is the wrong
+ * answer for anyone who wanted fruit in the house. Two draws with their own
+ * targets is the only way to guarantee both.
+ */
+export interface WildcardSizes {
+  readonly split: boolean;
+  /** Items to draw when `split` is false. */
+  readonly count: number;
+  readonly fruitCount: number;
+  readonly vegCount: number;
+}
+
+/** The target size for one half of a split bag, or the whole bag when unsplit. */
+function targetFor(sizes: WildcardSizes, kind?: ProduceKind): number {
+  if (!sizes.split) return Math.max(0, sizes.count);
+  return Math.max(0, kind === 'fruit' ? sizes.fruitCount : sizes.vegCount);
+}
+
+/**
+ * Brings a bag to its target size, keeping what is already in it.
+ *
+ * Used for both "redraw" (call with only the items worth keeping) and for the
+ * size steppers (call with everything, and it tops up or trims). Trimming drops
+ * un-promoted items first and from the end, so shrinking the bag by one never
+ * discards something the user deliberately promoted, and never reshuffles the
+ * items they are still looking at.
+ *
+ * The draw is capped at what the pantry can actually offer: asking for eight
+ * fruit from a library with three simply returns three. That is a library
+ * problem, and quietly padding it with vegetables would hide it.
+ */
+export function fitWildcards(
+  ctx: PlanningContext,
+  sizes: WildcardSizes,
+  seed: number,
+  keep: readonly WildcardItem[] = [],
+): WildcardItem[] {
+  const kinds: Array<ProduceKind | undefined> = sizes.split ? [...PRODUCE_KINDS] : [undefined];
+  const out: WildcardItem[] = [];
+
+  kinds.forEach((kind, i) => {
+    const mine = keep.filter((w) => {
+      if (kind === undefined) return true;
+      const ing = ctx.ingredients.get(w.ingredientId);
+      return ing !== undefined && produceKind(ing) === kind;
+    });
+
+    const target = targetFor(sizes, kind);
+    const kept = mine.length <= target
+      ? mine
+      : [...mine].sort((a, b) => Number(b.promoted) - Number(a.promoted)).slice(0, target);
+
+    // Distinct seeds per half, or fruit and veg would walk the same RNG stream.
+    const fresh = pickWildcards(ctx, target - kept.length, seed + i * 104729, {
+      kind,
+      exclude: new Set(keep.map((w) => w.ingredientId)),
+    });
+
+    // Original order is restored after the promoted-first sort used for trimming,
+    // so the list on screen does not jump around when the stepper is pressed.
+    out.push(...mine.filter((w) => kept.includes(w)), ...fresh);
+  });
+
+  return out;
 }

@@ -37,7 +37,9 @@ npm run sync-server    # optional, for syncing between devices
 - **Weekly staples** always on the list, and a **pantry** whose stocked items are
   treated as free.
 - **A produce grab bag** of random in-season items, as the antidote to cooking the
-  same eight things forever.
+  same eight things forever. Redraw it without touching the meals, size it, and
+  split it into separate fruit and vegetable draws so a week never comes back
+  with no fruit in it.
 - **Metric and imperial**, toggled at display time.
 - **Import a recipe** from a link, a photo or a block of text. All three become
   the same editable draft, reviewed line by line before anything is saved.
