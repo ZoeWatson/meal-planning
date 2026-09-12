@@ -33,7 +33,21 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+        /**
+         * The OCR runtime is ~20 MB and two of its three wasm cores will never
+         * be used on any given device, so precaching it would mean every visitor
+         * paying for photo import whether or not they ever open it — including
+         * the ones who came to tick off a shopping list.
+         *
+         * It is fetched on first use instead and cached by the browser from
+         * there, which is the right shape for a feature this heavy and this
+         * occasional. `.wasm.js` has to be named explicitly: it ends in `.js`
+         * and would otherwise be swept up by the pattern above.
+         */
+        globIgnores: ['**/tesseract/**'],
         cleanupOutdatedCaches: true,
+        // One core is ~4 MB; the default 2 MB ceiling would silently drop it.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
     }),
   ],

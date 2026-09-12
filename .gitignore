@@ -20,3 +20,7 @@ Thumbs.db
 !.env.example
 .vscode/
 .idea/
+
+# OCR runtime for photo import: wasm cores copied out of node_modules plus a
+# downloaded language model, ~20 MB. Regenerate with `npm run ocr-assets`.
+public/tesseract/

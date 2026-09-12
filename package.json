@@ -18,7 +18,9 @@
     "demo": "tsx scripts/demo.ts",
     "tune": "tsx scripts/tune.ts",
     "import": "tsx scripts/import.ts",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "ocr-assets": "node scripts/ocr-assets.mjs",
+    "postinstall": "node scripts/ocr-assets.mjs"
   },
   "engines": {
     "node": ">=18.18"
@@ -34,7 +36,8 @@
     "dexie": "^4.0.10",
     "dexie-react-hooks": "^1.1.7",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
