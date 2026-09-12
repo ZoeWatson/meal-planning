@@ -230,16 +230,18 @@ test('stubs carry a TODO and are ordered by demand', () => {
     recipes: [{
       id: 'x', name: 'X', mealType: 'full', baseServings: 2,
       prepMinutes: 0, cookMinutes: 0, steps: [],
+      // Deliberately things the library does not have — the point of a stub is
+      // that nothing resolved, so anything stocked here would test nothing.
       ingredients: [
-        { raw: '1 cauliflower' },
-        { raw: '2 tbsp harissa paste' },
-        { raw: '1 cauliflower' },
+        { raw: '1 kohlrabi' },
+        { raw: '2 tbsp gochujang' },
+        { raw: '1 kohlrabi' },
       ],
     }],
   }, seed.ingredients);
 
   const stubs = stubsFromResult(result);
-  assert.equal(stubs[0].id, 'cauliflower', 'most-wanted first');
+  assert.equal(stubs[0].id, 'kohlrabi', 'most-wanted first');
   assert.equal(stubs[0]._usedBy, 2);
   assert.ok(stubs[0].TODO.includes('purchase.divisible'));
 });

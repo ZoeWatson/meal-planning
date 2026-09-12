@@ -11,7 +11,7 @@
       "unit": "pack",
       "gramsPerPack": 500,
       "divisible": false,
-      "costPerKg": 13.0
+      "costPerKg": 13
     },
     "shelfLifeDays": 3,
     "excludesDiets": [
@@ -50,9 +50,9 @@
     ],
     "nutritionPer100g": {
       "kcal": 176,
-      "proteinG": 20.0,
+      "proteinG": 20,
       "carbG": 0,
-      "fatG": 10.0
+      "fatG": 10
     },
     "allergens": [],
     "allergensVerified": true
@@ -68,7 +68,7 @@
       "unit": "pack",
       "gramsPerPack": 340,
       "divisible": false,
-      "costPerKg": 30.0
+      "costPerKg": 30
     },
     "shelfLifeDays": 2,
     "excludesDiets": [
@@ -104,7 +104,7 @@
       "unit": "dozen",
       "gramsPerPack": 600,
       "divisible": false,
-      "costPerKg": 8.0
+      "costPerKg": 8
     },
     "shelfLifeDays": 28,
     "backgroundUseGramsPerWeek": 200,
@@ -135,16 +135,17 @@
       "unit": "tub",
       "gramsPerPack": 750,
       "divisible": false,
-      "costPerKg": 8.0
+      "costPerKg": 8
     },
     "shelfLifeDays": 14,
     "backgroundUseGramsPerWeek": 350,
     "excludesDiets": [
-      "vegan"
+      "vegan",
+      "dairy-free"
     ],
     "nutritionPer100g": {
       "kcal": 59,
-      "proteinG": 10.0,
+      "proteinG": 10,
       "carbG": 3.6,
       "fatG": 0.4
     },
@@ -164,12 +165,13 @@
       "unit": "block",
       "gramsPerPack": 200,
       "divisible": false,
-      "costPerKg": 22.0
+      "costPerKg": 22
     },
     "shelfLifeDays": 21,
     "backgroundUseGramsPerWeek": 40,
     "excludesDiets": [
-      "vegan"
+      "vegan",
+      "dairy-free"
     ],
     "nutritionPer100g": {
       "kcal": 264,
@@ -194,13 +196,14 @@
       "unit": "wedge",
       "gramsPerPack": 150,
       "divisible": false,
-      "costPerKg": 40.0
+      "costPerKg": 40
     },
     "shelfLifeDays": 60,
     "carryOver": "freezer",
     "backgroundUseGramsPerWeek": 30,
     "excludesDiets": [
-      "vegan"
+      "vegan",
+      "dairy-free"
     ],
     "nutritionPer100g": {
       "kcal": 392,
@@ -266,7 +269,7 @@
       "proteinG": 7.3,
       "carbG": 22.5,
       "fatG": 2.6,
-      "fibreG": 6.0
+      "fibreG": 6
     },
     "allergens": [],
     "allergensVerified": true
@@ -358,7 +361,7 @@
       "unit": "can",
       "gramsPerPack": 400,
       "divisible": false,
-      "costPerKg": 5.0
+      "costPerKg": 5
     },
     "shelfLifeDays": 730,
     "nutritionPer100g": {
@@ -381,13 +384,13 @@
       "unit": "bag",
       "gramsPerPack": 900,
       "divisible": false,
-      "costPerKg": 5.0
+      "costPerKg": 5
     },
     "shelfLifeDays": 730,
     "nutritionPer100g": {
       "kcal": 358,
-      "proteinG": 24.0,
-      "carbG": 63.0,
+      "proteinG": 24,
+      "carbG": 63,
       "fatG": 1.1,
       "fibreG": 10.7
     },
@@ -406,13 +409,13 @@
       "unit": "bag",
       "gramsPerPack": 1000,
       "divisible": false,
-      "costPerKg": 6.0
+      "costPerKg": 6
     },
     "shelfLifeDays": 730,
     "nutritionPer100g": {
       "kcal": 358,
       "proteinG": 6.5,
-      "carbG": 79.0,
+      "carbG": 79,
       "fatG": 0.6
     },
     "allergens": [],
@@ -457,7 +460,7 @@
       "unit": "box",
       "gramsPerPack": 450,
       "divisible": false,
-      "costPerKg": 4.0
+      "costPerKg": 4
     },
     "shelfLifeDays": 730,
     "excludesDiets": [
@@ -465,7 +468,7 @@
     ],
     "nutritionPer100g": {
       "kcal": 371,
-      "proteinG": 13.0,
+      "proteinG": 13,
       "carbG": 74.7,
       "fatG": 1.5,
       "fibreG": 3.2
@@ -488,7 +491,7 @@
       "unit": "bag",
       "gramsPerPack": 1000,
       "divisible": false,
-      "costPerKg": 4.0
+      "costPerKg": 4
     },
     "shelfLifeDays": 365,
     "nutritionPer100g": {
@@ -520,7 +523,7 @@
       "unit": "loaf",
       "gramsPerPack": 675,
       "divisible": false,
-      "costPerKg": 6.0
+      "costPerKg": 6
     },
     "shelfLifeDays": 6,
     "carryOver": "freezer",
@@ -530,8 +533,8 @@
     ],
     "nutritionPer100g": {
       "kcal": 265,
-      "proteinG": 9.0,
-      "carbG": 49.0,
+      "proteinG": 9,
+      "carbG": 49,
       "fatG": 3.2,
       "fibreG": 2.7
     },
@@ -556,7 +559,7 @@
       "unit": "pack",
       "gramsPerPack": 400,
       "divisible": false,
-      "costPerKg": 8.0
+      "costPerKg": 8
     },
     "shelfLifeDays": 21,
     "carryOver": "freezer",
@@ -566,9 +569,9 @@
     ],
     "nutritionPer100g": {
       "kcal": 310,
-      "proteinG": 8.0,
-      "carbG": 51.0,
-      "fatG": 8.0
+      "proteinG": 8,
+      "carbG": 51,
+      "fatG": 8
     },
     "allergens": [
       "wheat"
@@ -590,12 +593,12 @@
       "unit": "kg",
       "gramsPerPack": 100,
       "divisible": true,
-      "costPerKg": 3.0
+      "costPerKg": 3
     },
     "shelfLifeDays": 45,
     "nutritionPer100g": {
       "kcal": 77,
-      "proteinG": 2.0,
+      "proteinG": 2,
       "carbG": 17.5,
       "fatG": 0.1,
       "fibreG": 2.2
@@ -626,7 +629,7 @@
       "proteinG": 1.6,
       "carbG": 20.1,
       "fatG": 0.1,
-      "fibreG": 3.0
+      "fibreG": 3
     },
     "allergens": [],
     "allergensVerified": true
@@ -705,7 +708,7 @@
       "unit": "head",
       "gramsPerPack": 45,
       "divisible": false,
-      "costPerKg": 12.0
+      "costPerKg": 12
     },
     "shelfLifeDays": 60,
     "nutritionPer100g": {
@@ -729,7 +732,7 @@
       "unit": "kg",
       "gramsPerPack": 20,
       "divisible": true,
-      "costPerKg": 9.0
+      "costPerKg": 9
     },
     "shelfLifeDays": 21,
     "nutritionPer100g": {
@@ -790,8 +793,8 @@
     "shelfLifeDays": 10,
     "nutritionPer100g": {
       "kcal": 31,
-      "proteinG": 1.0,
-      "carbG": 6.0,
+      "proteinG": 1,
+      "carbG": 6,
       "fatG": 0.3,
       "fibreG": 2.1
     },
@@ -820,7 +823,7 @@
       "proteinG": 1.2,
       "carbG": 3.1,
       "fatG": 0.3,
-      "fibreG": 1.0
+      "fibreG": 1
     },
     "allergens": [],
     "allergensVerified": true
@@ -839,7 +842,7 @@
       "unit": "each",
       "gramsPerPack": 300,
       "divisible": false,
-      "costPerKg": 5.0
+      "costPerKg": 5
     },
     "shelfLifeDays": 7,
     "backgroundUseGramsPerWeek": 120,
@@ -864,7 +867,7 @@
       "unit": "crown",
       "gramsPerPack": 350,
       "divisible": false,
-      "costPerKg": 6.0
+      "costPerKg": 6
     },
     "shelfLifeDays": 7,
     "nutritionPer100g": {
@@ -889,7 +892,7 @@
       "unit": "bunch",
       "gramsPerPack": 200,
       "divisible": false,
-      "costPerKg": 8.0
+      "costPerKg": 8
     },
     "shelfLifeDays": 6,
     "nutritionPer100g": {
@@ -913,7 +916,7 @@
       "unit": "bag",
       "gramsPerPack": 142,
       "divisible": false,
-      "costPerKg": 14.0
+      "costPerKg": 14
     },
     "shelfLifeDays": 5,
     "nutritionPer100g": {
@@ -938,7 +941,7 @@
       "unit": "head",
       "gramsPerPack": 300,
       "divisible": false,
-      "costPerKg": 6.0
+      "costPerKg": 6
     },
     "shelfLifeDays": 7,
     "nutritionPer100g": {
@@ -964,7 +967,7 @@
       "unit": "kg",
       "gramsPerPack": 100,
       "divisible": true,
-      "costPerKg": 9.0
+      "costPerKg": 9
     },
     "shelfLifeDays": 6,
     "nutritionPer100g": {
@@ -972,7 +975,7 @@
       "proteinG": 3.1,
       "carbG": 3.3,
       "fatG": 0.3,
-      "fibreG": 1.0
+      "fibreG": 1
     },
     "allergens": [],
     "allergensVerified": true
@@ -989,15 +992,15 @@
       "unit": "kg",
       "gramsPerPack": 100,
       "divisible": true,
-      "costPerKg": 4.0
+      "costPerKg": 4
     },
     "shelfLifeDays": 45,
     "nutritionPer100g": {
       "kcal": 45,
-      "proteinG": 1.0,
+      "proteinG": 1,
       "carbG": 11.7,
       "fatG": 0.1,
-      "fibreG": 2.0
+      "fibreG": 2
     },
     "allergens": [],
     "allergensVerified": true
@@ -1041,7 +1044,7 @@
       "unit": "pint",
       "gramsPerPack": 340,
       "divisible": false,
-      "costPerKg": 15.0
+      "costPerKg": 15
     },
     "shelfLifeDays": 7,
     "backgroundUseGramsPerWeek": 150,
@@ -1071,7 +1074,7 @@
       "unit": "each",
       "gramsPerPack": 100,
       "divisible": false,
-      "costPerKg": 8.0
+      "costPerKg": 8
     },
     "shelfLifeDays": 21,
     "nutritionPer100g": {
@@ -1095,12 +1098,12 @@
       "unit": "bunch",
       "gramsPerPack": 30,
       "divisible": false,
-      "costPerKg": 30.0
+      "costPerKg": 30
     },
     "shelfLifeDays": 5,
     "nutritionPer100g": {
       "kcal": 36,
-      "proteinG": 3.0,
+      "proteinG": 3,
       "carbG": 6.3,
       "fatG": 0.8,
       "fibreG": 3.3
@@ -1120,7 +1123,7 @@
       "unit": "bottle",
       "gramsPerPack": 750,
       "divisible": false,
-      "costPerKg": 14.0
+      "costPerKg": 14
     },
     "shelfLifeDays": 540,
     "nutritionPer100g": {
@@ -1144,7 +1147,7 @@
       "unit": "jar",
       "gramsPerPack": 500,
       "divisible": false,
-      "costPerKg": 10.0
+      "costPerKg": 10
     },
     "shelfLifeDays": 180,
     "backgroundUseGramsPerWeek": 100,
@@ -1154,9 +1157,9 @@
     "nutritionPer100g": {
       "kcal": 588,
       "proteinG": 25.1,
-      "carbG": 20.0,
+      "carbG": 20,
       "fatG": 50.4,
-      "fibreG": 6.0
+      "fibreG": 6
     },
     "allergens": [
       "peanuts"
@@ -1175,12 +1178,12 @@
       "unit": "jar",
       "gramsPerPack": 300,
       "divisible": false,
-      "costPerKg": 18.0
+      "costPerKg": 18
     },
     "shelfLifeDays": 365,
     "nutritionPer100g": {
       "kcal": 595,
-      "proteinG": 17.0,
+      "proteinG": 17,
       "carbG": 21.2,
       "fatG": 53.8,
       "fibreG": 9.3
@@ -1202,7 +1205,7 @@
       "unit": "bottle",
       "gramsPerPack": 500,
       "divisible": false,
-      "costPerKg": 8.0
+      "costPerKg": 8
     },
     "shelfLifeDays": 730,
     "excludesDiets": [
@@ -1228,13 +1231,13 @@
       "stock"
     ],
     "category": "condiment",
-    "gramsPerMl": 1.0,
+    "gramsPerMl": 1,
     "displayAs": "volume",
     "purchase": {
       "unit": "carton",
       "gramsPerPack": 900,
       "divisible": false,
-      "costPerKg": 3.0
+      "costPerKg": 3
     },
     "shelfLifeDays": 365,
     "nutritionPer100g": {
@@ -1256,7 +1259,7 @@
       "unit": "jar",
       "gramsPerPack": 45,
       "divisible": false,
-      "costPerKg": 55.0
+      "costPerKg": 55
     },
     "shelfLifeDays": 730,
     "nutritionPer100g": {
@@ -1278,7 +1281,7 @@
       "unit": "jar",
       "gramsPerPack": 45,
       "divisible": false,
-      "costPerKg": 55.0
+      "costPerKg": 55
     },
     "shelfLifeDays": 730,
     "nutritionPer100g": {
@@ -1300,14 +1303,14 @@
       "unit": "jar",
       "gramsPerPack": 50,
       "divisible": false,
-      "costPerKg": 50.0
+      "costPerKg": 50
     },
     "shelfLifeDays": 730,
     "nutritionPer100g": {
       "kcal": 325,
       "proteinG": 14.3,
       "carbG": 55.8,
-      "fatG": 14.0
+      "fatG": 14
     }
   },
   {
@@ -1327,7 +1330,7 @@
       "unit": "box",
       "gramsPerPack": 1000,
       "divisible": false,
-      "costPerKg": 2.0
+      "costPerKg": 2
     },
     "shelfLifeDays": 3650,
     "allergens": [],
@@ -1350,8 +1353,3204 @@
       "unit": "jar",
       "gramsPerPack": 50,
       "divisible": false,
-      "costPerKg": 60.0
+      "costPerKg": 60
     },
     "shelfLifeDays": 730
+  },
+  {
+    "id": "asparagus",
+    "name": "Asparagus",
+    "aliases": [
+      "asparagus spears"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "bunch": 340,
+      "spear": 17
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 340,
+      "divisible": false,
+      "costPerKg": 13
+    },
+    "shelfLifeDays": 5,
+    "nutritionPer100g": {
+      "kcal": 20,
+      "proteinG": 2.2,
+      "carbG": 3.9,
+      "fatG": 0.1,
+      "fibreG": 2.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "basil",
+    "name": "Fresh basil",
+    "aliases": [
+      "basil",
+      "basil leaves"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "bunch": 25,
+      "leaf": 0.5
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 25,
+      "divisible": false,
+      "costPerKg": 40
+    },
+    "shelfLifeDays": 5,
+    "nutritionPer100g": {
+      "kcal": 23,
+      "proteinG": 3.2,
+      "carbG": 2.7,
+      "fatG": 0.6,
+      "fibreG": 1.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "beet",
+    "name": "Beets",
+    "aliases": [
+      "beetroot"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 120
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 500,
+      "divisible": true,
+      "costPerKg": 4.4
+    },
+    "shelfLifeDays": 30,
+    "nutritionPer100g": {
+      "kcal": 43,
+      "proteinG": 1.6,
+      "carbG": 9.6,
+      "fatG": 0.2,
+      "fibreG": 2.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "brussels-sprouts",
+    "name": "Brussels sprouts",
+    "aliases": [
+      "sprouts"
+    ],
+    "category": "produce",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 340,
+      "divisible": true,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 14,
+    "nutritionPer100g": {
+      "kcal": 43,
+      "proteinG": 3.4,
+      "carbG": 9,
+      "fatG": 0.3,
+      "fibreG": 3.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cabbage",
+    "name": "Green cabbage",
+    "aliases": [
+      "cabbage",
+      "white cabbage"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "head": 900
+    },
+    "purchase": {
+      "unit": "head",
+      "gramsPerPack": 900,
+      "divisible": false,
+      "costPerKg": 2.6
+    },
+    "shelfLifeDays": 30,
+    "nutritionPer100g": {
+      "kcal": 25,
+      "proteinG": 1.3,
+      "carbG": 5.8,
+      "fatG": 0.1,
+      "fibreG": 2.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cauliflower",
+    "name": "Cauliflower",
+    "aliases": [
+      "cauliflower florets"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "head": 600
+    },
+    "purchase": {
+      "unit": "head",
+      "gramsPerPack": 600,
+      "divisible": false,
+      "costPerKg": 5
+    },
+    "shelfLifeDays": 10,
+    "nutritionPer100g": {
+      "kcal": 25,
+      "proteinG": 1.9,
+      "carbG": 5,
+      "fatG": 0.3,
+      "fibreG": 2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "green-beans",
+    "name": "Green beans",
+    "aliases": [
+      "string beans",
+      "french beans"
+    ],
+    "category": "produce",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 340,
+      "divisible": true,
+      "costPerKg": 8
+    },
+    "shelfLifeDays": 7,
+    "nutritionPer100g": {
+      "kcal": 31,
+      "proteinG": 1.8,
+      "carbG": 7,
+      "fatG": 0.1,
+      "fibreG": 2.7
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "sweet-corn",
+    "name": "Corn on the cob",
+    "aliases": [
+      "corn",
+      "corn cobs",
+      "fresh corn"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 110,
+      "cob": 110
+    },
+    "displayAs": "count",
+    "countUnit": "cob",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 110,
+      "divisible": true,
+      "costPerKg": 6
+    },
+    "shelfLifeDays": 5,
+    "nutritionPer100g": {
+      "kcal": 86,
+      "proteinG": 3.3,
+      "carbG": 19,
+      "fatG": 1.4,
+      "fibreG": 2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "leek",
+    "name": "Leeks",
+    "aliases": [
+      "leek"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 150
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 150,
+      "divisible": true,
+      "costPerKg": 6.6
+    },
+    "shelfLifeDays": 14,
+    "nutritionPer100g": {
+      "kcal": 61,
+      "proteinG": 1.5,
+      "carbG": 14.2,
+      "fatG": 0.3,
+      "fibreG": 1.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "parsnip",
+    "name": "Parsnips",
+    "category": "produce",
+    "countUnits": {
+      "each": 110
+    },
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 500,
+      "divisible": true,
+      "costPerKg": 5
+    },
+    "shelfLifeDays": 21,
+    "nutritionPer100g": {
+      "kcal": 75,
+      "proteinG": 1.2,
+      "carbG": 18,
+      "fatG": 0.3,
+      "fibreG": 4.9
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "radish",
+    "name": "Radishes",
+    "category": "produce",
+    "countUnits": {
+      "bunch": 200,
+      "each": 12
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 200,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 10,
+    "nutritionPer100g": {
+      "kcal": 16,
+      "proteinG": 0.7,
+      "carbG": 3.4,
+      "fatG": 0.1,
+      "fibreG": 1.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "celery",
+    "name": "Celery",
+    "aliases": [
+      "celery stalks",
+      "celery sticks"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "stalk": 40,
+      "head": 450,
+      "each": 40
+    },
+    "displayAs": "count",
+    "countUnit": "stalk",
+    "purchase": {
+      "unit": "head",
+      "gramsPerPack": 450,
+      "divisible": false,
+      "costPerKg": 4
+    },
+    "shelfLifeDays": 14,
+    "nutritionPer100g": {
+      "kcal": 16,
+      "proteinG": 0.7,
+      "carbG": 3,
+      "fatG": 0.2,
+      "fibreG": 1.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "red-onion",
+    "name": "Red onions",
+    "aliases": [
+      "red onion"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 140
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 140,
+      "divisible": true,
+      "costPerKg": 3.5
+    },
+    "shelfLifeDays": 45,
+    "nutritionPer100g": {
+      "kcal": 40,
+      "proteinG": 1.1,
+      "carbG": 9.3,
+      "fatG": 0.1,
+      "fibreG": 1.7
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "green-onion",
+    "name": "Green onions",
+    "aliases": [
+      "scallions",
+      "spring onions",
+      "scallion"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 15,
+      "bunch": 100
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 100,
+      "divisible": false,
+      "costPerKg": 10
+    },
+    "shelfLifeDays": 10,
+    "nutritionPer100g": {
+      "kcal": 32,
+      "proteinG": 1.8,
+      "carbG": 7.3,
+      "fatG": 0.2,
+      "fibreG": 2.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "shallot",
+    "name": "Shallots",
+    "category": "produce",
+    "countUnits": {
+      "each": 30
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 200,
+      "divisible": true,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 30,
+    "nutritionPer100g": {
+      "kcal": 72,
+      "proteinG": 2.5,
+      "carbG": 16.8,
+      "fatG": 0.1,
+      "fibreG": 3.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cherry-tomato",
+    "name": "Cherry tomatoes",
+    "aliases": [
+      "grape tomatoes",
+      "cherry tomato"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 17,
+      "pint": 340
+    },
+    "purchase": {
+      "unit": "pint",
+      "gramsPerPack": 340,
+      "divisible": false,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 8,
+    "nutritionPer100g": {
+      "kcal": 18,
+      "proteinG": 0.9,
+      "carbG": 3.9,
+      "fatG": 0.2,
+      "fibreG": 1.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "avocado",
+    "name": "Avocados",
+    "aliases": [
+      "avocado"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 200
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 200,
+      "divisible": true,
+      "costPerKg": 11
+    },
+    "shelfLifeDays": 5,
+    "nutritionPer100g": {
+      "kcal": 160,
+      "proteinG": 2,
+      "carbG": 8.5,
+      "fatG": 14.7,
+      "fibreG": 6.7
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "lime",
+    "name": "Limes",
+    "aliases": [
+      "lime"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 70
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 70,
+      "divisible": true,
+      "costPerKg": 8
+    },
+    "shelfLifeDays": 21,
+    "nutritionPer100g": {
+      "kcal": 30,
+      "proteinG": 0.7,
+      "carbG": 10.5,
+      "fatG": 0.2,
+      "fibreG": 2.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "orange",
+    "name": "Oranges",
+    "category": "produce",
+    "countUnits": {
+      "each": 180
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 180,
+      "divisible": true,
+      "costPerKg": 4
+    },
+    "shelfLifeDays": 21,
+    "backgroundUseGramsPerWeek": 300,
+    "nutritionPer100g": {
+      "kcal": 47,
+      "proteinG": 0.9,
+      "carbG": 11.8,
+      "fatG": 0.1,
+      "fibreG": 2.4
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "banana",
+    "name": "Bananas",
+    "category": "produce",
+    "countUnits": {
+      "each": 120
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 120,
+      "divisible": true,
+      "costPerKg": 2.6
+    },
+    "shelfLifeDays": 6,
+    "backgroundUseGramsPerWeek": 400,
+    "nutritionPer100g": {
+      "kcal": 89,
+      "proteinG": 1.1,
+      "carbG": 22.8,
+      "fatG": 0.3,
+      "fibreG": 2.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "pear",
+    "name": "Pears",
+    "category": "produce",
+    "countUnits": {
+      "each": 180
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 180,
+      "divisible": true,
+      "costPerKg": 5
+    },
+    "shelfLifeDays": 14,
+    "backgroundUseGramsPerWeek": 200,
+    "nutritionPer100g": {
+      "kcal": 57,
+      "proteinG": 0.4,
+      "carbG": 15.2,
+      "fatG": 0.1,
+      "fibreG": 3.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "peach",
+    "name": "Peaches",
+    "category": "produce",
+    "countUnits": {
+      "each": 150
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 150,
+      "divisible": true,
+      "costPerKg": 6.6
+    },
+    "shelfLifeDays": 6,
+    "backgroundUseGramsPerWeek": 200,
+    "nutritionPer100g": {
+      "kcal": 39,
+      "proteinG": 0.9,
+      "carbG": 9.5,
+      "fatG": 0.3,
+      "fibreG": 1.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "strawberry",
+    "name": "Strawberries",
+    "category": "produce",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 454,
+      "divisible": false,
+      "costPerKg": 11
+    },
+    "shelfLifeDays": 4,
+    "backgroundUseGramsPerWeek": 150,
+    "nutritionPer100g": {
+      "kcal": 32,
+      "proteinG": 0.7,
+      "carbG": 7.7,
+      "fatG": 0.3,
+      "fibreG": 2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "raspberry",
+    "name": "Raspberries",
+    "category": "produce",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 170,
+      "divisible": false,
+      "costPerKg": 22
+    },
+    "shelfLifeDays": 3,
+    "backgroundUseGramsPerWeek": 80,
+    "nutritionPer100g": {
+      "kcal": 52,
+      "proteinG": 1.2,
+      "carbG": 11.9,
+      "fatG": 0.7,
+      "fibreG": 6.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cherry",
+    "name": "Cherries",
+    "category": "produce",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 400,
+      "divisible": true,
+      "costPerKg": 13
+    },
+    "shelfLifeDays": 5,
+    "backgroundUseGramsPerWeek": 150,
+    "nutritionPer100g": {
+      "kcal": 63,
+      "proteinG": 1.1,
+      "carbG": 16,
+      "fatG": 0.2,
+      "fibreG": 2.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "grape",
+    "name": "Grapes",
+    "category": "produce",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 10,
+    "backgroundUseGramsPerWeek": 250,
+    "nutritionPer100g": {
+      "kcal": 69,
+      "proteinG": 0.7,
+      "carbG": 18.1,
+      "fatG": 0.2,
+      "fibreG": 0.9
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "rhubarb",
+    "name": "Rhubarb",
+    "category": "produce",
+    "countUnits": {
+      "stalk": 60
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 500,
+      "divisible": true,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 7,
+    "nutritionPer100g": {
+      "kcal": 21,
+      "proteinG": 0.9,
+      "carbG": 4.5,
+      "fatG": 0.2,
+      "fibreG": 1.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "mango",
+    "name": "Mangoes",
+    "aliases": [
+      "mango"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 300
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 300,
+      "divisible": true,
+      "costPerKg": 6
+    },
+    "shelfLifeDays": 7,
+    "nutritionPer100g": {
+      "kcal": 60,
+      "proteinG": 0.8,
+      "carbG": 15,
+      "fatG": 0.4,
+      "fibreG": 1.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cilantro",
+    "name": "Fresh cilantro",
+    "aliases": [
+      "cilantro",
+      "coriander leaves",
+      "fresh coriander"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "bunch": 40
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 40,
+      "divisible": false,
+      "costPerKg": 22
+    },
+    "shelfLifeDays": 6,
+    "nutritionPer100g": {
+      "kcal": 23,
+      "proteinG": 2.1,
+      "carbG": 3.7,
+      "fatG": 0.5,
+      "fibreG": 2.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "mint",
+    "name": "Fresh mint",
+    "aliases": [
+      "mint",
+      "mint leaves"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "bunch": 25
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 25,
+      "divisible": false,
+      "costPerKg": 40
+    },
+    "shelfLifeDays": 6,
+    "nutritionPer100g": {
+      "kcal": 70,
+      "proteinG": 3.8,
+      "carbG": 14.9,
+      "fatG": 0.9,
+      "fibreG": 8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "dill",
+    "name": "Fresh dill",
+    "aliases": [
+      "dill"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "bunch": 25
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 25,
+      "divisible": false,
+      "costPerKg": 40
+    },
+    "shelfLifeDays": 5,
+    "nutritionPer100g": {
+      "kcal": 43,
+      "proteinG": 3.5,
+      "carbG": 7,
+      "fatG": 1.1,
+      "fibreG": 2.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "rosemary",
+    "name": "Fresh rosemary",
+    "aliases": [
+      "rosemary"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "sprig": 1.5
+    },
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 20,
+      "divisible": false,
+      "costPerKg": 50
+    },
+    "shelfLifeDays": 14,
+    "nutritionPer100g": {
+      "kcal": 131,
+      "proteinG": 3.3,
+      "carbG": 20.7,
+      "fatG": 5.9,
+      "fibreG": 14.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "thyme",
+    "name": "Fresh thyme",
+    "aliases": [
+      "thyme"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "sprig": 1
+    },
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 20,
+      "divisible": false,
+      "costPerKg": 50
+    },
+    "shelfLifeDays": 14,
+    "nutritionPer100g": {
+      "kcal": 101,
+      "proteinG": 5.6,
+      "carbG": 24.5,
+      "fatG": 1.7,
+      "fibreG": 14
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "chili-pepper",
+    "name": "Fresh chilies",
+    "aliases": [
+      "chili",
+      "red chili",
+      "green chili",
+      "jalapeno",
+      "jalapeño",
+      "chilli"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 15
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 60,
+      "divisible": true,
+      "costPerKg": 16
+    },
+    "shelfLifeDays": 14,
+    "nutritionPer100g": {
+      "kcal": 40,
+      "proteinG": 1.9,
+      "carbG": 8.8,
+      "fatG": 0.4,
+      "fibreG": 1.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "eggplant",
+    "name": "Eggplant",
+    "aliases": [
+      "aubergine"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 400
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 400,
+      "divisible": true,
+      "costPerKg": 5.5
+    },
+    "shelfLifeDays": 8,
+    "nutritionPer100g": {
+      "kcal": 25,
+      "proteinG": 1,
+      "carbG": 5.9,
+      "fatG": 0.2,
+      "fibreG": 3
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "arugula",
+    "name": "Arugula",
+    "aliases": [
+      "rocket",
+      "rocket leaves"
+    ],
+    "category": "produce",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 142,
+      "divisible": false,
+      "costPerKg": 16
+    },
+    "shelfLifeDays": 5,
+    "nutritionPer100g": {
+      "kcal": 25,
+      "proteinG": 2.6,
+      "carbG": 3.7,
+      "fatG": 0.7,
+      "fibreG": 1.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "mixed-greens",
+    "name": "Mixed salad greens",
+    "aliases": [
+      "salad greens",
+      "mixed leaves",
+      "spring mix",
+      "salad leaves"
+    ],
+    "category": "produce",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 142,
+      "divisible": false,
+      "costPerKg": 16
+    },
+    "shelfLifeDays": 5,
+    "nutritionPer100g": {
+      "kcal": 20,
+      "proteinG": 1.8,
+      "carbG": 3.2,
+      "fatG": 0.3,
+      "fibreG": 1.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "swiss-chard",
+    "name": "Swiss chard",
+    "aliases": [
+      "chard",
+      "rainbow chard"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "bunch": 300
+    },
+    "purchase": {
+      "unit": "bunch",
+      "gramsPerPack": 300,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 6,
+    "nutritionPer100g": {
+      "kcal": 19,
+      "proteinG": 1.8,
+      "carbG": 3.7,
+      "fatG": 0.2,
+      "fibreG": 1.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "bok-choy",
+    "name": "Bok choy",
+    "aliases": [
+      "pak choi",
+      "baby bok choy"
+    ],
+    "category": "produce",
+    "countUnits": {
+      "each": 250,
+      "head": 250
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "each",
+      "gramsPerPack": 250,
+      "divisible": true,
+      "costPerKg": 6
+    },
+    "shelfLifeDays": 7,
+    "nutritionPer100g": {
+      "kcal": 13,
+      "proteinG": 1.5,
+      "carbG": 2.2,
+      "fatG": 0.2,
+      "fibreG": 1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "snap-peas",
+    "name": "Sugar snap peas",
+    "aliases": [
+      "snap peas",
+      "mangetout",
+      "snow peas"
+    ],
+    "category": "produce",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 227,
+      "divisible": true,
+      "costPerKg": 13
+    },
+    "shelfLifeDays": 7,
+    "nutritionPer100g": {
+      "kcal": 42,
+      "proteinG": 2.8,
+      "carbG": 7.6,
+      "fatG": 0.2,
+      "fibreG": 2.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cheddar",
+    "name": "Cheddar cheese",
+    "aliases": [
+      "cheddar",
+      "grated cheddar",
+      "sharp cheddar"
+    ],
+    "category": "dairy",
+    "purchase": {
+      "unit": "block",
+      "gramsPerPack": 400,
+      "divisible": false,
+      "costPerKg": 16
+    },
+    "shelfLifeDays": 45,
+    "carryOver": "freezer",
+    "backgroundUseGramsPerWeek": 60,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 403,
+      "proteinG": 24.9,
+      "carbG": 1.3,
+      "fatG": 33.1
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "mozzarella",
+    "name": "Mozzarella",
+    "aliases": [
+      "shredded mozzarella",
+      "mozzarella cheese"
+    ],
+    "category": "dairy",
+    "purchase": {
+      "unit": "block",
+      "gramsPerPack": 340,
+      "divisible": false,
+      "costPerKg": 14
+    },
+    "shelfLifeDays": 21,
+    "carryOver": "freezer",
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 300,
+      "proteinG": 22.2,
+      "carbG": 2.2,
+      "fatG": 22.4
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "halloumi",
+    "name": "Halloumi",
+    "aliases": [
+      "halloumi cheese"
+    ],
+    "category": "dairy",
+    "purchase": {
+      "unit": "block",
+      "gramsPerPack": 250,
+      "divisible": false,
+      "costPerKg": 28
+    },
+    "shelfLifeDays": 60,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 321,
+      "proteinG": 21.4,
+      "carbG": 2.6,
+      "fatG": 25.3
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "ricotta",
+    "name": "Ricotta",
+    "category": "dairy",
+    "gramsPerMl": 1.04,
+    "purchase": {
+      "unit": "tub",
+      "gramsPerPack": 475,
+      "divisible": false,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 10,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 174,
+      "proteinG": 11.3,
+      "carbG": 3,
+      "fatG": 13
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "sour-cream",
+    "name": "Sour cream",
+    "aliases": [
+      "soured cream"
+    ],
+    "category": "dairy",
+    "gramsPerMl": 1,
+    "purchase": {
+      "unit": "tub",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 16,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 198,
+      "proteinG": 2.4,
+      "carbG": 4.6,
+      "fatG": 19.4
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "butter",
+    "name": "Butter",
+    "category": "dairy",
+    "gramsPerMl": 0.91,
+    "purchase": {
+      "unit": "block",
+      "gramsPerPack": 454,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 60,
+    "carryOver": "freezer",
+    "backgroundUseGramsPerWeek": 80,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 717,
+      "proteinG": 0.9,
+      "carbG": 0.1,
+      "fatG": 81.1
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "cream",
+    "name": "Cream",
+    "aliases": [
+      "heavy cream",
+      "whipping cream",
+      "double cream"
+    ],
+    "category": "dairy",
+    "gramsPerMl": 1,
+    "displayAs": "volume",
+    "purchase": {
+      "unit": "carton",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 12,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 340,
+      "proteinG": 2.1,
+      "carbG": 2.8,
+      "fatG": 36
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "goat-cheese",
+    "name": "Goat cheese",
+    "aliases": [
+      "chevre",
+      "soft goat cheese"
+    ],
+    "category": "dairy",
+    "purchase": {
+      "unit": "log",
+      "gramsPerPack": 113,
+      "divisible": false,
+      "costPerKg": 30
+    },
+    "shelfLifeDays": 21,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 364,
+      "proteinG": 21.6,
+      "carbG": 2.5,
+      "fatG": 29.8
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "paneer",
+    "name": "Paneer",
+    "category": "dairy",
+    "purchase": {
+      "unit": "block",
+      "gramsPerPack": 340,
+      "divisible": false,
+      "costPerKg": 17
+    },
+    "shelfLifeDays": 21,
+    "excludesDiets": [
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 296,
+      "proteinG": 18.9,
+      "carbG": 3.6,
+      "fatG": 23
+    },
+    "allergens": [
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "tofu",
+    "name": "Firm tofu",
+    "aliases": [
+      "tofu",
+      "extra firm tofu",
+      "extra-firm tofu"
+    ],
+    "category": "other",
+    "countUnits": {
+      "block": 350
+    },
+    "purchase": {
+      "unit": "block",
+      "gramsPerPack": 350,
+      "divisible": false,
+      "costPerKg": 8
+    },
+    "shelfLifeDays": 14,
+    "nutritionPer100g": {
+      "kcal": 144,
+      "proteinG": 17.3,
+      "carbG": 2.8,
+      "fatG": 8.7,
+      "fibreG": 2.3
+    },
+    "allergens": [
+      "soy"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "tempeh",
+    "name": "Tempeh",
+    "category": "other",
+    "countUnits": {
+      "block": 240
+    },
+    "purchase": {
+      "unit": "block",
+      "gramsPerPack": 240,
+      "divisible": false,
+      "costPerKg": 17
+    },
+    "shelfLifeDays": 21,
+    "nutritionPer100g": {
+      "kcal": 192,
+      "proteinG": 20.3,
+      "carbG": 7.6,
+      "fatG": 10.8,
+      "fibreG": 6
+    },
+    "allergens": [
+      "soy"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "kidney-beans",
+    "name": "Kidney beans",
+    "aliases": [
+      "red kidney beans"
+    ],
+    "category": "canned",
+    "purchase": {
+      "unit": "can",
+      "gramsPerPack": 540,
+      "divisible": false,
+      "costPerKg": 2.8
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 97,
+      "proteinG": 6.8,
+      "carbG": 17.4,
+      "fatG": 0.4,
+      "fibreG": 6.4
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "canned-corn",
+    "name": "Canned corn",
+    "aliases": [
+      "sweetcorn",
+      "tinned corn"
+    ],
+    "category": "canned",
+    "purchase": {
+      "unit": "can",
+      "gramsPerPack": 341,
+      "divisible": false,
+      "costPerKg": 3
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 81,
+      "proteinG": 2.7,
+      "carbG": 18.1,
+      "fatG": 0.6,
+      "fibreG": 2.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "olives",
+    "name": "Kalamata olives",
+    "aliases": [
+      "olives",
+      "black olives",
+      "pitted olives"
+    ],
+    "category": "canned",
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 375,
+      "divisible": false,
+      "costPerKg": 16
+    },
+    "shelfLifeDays": 180,
+    "nutritionPer100g": {
+      "kcal": 115,
+      "proteinG": 0.8,
+      "carbG": 6.3,
+      "fatG": 10.9,
+      "fibreG": 3.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "capers",
+    "name": "Capers",
+    "category": "canned",
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 100,
+      "divisible": false,
+      "costPerKg": 28
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 23,
+      "proteinG": 2.4,
+      "carbG": 4.9,
+      "fatG": 0.9,
+      "fibreG": 3.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "sun-dried-tomatoes",
+    "name": "Sun-dried tomatoes",
+    "aliases": [
+      "sundried tomatoes"
+    ],
+    "category": "canned",
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 280,
+      "divisible": false,
+      "costPerKg": 22
+    },
+    "shelfLifeDays": 180,
+    "nutritionPer100g": {
+      "kcal": 213,
+      "proteinG": 5.1,
+      "carbG": 23.3,
+      "fatG": 14.1,
+      "fibreG": 5.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "roasted-red-peppers",
+    "name": "Roasted red peppers",
+    "aliases": [
+      "jarred red peppers",
+      "piquillo peppers"
+    ],
+    "category": "canned",
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 370,
+      "divisible": false,
+      "costPerKg": 10
+    },
+    "shelfLifeDays": 180,
+    "nutritionPer100g": {
+      "kcal": 30,
+      "proteinG": 1,
+      "carbG": 5.8,
+      "fatG": 0.3,
+      "fibreG": 1.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "artichoke-hearts",
+    "name": "Artichoke hearts",
+    "category": "canned",
+    "purchase": {
+      "unit": "can",
+      "gramsPerPack": 398,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 47,
+      "proteinG": 2.6,
+      "carbG": 10.5,
+      "fatG": 0.3,
+      "fibreG": 5.4
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "tomato-paste",
+    "name": "Tomato paste",
+    "aliases": [
+      "tomato puree",
+      "tomato purée"
+    ],
+    "category": "canned",
+    "gramsPerMl": 1.1,
+    "purchase": {
+      "unit": "can",
+      "gramsPerPack": 156,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 82,
+      "proteinG": 4.3,
+      "carbG": 18.9,
+      "fatG": 0.5,
+      "fibreG": 4.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "passata",
+    "name": "Tomato passata",
+    "aliases": [
+      "strained tomatoes",
+      "tomato sauce"
+    ],
+    "category": "canned",
+    "gramsPerMl": 1.05,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 680,
+      "divisible": false,
+      "costPerKg": 4
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 35,
+      "proteinG": 1.5,
+      "carbG": 7.4,
+      "fatG": 0.2,
+      "fibreG": 1.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "hummus",
+    "name": "Hummus",
+    "category": "condiment",
+    "gramsPerMl": 1.05,
+    "purchase": {
+      "unit": "tub",
+      "gramsPerPack": 280,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 10,
+    "backgroundUseGramsPerWeek": 80,
+    "nutritionPer100g": {
+      "kcal": 237,
+      "proteinG": 7.4,
+      "carbG": 20.1,
+      "fatG": 14.2,
+      "fibreG": 6
+    },
+    "allergens": [
+      "sesame"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "salsa",
+    "name": "Salsa",
+    "aliases": [
+      "tomato salsa"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.03,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 430,
+      "divisible": false,
+      "costPerKg": 8
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 36,
+      "proteinG": 1.5,
+      "carbG": 7,
+      "fatG": 0.2,
+      "fibreG": 1.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "couscous",
+    "name": "Couscous",
+    "category": "grain",
+    "gramsPerMl": 0.72,
+    "purchase": {
+      "unit": "box",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 6
+    },
+    "shelfLifeDays": 730,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 376,
+      "proteinG": 12.8,
+      "carbG": 77.4,
+      "fatG": 0.6,
+      "fibreG": 5
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "quinoa",
+    "name": "Quinoa",
+    "category": "grain",
+    "gramsPerMl": 0.85,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 400,
+      "divisible": false,
+      "costPerKg": 10
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 368,
+      "proteinG": 14.1,
+      "carbG": 64.2,
+      "fatG": 6.1,
+      "fibreG": 7
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "bulgur",
+    "name": "Bulgur wheat",
+    "aliases": [
+      "bulgur",
+      "cracked wheat"
+    ],
+    "category": "grain",
+    "gramsPerMl": 0.75,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 6
+    },
+    "shelfLifeDays": 730,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 342,
+      "proteinG": 12.3,
+      "carbG": 75.9,
+      "fatG": 1.3,
+      "fibreG": 18.3
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "pearl-barley",
+    "name": "Pearl barley",
+    "aliases": [
+      "barley"
+    ],
+    "category": "grain",
+    "gramsPerMl": 0.8,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 5
+    },
+    "shelfLifeDays": 730,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 352,
+      "proteinG": 9.9,
+      "carbG": 77.7,
+      "fatG": 1.2,
+      "fibreG": 15.6
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "rice-noodles",
+    "name": "Rice noodles",
+    "aliases": [
+      "rice vermicelli",
+      "flat rice noodles"
+    ],
+    "category": "grain",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 400,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 364,
+      "proteinG": 6,
+      "carbG": 81.6,
+      "fatG": 0.6,
+      "fibreG": 1.6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "brown-lentils",
+    "name": "Brown lentils",
+    "aliases": [
+      "green lentils",
+      "puy lentils"
+    ],
+    "category": "legume",
+    "gramsPerMl": 0.85,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 900,
+      "divisible": false,
+      "costPerKg": 4
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 352,
+      "proteinG": 24.6,
+      "carbG": 63.4,
+      "fatG": 1.1,
+      "fibreG": 10.7
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "flour",
+    "name": "All-purpose flour",
+    "aliases": [
+      "plain flour",
+      "white flour"
+    ],
+    "category": "baking",
+    "gramsPerMl": 0.6,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 2500,
+      "divisible": false,
+      "costPerKg": 2.4
+    },
+    "shelfLifeDays": 365,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 364,
+      "proteinG": 10.3,
+      "carbG": 76.3,
+      "fatG": 1,
+      "fibreG": 2.7
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "pita",
+    "name": "Pita bread",
+    "aliases": [
+      "pitta",
+      "pita breads",
+      "flatbread",
+      "flatbreads"
+    ],
+    "category": "bakery",
+    "countUnits": {
+      "each": 60
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 360,
+      "divisible": false,
+      "costPerKg": 8
+    },
+    "shelfLifeDays": 7,
+    "carryOver": "freezer",
+    "backgroundUseGramsPerWeek": 120,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 275,
+      "proteinG": 9.1,
+      "carbG": 55.7,
+      "fatG": 1.2,
+      "fibreG": 2.2
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "naan",
+    "name": "Naan",
+    "aliases": [
+      "naan bread"
+    ],
+    "category": "bakery",
+    "countUnits": {
+      "each": 90
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 360,
+      "divisible": false,
+      "costPerKg": 11
+    },
+    "shelfLifeDays": 7,
+    "carryOver": "freezer",
+    "excludesDiets": [
+      "gluten-free",
+      "vegan",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 310,
+      "proteinG": 8.7,
+      "carbG": 50.4,
+      "fatG": 8.1,
+      "fibreG": 2.2
+    },
+    "allergens": [
+      "wheat",
+      "milk"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "english-muffin",
+    "name": "English muffins",
+    "category": "bakery",
+    "countUnits": {
+      "each": 65
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 390,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 8,
+    "carryOver": "freezer",
+    "backgroundUseGramsPerWeek": 130,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 235,
+      "proteinG": 7.7,
+      "carbG": 46.3,
+      "fatG": 1.8,
+      "fibreG": 3.2
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "pizza-dough",
+    "name": "Pizza dough",
+    "category": "bakery",
+    "countUnits": {
+      "ball": 400
+    },
+    "purchase": {
+      "unit": "ball",
+      "gramsPerPack": 400,
+      "divisible": false,
+      "costPerKg": 7
+    },
+    "shelfLifeDays": 7,
+    "carryOver": "freezer",
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 268,
+      "proteinG": 8.5,
+      "carbG": 50,
+      "fatG": 3.4,
+      "fibreG": 2
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "breadcrumbs",
+    "name": "Panko breadcrumbs",
+    "aliases": [
+      "panko",
+      "breadcrumbs"
+    ],
+    "category": "grain",
+    "gramsPerMl": 0.25,
+    "purchase": {
+      "unit": "box",
+      "gramsPerPack": 200,
+      "divisible": false,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 365,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 395,
+      "proteinG": 12.6,
+      "carbG": 74.5,
+      "fatG": 4.5,
+      "fibreG": 4
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "crackers",
+    "name": "Crackers",
+    "aliases": [
+      "cracker",
+      "water crackers"
+    ],
+    "category": "grain",
+    "countUnits": {
+      "each": 5
+    },
+    "purchase": {
+      "unit": "box",
+      "gramsPerPack": 200,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 180,
+    "backgroundUseGramsPerWeek": 100,
+    "excludesDiets": [
+      "gluten-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 440,
+      "proteinG": 9,
+      "carbG": 70,
+      "fatG": 13,
+      "fibreG": 3
+    },
+    "allergens": [
+      "wheat"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "rice-cake",
+    "name": "Rice cakes",
+    "category": "grain",
+    "countUnits": {
+      "each": 9
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "pack",
+      "gramsPerPack": 200,
+      "divisible": false,
+      "costPerKg": 14
+    },
+    "shelfLifeDays": 180,
+    "backgroundUseGramsPerWeek": 60,
+    "nutritionPer100g": {
+      "kcal": 387,
+      "proteinG": 8.2,
+      "carbG": 81.5,
+      "fatG": 2.8,
+      "fibreG": 4.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "granola",
+    "name": "Granola",
+    "category": "grain",
+    "gramsPerMl": 0.45,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 180,
+    "backgroundUseGramsPerWeek": 200,
+    "nutritionPer100g": {
+      "kcal": 471,
+      "proteinG": 10.1,
+      "carbG": 64.3,
+      "fatG": 20.3,
+      "fibreG": 7.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "tortilla-chips",
+    "name": "Tortilla chips",
+    "aliases": [
+      "corn chips"
+    ],
+    "category": "grain",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 300,
+      "divisible": false,
+      "costPerKg": 10
+    },
+    "shelfLifeDays": 120,
+    "backgroundUseGramsPerWeek": 100,
+    "nutritionPer100g": {
+      "kcal": 497,
+      "proteinG": 7.1,
+      "carbG": 64.2,
+      "fatG": 23.4,
+      "fibreG": 5.3
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "popcorn-kernels",
+    "name": "Popcorn kernels",
+    "aliases": [
+      "popping corn",
+      "popcorn"
+    ],
+    "category": "grain",
+    "gramsPerMl": 0.75,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 5
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 387,
+      "proteinG": 12.9,
+      "carbG": 77.8,
+      "fatG": 4.5,
+      "fibreG": 14.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "almond",
+    "name": "Almonds",
+    "aliases": [
+      "flaked almonds",
+      "sliced almonds"
+    ],
+    "category": "other",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 400,
+      "divisible": false,
+      "costPerKg": 18
+    },
+    "shelfLifeDays": 180,
+    "backgroundUseGramsPerWeek": 100,
+    "excludesDiets": [
+      "nut-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 579,
+      "proteinG": 21.2,
+      "carbG": 21.6,
+      "fatG": 49.9,
+      "fibreG": 12.5
+    },
+    "allergens": [
+      "tree-nuts"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "walnut",
+    "name": "Walnuts",
+    "aliases": [
+      "walnut halves"
+    ],
+    "category": "other",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 400,
+      "divisible": false,
+      "costPerKg": 22
+    },
+    "shelfLifeDays": 120,
+    "excludesDiets": [
+      "nut-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 654,
+      "proteinG": 15.2,
+      "carbG": 13.7,
+      "fatG": 65.2,
+      "fibreG": 6.7
+    },
+    "allergens": [
+      "tree-nuts"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "cashew",
+    "name": "Cashews",
+    "aliases": [
+      "cashew nuts"
+    ],
+    "category": "other",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 400,
+      "divisible": false,
+      "costPerKg": 22
+    },
+    "shelfLifeDays": 180,
+    "backgroundUseGramsPerWeek": 80,
+    "excludesDiets": [
+      "nut-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 553,
+      "proteinG": 18.2,
+      "carbG": 30.2,
+      "fatG": 43.9,
+      "fibreG": 3.3
+    },
+    "allergens": [
+      "tree-nuts"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "pine-nuts",
+    "name": "Pine nuts",
+    "category": "other",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 100,
+      "divisible": false,
+      "costPerKg": 80
+    },
+    "shelfLifeDays": 120,
+    "excludesDiets": [
+      "nut-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 673,
+      "proteinG": 13.7,
+      "carbG": 13.1,
+      "fatG": 68.4,
+      "fibreG": 3.7
+    },
+    "allergens": [
+      "tree-nuts"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "pumpkin-seeds",
+    "name": "Pumpkin seeds",
+    "aliases": [
+      "pepitas"
+    ],
+    "category": "other",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 300,
+      "divisible": false,
+      "costPerKg": 14
+    },
+    "shelfLifeDays": 180,
+    "nutritionPer100g": {
+      "kcal": 559,
+      "proteinG": 30.2,
+      "carbG": 10.7,
+      "fatG": 49,
+      "fibreG": 6
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "sesame-seeds",
+    "name": "Sesame seeds",
+    "category": "other",
+    "gramsPerMl": 0.6,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 200,
+      "divisible": false,
+      "costPerKg": 16
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 573,
+      "proteinG": 17.7,
+      "carbG": 23.4,
+      "fatG": 49.7,
+      "fibreG": 11.8
+    },
+    "allergens": [
+      "sesame"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "chia-seeds",
+    "name": "Chia seeds",
+    "category": "other",
+    "gramsPerMl": 0.72,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 300,
+      "divisible": false,
+      "costPerKg": 18
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 486,
+      "proteinG": 16.5,
+      "carbG": 42.1,
+      "fatG": 30.7,
+      "fibreG": 34.4
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "vegetable-oil",
+    "name": "Neutral oil",
+    "aliases": [
+      "vegetable oil",
+      "canola oil",
+      "sunflower oil"
+    ],
+    "category": "oil",
+    "gramsPerMl": 0.92,
+    "purchase": {
+      "unit": "bottle",
+      "gramsPerPack": 1000,
+      "divisible": false,
+      "costPerKg": 4
+    },
+    "shelfLifeDays": 540,
+    "nutritionPer100g": {
+      "kcal": 884,
+      "proteinG": 0,
+      "carbG": 0,
+      "fatG": 100
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "sesame-oil",
+    "name": "Toasted sesame oil",
+    "aliases": [
+      "sesame oil"
+    ],
+    "category": "oil",
+    "gramsPerMl": 0.92,
+    "purchase": {
+      "unit": "bottle",
+      "gramsPerPack": 250,
+      "divisible": false,
+      "costPerKg": 16
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 884,
+      "proteinG": 0,
+      "carbG": 0,
+      "fatG": 100
+    },
+    "allergens": [
+      "sesame"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "balsamic-vinegar",
+    "name": "Balsamic vinegar",
+    "aliases": [
+      "balsamic"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.05,
+    "purchase": {
+      "unit": "bottle",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 88,
+      "proteinG": 0.5,
+      "carbG": 17,
+      "fatG": 0
+    },
+    "allergens": [
+      "sulphites"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "red-wine-vinegar",
+    "name": "Red wine vinegar",
+    "aliases": [
+      "wine vinegar",
+      "white wine vinegar"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.01,
+    "purchase": {
+      "unit": "bottle",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 5
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 19,
+      "proteinG": 0,
+      "carbG": 0.3,
+      "fatG": 0
+    },
+    "allergens": [
+      "sulphites"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "rice-vinegar",
+    "name": "Rice vinegar",
+    "aliases": [
+      "rice wine vinegar"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.01,
+    "purchase": {
+      "unit": "bottle",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 6
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 18,
+      "proteinG": 0,
+      "carbG": 0.5,
+      "fatG": 0
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "dijon-mustard",
+    "name": "Dijon mustard",
+    "aliases": [
+      "mustard",
+      "wholegrain mustard"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.1,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 215,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 143,
+      "proteinG": 7.5,
+      "carbG": 5.8,
+      "fatG": 10.4,
+      "fibreG": 4.6
+    },
+    "allergens": [
+      "mustard"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "mayonnaise",
+    "name": "Mayonnaise",
+    "aliases": [
+      "mayo"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 0.95,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 440,
+      "divisible": false,
+      "costPerKg": 8
+    },
+    "shelfLifeDays": 120,
+    "backgroundUseGramsPerWeek": 60,
+    "excludesDiets": [
+      "vegan"
+    ],
+    "nutritionPer100g": {
+      "kcal": 680,
+      "proteinG": 1,
+      "carbG": 0.6,
+      "fatG": 75
+    },
+    "allergens": [
+      "eggs"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "sriracha",
+    "name": "Sriracha",
+    "aliases": [
+      "hot sauce",
+      "chili sauce",
+      "chilli sauce"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.1,
+    "purchase": {
+      "unit": "bottle",
+      "gramsPerPack": 435,
+      "divisible": false,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 540,
+    "nutritionPer100g": {
+      "kcal": 93,
+      "proteinG": 1.9,
+      "carbG": 19,
+      "fatG": 0.9,
+      "fibreG": 2.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "harissa",
+    "name": "Harissa paste",
+    "aliases": [
+      "harissa"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 120,
+      "divisible": false,
+      "costPerKg": 30
+    },
+    "shelfLifeDays": 180,
+    "nutritionPer100g": {
+      "kcal": 120,
+      "proteinG": 3,
+      "carbG": 12,
+      "fatG": 7,
+      "fibreG": 5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "pesto",
+    "name": "Basil pesto",
+    "aliases": [
+      "pesto"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 190,
+      "divisible": false,
+      "costPerKg": 24
+    },
+    "shelfLifeDays": 90,
+    "excludesDiets": [
+      "vegan",
+      "nut-free",
+      "dairy-free"
+    ],
+    "nutritionPer100g": {
+      "kcal": 455,
+      "proteinG": 5.5,
+      "carbG": 5.4,
+      "fatG": 46,
+      "fibreG": 2
+    },
+    "allergens": [
+      "milk",
+      "tree-nuts"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "honey",
+    "name": "Honey",
+    "category": "condiment",
+    "gramsPerMl": 1.42,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 500,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 730,
+    "backgroundUseGramsPerWeek": 60,
+    "excludesDiets": [
+      "vegan"
+    ],
+    "nutritionPer100g": {
+      "kcal": 304,
+      "proteinG": 0.3,
+      "carbG": 82.4,
+      "fatG": 0,
+      "fibreG": 0.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "maple-syrup",
+    "name": "Maple syrup",
+    "category": "condiment",
+    "gramsPerMl": 1.32,
+    "purchase": {
+      "unit": "bottle",
+      "gramsPerPack": 250,
+      "divisible": false,
+      "costPerKg": 30
+    },
+    "shelfLifeDays": 365,
+    "backgroundUseGramsPerWeek": 60,
+    "nutritionPer100g": {
+      "kcal": 260,
+      "proteinG": 0,
+      "carbG": 67,
+      "fatG": 0.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "miso-paste",
+    "name": "Miso paste",
+    "aliases": [
+      "white miso",
+      "miso"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.25,
+    "purchase": {
+      "unit": "tub",
+      "gramsPerPack": 300,
+      "divisible": false,
+      "costPerKg": 18
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 199,
+      "proteinG": 12.8,
+      "carbG": 26.5,
+      "fatG": 6,
+      "fibreG": 5.4
+    },
+    "allergens": [
+      "soy"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "curry-paste",
+    "name": "Thai curry paste",
+    "aliases": [
+      "red curry paste",
+      "green curry paste"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.1,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 114,
+      "divisible": false,
+      "costPerKg": 26
+    },
+    "shelfLifeDays": 180
+  },
+  {
+    "id": "jam",
+    "name": "Fruit jam",
+    "aliases": [
+      "strawberry jam",
+      "raspberry jam",
+      "preserves"
+    ],
+    "category": "condiment",
+    "gramsPerMl": 1.33,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 250,
+      "divisible": false,
+      "costPerKg": 12
+    },
+    "shelfLifeDays": 365,
+    "backgroundUseGramsPerWeek": 60,
+    "nutritionPer100g": {
+      "kcal": 278,
+      "proteinG": 0.4,
+      "carbG": 68.9,
+      "fatG": 0.1,
+      "fibreG": 1.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "dark-chocolate",
+    "name": "Dark chocolate",
+    "aliases": [
+      "chocolate",
+      "chocolate chips"
+    ],
+    "category": "baking",
+    "countUnits": {
+      "square": 10,
+      "bar": 100
+    },
+    "purchase": {
+      "unit": "bar",
+      "gramsPerPack": 100,
+      "divisible": false,
+      "costPerKg": 30
+    },
+    "shelfLifeDays": 365,
+    "backgroundUseGramsPerWeek": 40,
+    "nutritionPer100g": {
+      "kcal": 546,
+      "proteinG": 4.9,
+      "carbG": 61.2,
+      "fatG": 31.3,
+      "fibreG": 7
+    }
+  },
+  {
+    "id": "sugar",
+    "name": "Sugar",
+    "aliases": [
+      "granulated sugar",
+      "white sugar",
+      "caster sugar"
+    ],
+    "category": "baking",
+    "gramsPerMl": 0.85,
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 2000,
+      "divisible": false,
+      "costPerKg": 2.5
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 387,
+      "proteinG": 0,
+      "carbG": 100,
+      "fatG": 0
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cornstarch",
+    "name": "Cornstarch",
+    "aliases": [
+      "corn starch",
+      "cornflour"
+    ],
+    "category": "baking",
+    "gramsPerMl": 0.62,
+    "purchase": {
+      "unit": "box",
+      "gramsPerPack": 454,
+      "divisible": false,
+      "costPerKg": 5
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 381,
+      "proteinG": 0.3,
+      "carbG": 91.3,
+      "fatG": 0.1,
+      "fibreG": 0.9
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "chili-flakes",
+    "name": "Chili flakes",
+    "aliases": [
+      "red pepper flakes",
+      "chilli flakes",
+      "crushed red pepper"
+    ],
+    "category": "spice",
+    "gramsPerMl": 0.4,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 45,
+      "divisible": false,
+      "costPerKg": 50
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 318,
+      "proteinG": 12,
+      "carbG": 56.6,
+      "fatG": 17.3,
+      "fibreG": 27.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "turmeric",
+    "name": "Ground turmeric",
+    "aliases": [
+      "turmeric"
+    ],
+    "category": "spice",
+    "gramsPerMl": 0.45,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 45,
+      "divisible": false,
+      "costPerKg": 45
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 312,
+      "proteinG": 9.7,
+      "carbG": 67.1,
+      "fatG": 3.2,
+      "fibreG": 22.7
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "ground-coriander",
+    "name": "Ground coriander",
+    "aliases": [
+      "coriander seed",
+      "ground coriander seed"
+    ],
+    "category": "spice",
+    "gramsPerMl": 0.45,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 45,
+      "divisible": false,
+      "costPerKg": 50
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 298,
+      "proteinG": 12.4,
+      "carbG": 55,
+      "fatG": 17.8,
+      "fibreG": 41.9
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "cinnamon",
+    "name": "Ground cinnamon",
+    "aliases": [
+      "cinnamon"
+    ],
+    "category": "spice",
+    "gramsPerMl": 0.45,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 45,
+      "divisible": false,
+      "costPerKg": 45
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 247,
+      "proteinG": 4,
+      "carbG": 80.6,
+      "fatG": 1.2,
+      "fibreG": 53.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "oregano",
+    "name": "Dried oregano",
+    "aliases": [
+      "oregano"
+    ],
+    "category": "spice",
+    "gramsPerMl": 0.2,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 25,
+      "divisible": false,
+      "costPerKg": 60
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 265,
+      "proteinG": 9,
+      "carbG": 68.9,
+      "fatG": 4.3,
+      "fibreG": 42.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "garam-masala",
+    "name": "Garam masala",
+    "category": "spice",
+    "gramsPerMl": 0.45,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 45,
+      "divisible": false,
+      "costPerKg": 55
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 379,
+      "proteinG": 14,
+      "carbG": 45,
+      "fatG": 15,
+      "fibreG": 25
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "chili-powder",
+    "name": "Chili powder",
+    "aliases": [
+      "chilli powder"
+    ],
+    "category": "spice",
+    "gramsPerMl": 0.45,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 45,
+      "divisible": false,
+      "costPerKg": 45
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 282,
+      "proteinG": 13.5,
+      "carbG": 49.7,
+      "fatG": 14.3,
+      "fibreG": 34.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "za-atar",
+    "name": "Za'atar",
+    "aliases": [
+      "zaatar",
+      "zatar"
+    ],
+    "category": "spice",
+    "gramsPerMl": 0.35,
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 60,
+      "divisible": false,
+      "costPerKg": 50
+    },
+    "shelfLifeDays": 540,
+    "nutritionPer100g": {
+      "kcal": 320,
+      "proteinG": 11,
+      "carbG": 40,
+      "fatG": 13,
+      "fibreG": 20
+    },
+    "allergens": [
+      "sesame"
+    ],
+    "allergensVerified": true
+  },
+  {
+    "id": "bay-leaf",
+    "name": "Bay leaves",
+    "category": "spice",
+    "countUnits": {
+      "each": 0.2,
+      "leaf": 0.2
+    },
+    "displayAs": "count",
+    "countUnit": "each",
+    "purchase": {
+      "unit": "jar",
+      "gramsPerPack": 10,
+      "divisible": false,
+      "costPerKg": 120
+    },
+    "shelfLifeDays": 730,
+    "nutritionPer100g": {
+      "kcal": 313,
+      "proteinG": 7.6,
+      "carbG": 75,
+      "fatG": 8.4,
+      "fibreG": 26.3
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "frozen-peas",
+    "name": "Frozen peas",
+    "aliases": [
+      "peas",
+      "garden peas",
+      "petits pois"
+    ],
+    "category": "frozen",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 750,
+      "divisible": true,
+      "costPerKg": 4.5
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 81,
+      "proteinG": 5.4,
+      "carbG": 14.5,
+      "fatG": 0.4,
+      "fibreG": 5.1
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "frozen-corn",
+    "name": "Frozen corn",
+    "aliases": [
+      "frozen sweetcorn"
+    ],
+    "category": "frozen",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 750,
+      "divisible": true,
+      "costPerKg": 4
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 88,
+      "proteinG": 3.1,
+      "carbG": 20.5,
+      "fatG": 0.8,
+      "fibreG": 2.2
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "frozen-spinach",
+    "name": "Frozen spinach",
+    "category": "frozen",
+    "purchase": {
+      "unit": "box",
+      "gramsPerPack": 300,
+      "divisible": true,
+      "costPerKg": 6
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 29,
+      "proteinG": 3.6,
+      "carbG": 4.3,
+      "fatG": 0.6,
+      "fibreG": 2.8
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "frozen-berries",
+    "name": "Frozen berries",
+    "aliases": [
+      "frozen mixed berries",
+      "frozen fruit"
+    ],
+    "category": "frozen",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 600,
+      "divisible": true,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 55,
+      "proteinG": 0.9,
+      "carbG": 12.7,
+      "fatG": 0.4,
+      "fibreG": 3.5
+    },
+    "allergens": [],
+    "allergensVerified": true
+  },
+  {
+    "id": "edamame",
+    "name": "Edamame",
+    "aliases": [
+      "shelled edamame",
+      "soybeans"
+    ],
+    "category": "frozen",
+    "purchase": {
+      "unit": "bag",
+      "gramsPerPack": 500,
+      "divisible": true,
+      "costPerKg": 9
+    },
+    "shelfLifeDays": 365,
+    "nutritionPer100g": {
+      "kcal": 121,
+      "proteinG": 11.9,
+      "carbG": 8.9,
+      "fatG": 5.2,
+      "fibreG": 5.2
+    },
+    "allergens": [
+      "soy"
+    ],
+    "allergensVerified": true
   }
 ]
