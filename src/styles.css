@@ -331,7 +331,7 @@ button { cursor: pointer; }
   margin-top: 5px;
 }
 
-select, input[type='number'], input[type='text'] {
+select, input[type='number'], input[type='text'], input[type='url'] {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
