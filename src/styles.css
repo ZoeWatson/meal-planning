@@ -305,6 +305,13 @@ button { cursor: pointer; }
 .gline.done { opacity: 0.5; }
 .gline.done .gname { text-decoration: line-through; }
 
+/* Taken off the list, and kept at the bottom of it with the way back. Struck
+   through like a ticked line, and left readable where a ticked one fades: this
+   is a list of things you are being asked whether you meant to lose, so the
+   names on it have to be legible at a glance. */
+.gline.off { align-items: center; }
+.gline.off .gname { text-decoration: line-through; color: var(--text-dim); }
+
 .tickbox {
   flex: 0 0 auto;
   width: 24px;

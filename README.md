@@ -31,6 +31,14 @@ npm run sync-server    # optional, for syncing between devices
   where it was, portions and pin and all. It is an edit to this week and not a
   change to how big a week is: the next regenerate, or Shuffle all over that kind
   of meal, rebuilds the section to the shape Settings asks for.
+- **Take something off the shopping list**, with the ✕ on its line — the olive oil
+  you turn out to have, the treat you have gone off. It leaves the shop, the count
+  and the running total, and nothing else moves: the meal that wanted it still
+  wants it, and the treat is still in the week's bag. The list is rebuilt from the
+  week constantly, so this is remembered rather than derived — beside the ticks,
+  and for this week only. What came off waits at the bottom of the list with a
+  Put back beside it, a way back that does not expire rather than an undo that
+  does, and next week's list starts with it back on.
 - **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
   cooking time, in-season, ingredient count.
 - **Browsing by type and region.** The Recipes tab groups the library by kind of

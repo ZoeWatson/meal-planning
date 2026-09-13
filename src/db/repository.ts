@@ -226,23 +226,83 @@ export function checkId(planId: Id, ingredientId: Id): string {
   return `${planId}:${ingredientId}`;
 }
 
-export async function setChecked(planId: Id, ingredientId: Id, checked: boolean): Promise<void> {
-  const entry: GroceryCheck = {
-    id: checkId(planId, ingredientId),
+/**
+ * Writes one line's state, leaving the rest of the record alone.
+ *
+ * Read-modify-write, and every write to this table goes through it. Ticking a
+ * line, pricing it and taking it off the list are three gestures against one
+ * row, and a write that rebuilt the row out of its own argument silently dropped
+ * whatever the other two had put there — which is how a price entered at the
+ * shelf disappeared the moment the box beside it was ticked.
+ *
+ * An `undefined` in the patch clears its field rather than storing a key holding
+ * nothing: "no price entered" is the absence of `amountCents`, and that is what
+ * the screen asks.
+ */
+async function putCheck(
+  planId: Id,
+  ingredientId: Id,
+  patch: Partial<Pick<GroceryCheck, 'checked' | 'amountCents' | 'removed'>>,
+): Promise<void> {
+  const id = checkId(planId, ingredientId);
+  const existing = await db.checks.get(id);
+
+  const next: GroceryCheck = {
+    checked: false,
+    ...existing,
+    ...patch,
+    id,
     planId,
     ingredientId,
-    checked,
     updatedAtISO: new Date().toISOString(),
   };
-  await syncedPut('checks', entry as unknown as Record<string, unknown>);
+
+  await syncedPut('checks', Object.fromEntries(
+    Object.entries(next).filter(([, value]) => value !== undefined),
+  ));
 }
 
+export async function setChecked(planId: Id, ingredientId: Id, checked: boolean): Promise<void> {
+  await putCheck(planId, ingredientId, { checked });
+}
+
+/**
+ * Takes one line off this week's shopping list, or puts it back.
+ *
+ * Off the LIST, and nothing else: the meal that wanted the ingredient still
+ * wants it, and the week is untouched. Taking a treat off does not empty it out
+ * of the treat bag either — the ✕ on the week screen is the one that means "not
+ * part of my week", and this one means "not in the trolley".
+ *
+ * Anything derived would be rebuilt without it and come straight back, which is
+ * why this is stored at all; `withoutRemoved` in `grocery.ts` is where that is
+ * argued.
+ */
+export async function setRemoved(planId: Id, ingredientId: Id, removed: boolean): Promise<void> {
+  await putCheck(planId, ingredientId, { removed });
+}
+
+/**
+ * Clears this plan's ticks, and the prices entered against them.
+ *
+ * What was taken off the list stays off. Neither of the two things that call
+ * this asked for it back — Untick all is about ticks, and a finished shop is
+ * over — and a line reappearing at the top of the list because the boxes had
+ * been cleared reads as the ✕ never having worked.
+ */
 export async function clearChecks(planId: Id): Promise<void> {
-  const keys = await db.checks.where('planId').equals(planId).primaryKeys();
-  // Deleted one at a time so each gets its own tombstone. Without those, the other
-  // device's next sync would simply re-upload its copies and every box would tick
-  // itself again.
-  for (const key of keys) await syncedDelete('checks', key);
+  const rows = await db.checks.where('planId').equals(planId).toArray();
+
+  for (const row of rows) {
+    if (row.removed) {
+      await putCheck(planId, row.ingredientId, { checked: false, amountCents: undefined });
+      continue;
+    }
+    // Deleted one at a time so each gets its own tombstone. Without those, the other
+    // device's next sync would simply re-upload its copies and every box would tick
+    // itself again.
+    await syncedDelete('checks', row.id);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -382,7 +442,7 @@ export async function recordShopTotal(
 // --- per-line prices --------------------------------------------------------
 
 /**
- * Sets what one planned line cost.
+ * Sets what one planned line cost, or clears it.
  *
  * Upserts the check record, because a price can be entered for a line that has
  * not been ticked yet — you scan the shelf, then put it in the basket.
@@ -392,17 +452,7 @@ export async function setLinePrice(
   ingredientId: Id,
   amountCents: number | null,
 ): Promise<void> {
-  const id = checkId(planId, ingredientId);
-  const existing = await db.checks.get(id);
-
-  await syncedPut('checks', {
-    id,
-    planId,
-    ingredientId,
-    checked: existing?.checked ?? false,
-    ...(amountCents === null ? {} : { amountCents }),
-    updatedAtISO: new Date().toISOString(),
-  });
+  await putCheck(planId, ingredientId, { amountCents: amountCents ?? undefined });
 }
 
 // --- ad-hoc items -----------------------------------------------------------
