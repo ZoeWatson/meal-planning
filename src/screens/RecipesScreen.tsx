@@ -38,8 +38,7 @@ const REJECTION_LABELS: Record<string, string> = {
   'no-match': 'none of the chips you included',
 };
 
-const MEAL_FILTERS: ReadonlyArray<{ id: MealType | 'any'; label: string }> = [
-  { id: 'any', label: 'Any' },
+const MEAL_FILTERS: ReadonlyArray<{ id: MealType; label: string }> = [
   { id: 'full', label: 'Full' },
   { id: 'light', label: 'Light' },
   { id: 'snack', label: 'Snacks' },
@@ -77,7 +76,8 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   /** Only the switched chips are in here; absent means off. */
   const [chips, setChips] = useState<ReadonlyMap<string, ChipState>>(new Map());
   const [mode, setMode] = useState<MatchMode>('all');
-  const [mealType, setMealType] = useState<MealType | 'any'>('any');
+  /** Empty means every meal, exactly as an untouched chip section does. */
+  const [mealTypes, setMealTypes] = useState<ReadonlySet<MealType>>(() => new Set());
   const [sortId, setSortId] = useState<string>(DEFAULT_SORT_ID);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Recipe | null>(null);
@@ -86,8 +86,8 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
 
   const filter = useMemo(() => composeChipFilter(chips, mode, {
     search: search.trim() || undefined,
-    mealTypes: mealType === 'any' ? undefined : [mealType],
-  }), [chips, mode, mealType, search]);
+    mealTypes: mealTypes.size > 0 ? [...mealTypes] : undefined,
+  }), [chips, mode, mealTypes, search]);
 
   const { matched, rejections } = useMemo(() => {
     if (!ctx) return { matched: [] as Recipe[], rejections: new Map<string, number>() };
@@ -162,9 +162,9 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
    */
   const filterNote = useMemo(() => {
     const parts: string[] = [];
-    if (mealType !== 'any') {
-      parts.push(MEAL_FILTERS.find((m) => m.id === mealType)!.label);
-    }
+    // In row order rather than the order they were tapped, for the same reason
+    // the chips below are.
+    for (const m of MEAL_FILTERS) if (mealTypes.has(m.id)) parts.push(m.label);
 
     // Drawn in panel order rather than the order they were tapped, so the same
     // set of chips always reads the same way round.
@@ -201,9 +201,9 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
     // Only worth saying when it changes the meaning. One included chip matches
     // the same recipes either way round.
     return mode === 'any' && included > 1 ? `any of ${joined}` : joined;
-  }, [chips, mode, mealType, sortId]);
+  }, [chips, mode, mealTypes, sortId]);
 
-  const anyFilter = chips.size > 0 || mealType !== 'any' || sortId !== DEFAULT_SORT_ID;
+  const anyFilter = chips.size > 0 || mealTypes.size > 0 || sortId !== DEFAULT_SORT_ID;
 
   /**
    * Include → exclude → off.
@@ -228,6 +228,21 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   }
 
   /**
+   * Include or clear. No exclude state, unlike the chips below.
+   *
+   * There are only three meal types, so ruling one out costs the same taps as
+   * switching the other two on and says the same thing. A third state that
+   * bought nothing would just make the row inconsistent with itself.
+   */
+  function toggleMeal(id: MealType): void {
+    setMealTypes((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  /**
    * Leaves the search box and the browse group alone on purpose. Both are
    * visible whatever this panel is doing, so clearing them from inside it would
    * be a button reaching outside its own section to change something you can
@@ -235,7 +250,7 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
    */
   function clearFilters(): void {
     setChips(new Map());
-    setMealType('any');
+    setMealTypes(new Set());
     setSortId(DEFAULT_SORT_ID);
     // Leaves the all/any toggle where it is on purpose. With no chips switched
     // on it filters nothing, so resetting it would change no result and forget a
@@ -296,21 +311,38 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         </p>
 
         <h3 className="sub-title">Meal</h3>
-        {/* Still one at a time, and still outside the all/any question. It is a
-            different kind of thing — which sitting you are cooking for, not what
-            you fancy — and a week of "full meals OR snacks" is every recipe
-            there is. */}
-        <div className="segmented">
+        {/* More than one at a time, and still outside the all/any question. It
+            is a different kind of thing — which sitting you are cooking for,
+            not what you fancy — so it is AND-ed on top whatever that toggle
+            says, and the meals switched on are OR-ed with each other.
+
+            One at a time was the rule here on the argument that "full meals OR
+            snacks" is every recipe there is. True of a WEEK, which is what the
+            planner builds; not true of browsing, where "something full or
+            light, but not a snack" is an ordinary thing to want and used to
+            take two passes over the library to see.
+
+            Nothing switched on means every meal, which is what the old Any
+            button said out loud. A button for the state you are already in is
+            one more thing to explain, and every other section in this panel
+            already reads empty as unfiltered. */}
+        <div className="chips wrap">
           {MEAL_FILTERS.map((m) => (
             <button
               key={m.id}
-              aria-pressed={mealType === m.id}
-              onClick={() => setMealType(m.id)}
+              className="chip"
+              aria-pressed={mealTypes.has(m.id)}
+              onClick={() => toggleMeal(m.id)}
             >
               {m.label}
             </button>
           ))}
         </div>
+        {mealTypes.size === 0 && (
+          <p className="tiny faint" style={{ marginTop: 2, marginBottom: 0 }}>
+            Every meal, from a full dinner down to a snack.
+          </p>
+        )}
 
         {FILTER_SECTIONS.map((section) => {
           // A chip the library cannot deliver on is dropped, unless it is
