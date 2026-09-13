@@ -520,7 +520,7 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
       <Entry
         title="The recipes"
         kind="estimate"
-        what="The fifteen meals the app ships with."
+        what="The library the app ships with."
       >
         <p>
           Written for this app. They are ordinary versions of common dishes, chosen
@@ -529,10 +529,16 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
           copyrighted, and scraping them would breach most sites' terms.
         </p>
         <p>
-          Fifteen is enough to prove the planner works and not enough to exercise
-          it. Bring your own — the import format is documented, and the importer
-          rejects anything it cannot fully resolve rather than importing it with
-          holes.
+          The library is heavily vegetarian and heavily pasta, because that is
+          what it was asked to grow into. Many of the pasta dishes are variants
+          of one another — the same dish with one thing swapped — which the
+          planner treats as a single choice and then resolves to whichever
+          version that week can buy most cheaply.
+        </p>
+        <p>
+          Bring your own as well — the import format is documented, and the
+          importer rejects anything it cannot fully resolve rather than
+          importing it with holes.
         </p>
       </Entry>
 

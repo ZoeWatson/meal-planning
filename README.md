@@ -20,8 +20,26 @@ npm run sync-server    # optional, for syncing between devices
 - **Meal types.** Full meals, light meals and snacks. Light meals and snacks are
   filled last, deliberately, so they can mop up what the full meals leave behind.
 - **Portions per recipe**, adjustable per slot.
+- **Add a meal by hand** — every row in the Recipes tab has an Add button, and
+  the meal joins the week at the portions the rest of that week's meals use. It
+  takes a slot the planner could not fill, or makes one, and arrives pinned so
+  the next regenerate keeps it.
 - **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
   cooking time, in-season, ingredient count.
+- **Browsing by type and region.** The Recipes tab groups the library by kind of
+  dish — pasta, soups, curries, bakes — or by where the food is from, both
+  derived rather than stored: a recipe is pasta if it is tagged pasta or if there
+  is pasta in it, which is how the half of the library that never said so gets
+  filed correctly. Filing and filtering answer differently on purpose. A
+  minestrone with ditalini in it is a soup, and a search for pasta still finds it.
+- **Week rules** — "at least three meals under 30 minutes", "two pasta nights",
+  "something using the halloumi", "at most one curry". A rule is a filter plus a
+  count, which is the thing no per-recipe filter can say: asking a filter for
+  under 30 minutes gives you a week of stir-fries. They reach the planner as a
+  very expensive term in the objective rather than as a hard constraint, so an
+  impossible rule yields a week with one rule unmet — named on the week screen —
+  instead of no week. Set in Settings; every Regenerate and every shuffle honours
+  them.
 - **Regional seasonality** — BC, Ontario and Las Vegas ship; the picker is in
   Settings. The desert table inverts the Canadian one: winter greens, and a gap in
   high summer.
@@ -34,12 +52,38 @@ npm run sync-server    # optional, for syncing between devices
   leftovers with a use-by date.
 - **A meal log** of what actually got eaten each day, split by cooked, leftovers
   and eaten out.
-- **Weekly staples** always on the list, and a **pantry** whose stocked items are
-  treated as free.
-- **A produce grab bag** of random in-season items, as the antidote to cooking the
-  same eight things forever. Redraw it without touching the meals, size it, and
-  split it into separate fruit and vegetable draws so a week never comes back
-  with no fruit in it.
+- **Weekly staples** always on the list.
+- **A pantry with two dials**, because "how much is left" and "how much that
+  matters" are different questions, and only both together decide whether running
+  out is worth a trip. Stock — in, low, out — is reviewed on the week's page
+  before a shop, which shows only what the cupboard is sending to this week's
+  list and keeps the rest behind a button, a page at a time, one line each.
+  Anything in stock is free to the planner. Necessity —
+  must-have, nice-to-have, alright-without — is set once in Settings and decides
+  how empty a thing has to get before it is bought without being asked. Anything
+  can be put on the list by hand regardless, and taken off again; that choice
+  stands until you have the thing.
+- **Four grab bags** — produce, bread, pasta and cheese — of random items added
+  each week as the antidote to cooking the same eight things forever. Each one
+  switches on and off on its own and has its own size, each redraws without
+  touching the meals or the other bags, and the produce bag splits into separate
+  fruit and vegetable draws so a week never comes back with no fruit in it. The
+  draw is weighted toward what is in season and on sale, and never offers
+  something your allergies or diets rule out. The library carries 32 breads, 31
+  pastas and 35 cheeses, because a bag that suggests "bread" is not a suggestion.
+- **A treat bag** underneath it: herbal teas and other small good things, nothing
+  over $10 and deliberately not all food — a long bath, flowers on the table and
+  an hour with a crossword sit in there alongside the dark chocolate. It draws a
+  tea, a thing to eat and a thing that is not, in that rotation, so it can never
+  quietly become a snack list. Allergies and diets rule a treat out of the draw
+  entirely rather than flagging it once it is in the bag.
+- **A switch for every section of the week**, all nine of them together in
+  Settings: the four grab bags, the treat bag, the summary, the meals and the
+  pantry review. Switching a bag off stops it being drawn at all — nothing from
+  that shelf reaches the plan or the shopping list, and the size it had is kept
+  for when it comes back. Switching the summary, the meals or the pantry review
+  off only takes them off the screen. The week screen itself carries no settings:
+  it is the week, and the knobs that shape it live in one place.
 - **Metric and imperial**, toggled at display time.
 - **Import a recipe** from a link, a photo or a block of text. All three become
   the same editable draft, reviewed line by line before anything is saved.
@@ -61,6 +105,14 @@ src/domain/        pure logic — no React, no database, all testable
   budget.ts        spending, months, and integer-cent money
   allergens.ts     allergen groups, detection, and its own limits
   cooking.ts       cooking, leftovers, keeping times, the meal log
+  grabbag.ts       the four grab bags: which shelf is which, and how big
+  taxonomy.ts      what kind of dish a recipe is, and where it is from
+  weekRules.ts     "three meals under 30 minutes" — filters that count
+  weekSections.ts  what the week screen is made of, and which switch is which
+  produce.ts       the fruit/veg split, as a shopper means it not a botanist
+  nameWords.ts     whole-word matching over ingredient names, shared by both
+  treats.ts        the treat catalogue and its draw — not ingredients, and why
+  pantry.ts        stock, necessity, and what puts a cupboard item on the list
   planner/         scoring and week generation
   import/          format, validator, prose parser, stub generator
                    capture from links, photos and text; near-miss matching
