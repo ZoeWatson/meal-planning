@@ -216,6 +216,55 @@ its original text:
 { "raw": "a good glug of olive oil", "quantity": 2, "unit": "tbsp", "item": "olive oil" }
 ```
 
+### Variants
+
+A great many recipes differ from one another by a single ingredient. Written out
+as separate recipes they triple the size of a library without widening it, and
+they make the plans worse: three near-identical donburi compete for the same slot,
+and the variety penalty — which works on proteins and tags — cannot tell they are
+the same dinner.
+
+So a recipe can say it is a variant of another:
+
+```json
+{
+  "id": "mushroom-donburi-cremini",
+  "name": "Mushroom donburi with cremini",
+  "variantOf": "mushroom-donburi",
+  "variantLabel": "with cremini",
+  "mealType": "full",
+  "...": "the rest of the recipe, written out in full"
+}
+```
+
+A family is **one choice**. The planner puts a single member into the candidate
+pool, and only once the rest of the week is settled does it ask which member that
+week can buy most cheaply — because which mushroom is cheapest depends entirely on
+what the other six meals already opened a pack of. A week buying cremini for a
+stroganoff will quietly cook the cremini donburi.
+
+| Field | Required | Notes |
+|---|---|---|
+| `variantOf` | — | Id of the parent, which must be in the same bundle **or already on the device**, so a variant of a library recipe can be imported on its own. |
+| `variantLabel` | with `variantOf` | What is different, e.g. `"with cremini"`. Shown next to the name. |
+
+Rules the importer enforces, rejecting the variant if they are broken:
+
+- the parent must exist, in this bundle or in the installed library;
+- variants do not nest — a parent cannot itself be a variant;
+- a variant has the same `mealType` as its parent, because it fills the same slot;
+- a variant needs a `variantLabel`.
+
+Write the variant out **in full** — all its ingredients and steps. It is a recipe
+you will cook from, not a diff. The `variantOf` link is for the planner, not a
+way to avoid writing the recipe down.
+
+**What is not a variant.** Same dish, one swapped ingredient. If the method
+changes, or the meal type changes, or you would describe it to someone as a
+different dish, it is a recipe of its own. The planner will only ever offer one
+member of a family at a time, so filing two genuinely different dinners as one
+family hides one of them.
+
 ### `scaling`
 
 Doubling a stew doubles the beef but not the bay leaves. Three rules:

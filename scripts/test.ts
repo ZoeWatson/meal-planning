@@ -18,9 +18,40 @@ import { guessCategory, stubsFromResult } from '../src/domain/import/stubs';
 import { loadSeedData } from '../src/data/seed';
 import { REGIONS, getRegion, seasonStatus } from '../src/domain/seasonality';
 import { produceKind } from '../src/domain/produce';
-import { fitWildcards, type WildcardSizes } from '../src/domain/planner/generate';
-import type { PlanningContext } from '../src/domain/planner/scoring';
-import type { Id, Ingredient, PlannerSettings, Recipe, WildcardItem } from '../src/domain/types';
+import {
+  type BagLane, type GrabBagId, GRAB_BAGS, bagOf, grabBagLanes, isCheese, isPasta,
+} from '../src/domain/grabbag';
+import {
+  MAX_TREAT_CENTS, TREATS, TREAT_KINDS, eligibleTreats, fitTreats, getTreat, pickTreats,
+  treatTarget, type TreatEligibility, type TreatItem, type TreatKind,
+} from '../src/domain/treats';
+import {
+  DISPLAY_SECTIONS, DRAWN_SECTIONS, WEEK_SECTIONS,
+} from '../src/domain/weekSections';
+import {
+  fitWildcards, generateWeekPlan, placeRecipe, regenerateMeals, rerollSlot,
+} from '../src/domain/planner/generate';
+import { aggregateNeeds, DEFAULT_WEIGHTS, type PlanningContext } from '../src/domain/planner/scoring';
+import {
+  buildVariantIndex, chooseBestVariants, collapseToFamilies, familyIdOf,
+} from '../src/domain/variants';
+import { applyFilter } from '../src/domain/filters';
+import {
+  CUISINE_REGIONS, cuisineLabel, cuisineOf, dishTypesOf, primaryDishType, regionOf,
+} from '../src/domain/taxonomy';
+import {
+  type CompiledRule, type WeekRule, compileRules, countMatching, describeRule,
+  evaluateRules, impossibleReason, isConfigured, newRule, rulePenalty, shortfallOf,
+  withSubject,
+} from '../src/domain/weekRules';
+import {
+  DEFAULT_NECESSITY, afterStockChange, autoRestock, describeItem, isOnList, isOverridden,
+  necessityOf, reviewOrder,
+} from '../src/domain/pantry';
+import type {
+  Id, Ingredient, MealType, PantryItem, PantryNecessity, PantryStock, PlanSlot, PlannerSettings,
+  Recipe, SlotSpec, WildcardItem,
+} from '../src/domain/types';
 
 let passed = 0;
 let failed = 0;
@@ -551,6 +582,151 @@ test('excluded produce never turns up in the bag', () => {
   const bag = fitWildcards(ctx, { split: true, count: 0, fruitCount: 3, vegCount: 2 }, 31337);
   assert.ok(kindsOf(ctx, bag).every((k) => k === 'vegetable'));
   assert.equal(bag.length, 2);
+});
+
+// ---------------------------------------------------------------------------
+
+group('Recipe variants');
+
+/** A family plus an unrelated meal, built through the real importer so grams resolve. */
+function variantLibrary(): { recipes: Recipe[]; byId: Map<Id, Recipe> } {
+  const snack = (id: string, item: string, extra: Partial<RawRecipe> = {}): RawRecipe => ({
+    id, name: id, mealType: 'snack', baseServings: 2,
+    prepMinutes: 5, cookMinutes: 0, steps: ['Eat.'],
+    ingredients: [{ item, quantity: 200, unit: 'g' }],
+    ...extra,
+  } as RawRecipe);
+
+  const result = importBundle({
+    recipes: [
+      snack('bean-bowl', 'pinto beans'),
+      snack('bean-bowl-kidney', 'kidney beans', { variantOf: 'bean-bowl', variantLabel: 'with kidney beans' }),
+      snack('other-snack', 'kidney beans'),
+    ],
+  }, loadSeedData().ingredients);
+
+  assert.equal(result.rejected.length, 0, `family rejected: ${JSON.stringify(result.rejected)}`);
+  return { recipes: result.recipes, byId: new Map(result.recipes.map((r) => [r.id, r])) };
+}
+
+function variantContext(): PlanningContext {
+  const { recipes } = variantLibrary();
+  return { ...planningContext(), recipes: new Map<Id, Recipe>(recipes.map((r) => [r.id, r])) };
+}
+
+const EVERY_VARIANT = new Set<Id>(['bean-bowl', 'bean-bowl-kidney', 'other-snack']);
+
+test('a family indexes parent first, however the file was ordered', () => {
+  const { recipes } = variantLibrary();
+  // Reversed, so a variant is seen before the parent it belongs to.
+  const index = buildVariantIndex([...recipes].reverse());
+
+  assert.deepEqual(index.members.get('bean-bowl'), ['bean-bowl', 'bean-bowl-kidney']);
+  assert.equal(familyIdOf(recipes.find((r) => r.id === 'bean-bowl-kidney')!), 'bean-bowl');
+});
+
+test('the planner is shown one member of each family', () => {
+  const { recipes } = variantLibrary();
+  const ids = collapseToFamilies(recipes).map((r) => r.id).sort();
+
+  assert.deepEqual(ids, ['bean-bowl', 'other-snack'], 'offered two versions of the same dish');
+});
+
+test('a family survives its parent being filtered out', () => {
+  // The case that matters: the default uses something you cannot eat but a
+  // variant does not, and hiding the whole dish would be the wrong answer.
+  const { byId } = variantLibrary();
+  const withoutParent = [byId.get('bean-bowl-kidney')!, byId.get('other-snack')!];
+
+  assert.deepEqual(
+    collapseToFamilies(withoutParent).map((r) => r.id),
+    ['other-snack', 'bean-bowl-kidney'],
+  );
+});
+
+test('the variant that shares a pack with the rest of the week wins', () => {
+  const ctx = variantContext();
+  const slots = [planSlot('snack-0', 'snack', 'other-snack'), planSlot('snack-1', 'snack', 'bean-bowl')];
+
+  const after = chooseBestVariants(
+    slots, [], ctx, DEFAULT_WEIGHTS, EVERY_VARIANT, buildVariantIndex(ctx.recipes.values()),
+  );
+
+  // Both snacks want 200 g of bean. Two different beans is two cans; the same
+  // bean twice is one, which is the entire reason variants are worth having.
+  assert.equal(after[1].recipeId, 'bean-bowl-kidney');
+});
+
+test('a pinned meal keeps the exact recipe that was pinned', () => {
+  const ctx = variantContext();
+  const slots = [
+    planSlot('snack-0', 'snack', 'other-snack'),
+    planSlot('snack-1', 'snack', 'bean-bowl', true),
+  ];
+
+  const after = chooseBestVariants(
+    slots, [], ctx, DEFAULT_WEIGHTS, EVERY_VARIANT, buildVariantIndex(ctx.recipes.values()),
+  );
+
+  assert.equal(after[1].recipeId, 'bean-bowl', 'swapped an ingredient inside a pinned meal');
+});
+
+test('a variant the filter removed is never substituted in', () => {
+  const ctx = variantContext();
+  const slots = [planSlot('snack-0', 'snack', 'other-snack'), planSlot('snack-1', 'snack', 'bean-bowl')];
+  // The cheaper variant is exactly the one the filter rejected.
+  const allowed = new Set<Id>(['bean-bowl', 'other-snack']);
+
+  const after = chooseBestVariants(
+    slots, [], ctx, DEFAULT_WEIGHTS, allowed, buildVariantIndex(ctx.recipes.values()),
+  );
+
+  assert.equal(after[1].recipeId, 'bean-bowl', 'served a recipe the filter had removed');
+});
+
+test('substitution never puts the same recipe in the week twice', () => {
+  const ctx = variantContext();
+  const slots = [
+    planSlot('snack-0', 'snack', 'bean-bowl-kidney'),
+    planSlot('snack-1', 'snack', 'bean-bowl'),
+  ];
+
+  const after = chooseBestVariants(
+    slots, [], ctx, DEFAULT_WEIGHTS, EVERY_VARIANT, buildVariantIndex(ctx.recipes.values()),
+  );
+
+  assert.equal(new Set(after.map((s) => s.recipeId)).size, 2, 'served the same recipe twice');
+});
+
+test('a broken family is rejected rather than imported as a loose recipe', () => {
+  const base = (id: string, extra: Partial<RawRecipe>): RawRecipe => ({
+    id, name: id, mealType: 'snack', baseServings: 2,
+    prepMinutes: 1, cookMinutes: 0, steps: [],
+    ingredients: [{ item: 'kidney beans', quantity: 100, unit: 'g' }],
+    ...extra,
+  } as RawRecipe);
+
+  const result = importBundle({
+    recipes: [
+      base('root', {}),
+      base('orphan', { variantOf: 'not-here', variantLabel: 'with x' }),
+      base('unlabelled', { variantOf: 'root' }),
+      base('wrong-meal', { variantOf: 'root', variantLabel: 'with x', mealType: 'full' }),
+      base('child', { variantOf: 'root', variantLabel: 'with x' }),
+      base('grandchild', { variantOf: 'child', variantLabel: 'with y' }),
+    ],
+  }, loadSeedData().ingredients);
+
+  assert.deepEqual(result.rejected.map((r) => r.id).sort(), ['grandchild', 'orphan', 'unlabelled', 'wrong-meal']);
+  assert.deepEqual(result.recipes.map((r) => r.id).sort(), ['child', 'root']);
+});
+
+test('an exported variant comes back a variant', () => {
+  const { recipes } = variantLibrary();
+  const raw = toBundle([], recipes).recipes!.find((r) => r.id === 'bean-bowl-kidney')!;
+
+  assert.equal(raw.variantOf, 'bean-bowl');
+  assert.equal(raw.variantLabel, 'with kidney beans');
 });
 
 // ---------------------------------------------------------------------------

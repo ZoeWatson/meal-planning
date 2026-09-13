@@ -25,12 +25,17 @@
  * generation works with no signal at all.
  */
 
-import type { Id, MealType, PlanSlot, Recipe, SlotSpec, WeekPlan, WildcardItem } from '../types';
+import type {
+  Id, Ingredient, MealType, PlanSlot, Recipe, SlotSpec, WeekPlan, WildcardItem,
+} from '../types';
 import { type RecipeFilter, explainFilter } from '../filters';
 import { type ProduceKind, PRODUCE_KINDS, produceKind } from '../produce';
 import { seasonStatus } from '../seasonality';
 import { makeRng } from '../rng';
 import { type PlanningContext, type ScoreWeights, DEFAULT_WEIGHTS, scorePlan } from './scoring';
+import {
+  buildVariantIndex, chooseBestVariants, collapseToFamilies, familyIdOf,
+} from '../variants';
 
 export interface GenerateOptions {
   readonly spec: SlotSpec;
@@ -110,20 +115,28 @@ const MEAL_ORDER: readonly MealType[] = ['full', 'light', 'snack'];
  *
  * Selection is softmax over the top few rather than a strict argmin, so different
  * restarts explore genuinely different plans and "regenerate" gives a new answer.
+ *
+ * `open` is the meal types it is allowed to fill. Everything else in the skeleton
+ * is priced and left alone, which is what rerolling one section of the week is.
  */
 function greedyBuild(
   ctx: PlanningContext,
   candidates: readonly Recipe[],
-  spec: SlotSpec,
-  pinned: readonly PlanSlot[],
+  skeleton: readonly PlanSlot[],
+  open: ReadonlySet<MealType>,
   wildcards: readonly WildcardItem[],
   weights: ScoreWeights,
   rng: () => number,
 ): PlanSlot[] {
-  const slots = buildSlotSkeleton(spec, pinned);
-  const used = new Set<Id>(pinned.map((s) => s.recipeId).filter((id): id is Id => id !== null));
+  const slots = [...skeleton];
+  // Every recipe the week already holds, not only the pinned ones. A skeleton
+  // handed in for a section reroll arrives with the other meal types filled, and
+  // those are as much "already used" as a pin is — without this, rerolling the
+  // light meals could serve the same soup the full meals are already having.
+  const used = new Set<Id>(slots.map((s) => s.recipeId).filter((id): id is Id => id !== null));
 
   for (const mealType of MEAL_ORDER) {
+    if (!open.has(mealType)) continue;
     const pool = candidates.filter((r) => r.mealType === mealType);
 
     for (let i = 0; i < slots.length; i++) {
@@ -173,11 +186,16 @@ function softmaxPick(scored: ReadonlyArray<{ recipe: Recipe; cost: number }>, rn
  *
  * This is what fixes greedy's characteristic mistake: an early choice that looked
  * cheap in isolation but stranded an ingredient nothing else uses.
+ *
+ * `open` means what it means in `greedyBuild`: the meal types on offer. A closed
+ * slot still counts toward every score computed here — it is part of the week —
+ * it is simply never the one that moves.
  */
 function localSearch(
   ctx: PlanningContext,
   candidates: readonly Recipe[],
   slots: readonly PlanSlot[],
+  open: ReadonlySet<MealType>,
   wildcards: readonly WildcardItem[],
   weights: ScoreWeights,
   maxIterations = 30,
@@ -193,7 +211,7 @@ function localSearch(
 
     for (let i = 0; i < current.length; i++) {
       const slot = current[i];
-      if (slot.pinned || slot.recipeId === null) continue;
+      if (slot.pinned || slot.recipeId === null || !open.has(slot.mealType)) continue;
 
       for (const recipe of candidates) {
         if (recipe.mealType !== slot.mealType || used.has(recipe.id)) continue;
@@ -214,6 +232,46 @@ function localSearch(
   }
 
   return current;
+}
+
+const ALL_MEAL_TYPES: ReadonlySet<MealType> = new Set(MEAL_ORDER);
+
+/**
+ * Build, improve, repeat; keep the best week of the lot.
+ *
+ * Whole-week generation and rerolling one kind of meal differ only in what they
+ * hand in — the starting `skeleton` — and in what they let the search move
+ * (`open`). Restarts are the reason pressing Regenerate twice gives two answers,
+ * so a section reroll wants them exactly as much as a full plan does.
+ */
+function search(
+  ctx: PlanningContext,
+  candidates: readonly Recipe[],
+  skeleton: readonly PlanSlot[],
+  open: ReadonlySet<MealType>,
+  wildcards: readonly WildcardItem[],
+  weights: ScoreWeights,
+  baseSeed: number,
+  restarts: number,
+): { slots: PlanSlot[]; improvements: number } {
+  let bestSlots: PlanSlot[] | null = null;
+  let bestCost = Infinity;
+  let improvements = 0;
+
+  for (let r = 0; r < restarts; r++) {
+    const rng = makeRng(baseSeed + r * 7919);
+    const built = greedyBuild(ctx, candidates, skeleton, open, wildcards, weights, rng);
+    const refined = localSearch(ctx, candidates, built, open, wildcards, weights);
+    const cost = scorePlan(refined, wildcards, ctx, weights).total;
+
+    if (cost < bestCost) {
+      bestCost = cost;
+      bestSlots = refined;
+      improvements++;
+    }
+  }
+
+  return { slots: bestSlots ?? [...skeleton], improvements };
 }
 
 export interface GenerationResult {
@@ -238,24 +296,30 @@ export function generateWeekPlan(ctx: PlanningContext, opts: GenerateOptions): G
 
   const { matched: candidates, rejections } = filterCandidates(ctx, opts);
 
-  let bestSlots: PlanSlot[] | null = null;
-  let bestCost = Infinity;
-  let improvements = 0;
+  // The search chooses DISHES, so it is shown one member of each variant family.
+  // Which member is cheapest depends on what the rest of the week has already
+  // opened a pack of, and that is not knowable while the week is still forming.
+  const { slots: chosen, improvements } = search(
+    ctx,
+    collapseToFamilies(candidates),
+    buildSlotSkeleton(opts.spec, pinned),
+    ALL_MEAL_TYPES,
+    wildcards,
+    weights,
+    baseSeed,
+    restarts,
+  );
 
-  for (let r = 0; r < restarts; r++) {
-    const rng = makeRng(baseSeed + r * 7919);
-    const built = greedyBuild(ctx, candidates, opts.spec, pinned, wildcards, weights, rng);
-    const refined = localSearch(ctx, candidates, built, wildcards, weights);
-    const cost = scorePlan(refined, wildcards, ctx, weights).total;
-
-    if (cost < bestCost) {
-      bestCost = cost;
-      bestSlots = refined;
-      improvements++;
-    }
-  }
-
-  const slots = bestSlots ?? buildSlotSkeleton(opts.spec, pinned);
+  const slots = [
+    ...chooseBestVariants(
+      chosen,
+      wildcards,
+      ctx,
+      weights,
+      new Set(candidates.map((r) => r.id)),
+      buildVariantIndex(ctx.recipes.values()),
+    ),
+  ];
 
   return {
     plan: {
