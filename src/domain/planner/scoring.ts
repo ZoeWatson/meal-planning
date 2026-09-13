@@ -24,6 +24,7 @@ import {
   type PlannerSettings, type Recipe, type SalePrice, type StapleItem,
   type WildcardItem, scaledGrams,
 } from '../types';
+import { isOnList } from '../pantry';
 import { type Region, seasonScore, seasonStatus } from '../seasonality';
 import { type WasteSettings, DEFAULT_WASTE_SETTINGS, analyzeSurplus } from '../waste';
 
@@ -122,9 +123,7 @@ export function aggregateNeeds(
 ): Map<Id, Need> {
   const needs = new Map<Id, Need>();
 
-  const add = (ingredientId: Id, grams: number, origin: GroceryOrigin): void => {
-    const pantry = ctx.pantry.get(ingredientId);
-    if (pantry?.status === 'stocked') return; // already owned: free, and cannot be wasted
+  const record = (ingredientId: Id, grams: number, origin: GroceryOrigin): void => {
     if (ctx.settings.excludedIngredients.includes(ingredientId)) return;
 
     const existing = needs.get(ingredientId);
@@ -134,6 +133,12 @@ export function aggregateNeeds(
     } else {
       needs.set(ingredientId, { ingredientId, grams, origins: [origin] });
     }
+  };
+
+  /** As `record`, but anything the pantry has in stock is free and never bought. */
+  const add = (ingredientId: Id, grams: number, origin: GroceryOrigin): void => {
+    if (ctx.pantry.get(ingredientId)?.status === 'stocked') return;
+    record(ingredientId, grams, origin);
   };
 
   for (const slot of slots) {
@@ -153,11 +158,14 @@ export function aggregateNeeds(
   }
 
   for (const [id, item] of ctx.pantry) {
-    // 'low' and 'out' need restocking; 'stocked' was already filtered in `add`.
-    if (item.status !== 'stocked') {
-      const ing = ctx.ingredients.get(id);
-      if (ing) add(id, ing.purchase.gramsPerPack, { kind: 'pantry' });
-    }
+    // Stock alone does not decide this: see `domain/pantry.ts` for how necessity
+    // and a by-hand override combine with it.
+    if (!isOnList(item)) continue;
+    const ing = ctx.ingredients.get(id);
+    // `record`, not `add`: a restock you asked for is a pack you are buying even
+    // when the cupboard is not empty. Recipes using it stay free either way —
+    // they eat what is already there, not the pack on the list.
+    if (ing) record(id, ing.purchase.gramsPerPack, { kind: 'pantry' });
   }
 
   for (const wc of wildcards) {

@@ -229,6 +229,20 @@ export interface StapleItem {
   readonly active: boolean;
 }
 
+/** How much of a pantry item is left. Set by hand; see `PantryItem`. */
+export type PantryStock = 'stocked' | 'low' | 'out';
+
+/**
+ * How much it matters that a pantry item is there — which is a different question
+ * from how much of it is left, and the two together are what decide whether
+ * running out is worth a trip.
+ *
+ * Being out of salt and being out of capers are not the same emergency, and a
+ * pantry that cannot tell them apart either nags about everything or nags about
+ * nothing.
+ */
+export type PantryNecessity = 'must-have' | 'nice-to-have' | 'alright-without';
+
 /**
  * Kept in stock rather than bought weekly.
  *
@@ -236,13 +250,28 @@ export interface StapleItem {
  * That is what makes a well-populated pantry pull the plan toward recipes you can
  * already mostly cook, which is the behaviour you want and costs nothing to get.
  *
- * Status is set by hand. Auto-depleting from recipe usage was considered and
+ * Stock is set by hand. Auto-depleting from recipe usage was considered and
  * rejected: nobody measures their olive oil, so the model drifts from reality
  * within weeks and then quietly lies on every grocery list.
  */
 export interface PantryItem {
   readonly ingredientId: Id;
-  readonly status: 'stocked' | 'low' | 'out';
+  readonly status: PantryStock;
+  /**
+   * Absent on rows written before necessity existed. Read it through
+   * `necessityOf` in `domain/pantry.ts` rather than defaulting it here — what a
+   * missing value meant is not what a new item gets, and that file says why.
+   */
+  readonly necessity?: PantryNecessity;
+  /**
+   * Says yes or no to the shopping list directly, overriding what necessity and
+   * stock would decide between them. Absent means "whatever those two say".
+   *
+   * Lasts until the item is back in stock, which is the purchase it was about.
+   * `afterStockChange` in `domain/pantry.ts` is where that happens, and says why
+   * the more obvious rule is wrong.
+   */
+  readonly restock?: boolean;
   readonly lastPurchasedISO?: string;
   /** Plans since last purchase that called for this — powers the "probably low?" nudge. */
   readonly usesSincePurchase: number;
