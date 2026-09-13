@@ -286,15 +286,6 @@ button { cursor: pointer; }
 
 /* ------------------------------------------------------- grocery list */
 
-.aisle {
-  margin: 20px 0 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
 .gline {
   display: flex;
   /* So the expanded line can drop a full-width row underneath the controls
