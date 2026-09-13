@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- The adaptive icon's background layer. Matches the app's theme colour and
+         the flat green behind the PWA icons, so the launcher icon and the one in
+         a browser tab are recognisably the same thing. -->
+    <color name="ic_launcher_background">#1F6F4A</color>
 </resources>
