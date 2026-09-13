@@ -57,7 +57,7 @@ export function AllergySection({ state }: { state: AppState }): JSX.Element {
       <h2 className="section-title">Allergies</h2>
       <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
         Anything selected here is removed from plans, the shopping list and the
-        produce grab bag — and flagged wherever a recipe could still slip through.
+        grab bags — and flagged wherever a recipe could still slip through.
       </p>
 
       {ALLERGEN_GROUPS.map((group) => {

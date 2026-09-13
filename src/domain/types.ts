@@ -15,6 +15,7 @@
  */
 
 import type { DisplayPreference, UnitSystem } from './units';
+import type { GrabBagSettings } from './grabbag';
 import type { CarryOver } from './waste';
 
 export type Id = string;
@@ -263,10 +264,14 @@ export interface PlanSlot {
 }
 
 /**
- * A produce grab-bag item: chosen for seasonality and sale price, not because a
+ * A grab-bag item: chosen because it is worth having in the house, not because a
  * recipe called for it. `promoted` items are fed back into generation as a hard
  * constraint — "build the week around these" — while un-promoted ones just ride
  * along on the grocery list.
+ *
+ * Which bag it came out of is not stored. It is derived from the ingredient by
+ * `bagOf` in `grabbag.ts`, which is what lets a bag be added, renamed or switched
+ * off without touching a single saved plan.
  */
 export interface WildcardItem {
   readonly ingredientId: Id;
@@ -336,7 +341,12 @@ export interface SalePrice {
   readonly validUntilISO?: string;
 }
 
-export interface PlannerSettings {
+/**
+ * The grab bag sizes and switches live in `GrabBagSettings`, in `grabbag.ts`,
+ * next to the bags they describe — there are four bags now and the fields only
+ * mean anything alongside the shelves they draw from.
+ */
+export interface PlannerSettings extends GrabBagSettings {
   readonly unitSystem: UnitSystem;
   /**
    * Selects the season table in `seasonality.ts`. User-changeable in Settings;
@@ -355,15 +365,4 @@ export interface PlannerSettings {
   readonly weeklyTimeBudgetMinutes: number;
   /** Recipes used within this many weeks are penalized, to keep the rotation moving. */
   readonly repeatWindowWeeks: number;
-  /** Grab bag size when it is drawn as one bag. Ignored when `wildcardSplit` is on. */
-  readonly wildcardCount: number;
-  /**
-   * Draw fruit and vegetables as two separate bags with their own sizes.
-   *
-   * One pool is weighted by season and sale price alone, so a week can come back
-   * with no fruit at all. Splitting is how you say "some of each, every week".
-   */
-  readonly wildcardSplit: boolean;
-  readonly wildcardFruitCount: number;
-  readonly wildcardVegCount: number;
 }

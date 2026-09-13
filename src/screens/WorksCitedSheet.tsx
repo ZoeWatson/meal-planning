@@ -97,6 +97,52 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
       </Entry>
 
       <Entry
+        title="The grab bags"
+        kind="design"
+        what="Produce, bread, pasta and cheese, drawn at random each week."
+      >
+        <p>
+          Each bag is a small random draw from one shelf of the ingredient
+          library, added to the week because it is worth having in rather than
+          because a recipe asked for it. The planner minimises waste, and a
+          waste-minimising planner left alone will cook the same eight things
+          forever — these are the deliberate noise that stops it.
+        </p>
+        <p>
+          The draw is weighted, not uniform: something at its seasonal peak is
+          four times as likely to come up as something out of season, and
+          anything you have marked as on sale doubles again. Out-of-season
+          produce is left in the pool at a quarter weight rather than removed,
+          because a January mango is a legitimate thing to want. On the dry
+          shelves the weighting does almost nothing — a box of rigatoni has no
+          season — which is the right amount of nothing.
+        </p>
+        <p>
+          Which shelf something sits on is worked out from its name rather than
+          stored. Bread is the whole bakery aisle. Pasta and cheese are the parts
+          of the grain and dairy aisles that match a list of words, so a box of
+          orecchiette is pasta and a bag of pearl barley next to it is not.
+          Couscous is counted as pasta: it is rolled semolina, it is sold in that
+          aisle, and a bag meant to suggest something other than spaghetti is
+          worse for leaving it out.
+        </p>
+        <Caveat>
+          Anything your allergies or diets rule out is never drawn, rather than
+          drawn and flagged. The check is the same one the planner uses, which
+          means it is only as good as the allergen and diet data on the
+          ingredient — see the allergens entry for where that is inferred rather
+          than known.
+        </Caveat>
+        <Caveat>
+          The bakery, pasta and cheese entries in the library were written for
+          these bags, and their prices, shelf lives and nutrition are estimates
+          like every other number here. The shelf lives in particular are for an
+          unopened pack kept properly, which is not the same as how long the loaf
+          on your counter will last.
+        </Caveat>
+      </Entry>
+
+      <Entry
         title="Nutrition"
         kind="estimate"
         what="Per-serving calories and macros, and the “high protein” filter."
