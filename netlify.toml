@@ -1,0 +1,24 @@
+# Static hosting for the Meal Planning PWA.
+#
+# There is nothing here but a build command and a directory, because there is
+# nothing to deploy but the built assets. The app is entirely client-side: the
+# recipe library seeds itself into IndexedDB on first open and the planner runs
+# in the browser, so there is no API to stand up and no database to provision.
+#
+# No redirect rules either. The six tabs are React state rather than routes, so
+# there are no deep links for a static host to rewrite back to index.html.
+#
+# The app assumes it is served from the root of a domain — vite.config.ts sets
+# no `base` and the manifest's start_url is "/". That holds on Netlify, Vercel
+# and Cloudflare Pages. It does NOT hold on a GitHub Pages project site, which
+# serves under /<repo>/ and would need both changed to match.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # package.json pins two of workbox's transitive dependencies to versions that
+  # still run on Node 18; both also run on 20, so moving up is free. Local builds
+  # are verified on 18.18.0.
+  NODE_VERSION = "20"
