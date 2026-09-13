@@ -238,7 +238,7 @@ test('stubs carry a TODO and are ordered by demand', () => {
       // that nothing resolved, so anything stocked here would test nothing.
       ingredients: [
         { raw: '1 kohlrabi' },
-        { raw: '2 tbsp gochujang' },
+        { raw: '2 tbsp doubanjiang' },
         { raw: '1 kohlrabi' },
       ],
     }],

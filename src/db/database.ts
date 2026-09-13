@@ -217,7 +217,20 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
  * 5: added 100 vegetarian recipes and the 118 ingredients they need, and made
  *    every milk-containing ingredient exclude `dairy-free` — cheese was only
  *    excluding `vegan`, so a parmesan pasta was being reported as dairy-free.
+ * 6: a second 100 vegetarian recipes, and the 38 ingredients they need.
+ * 7: the bakery, pasta and cheese shelves, for the three new grab bags — 26
+ *    breads, 24 pastas and 26 cheeses. `spaghetti` and `penne` stopped being
+ *    aliases of generic `pasta` in the same pass, because they are now
+ *    ingredients of their own; any recipe asking for either resolves to the
+ *    specific shape from here on.
+ * 8: a third 100 vegetarian recipes, and the 21 ingredients they need.
+ * 9: recipe variants, and 100 recipes that use them — 62 Japanese, and 38
+ *    attached to dishes the library already had. Recipes gained `variantOf`,
+ *    so a reseed is what puts the families on an existing device.
+ * 10: 101 more vegetarian recipes, 71 of them variants, most of them pasta —
+ *    plus broccoli rabe, dried porcini and ricotta salata, the three
+ *    ingredients they needed that the library did not have.
  */
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 10;
 
 export type { GroceryList };
