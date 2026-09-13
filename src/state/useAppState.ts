@@ -11,7 +11,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 
 import { db, DEFAULT_SETTINGS, type AppSettings } from '../db/database';
 import { getSettings, savePlan, setSlots, setTreats, setWildcards } from '../db/repository';
-import { buildGroceryList, renderGroceryList, type DisplayLine } from '../domain/grocery';
+import {
+  buildGroceryList, renderGroceryList, withoutRemoved, type DisplayLine,
+} from '../domain/grocery';
 import { getRegion } from '../domain/seasonality';
 import { excludedByAllergens } from '../domain/allergens';
 import { DEFAULT_WASTE_SETTINGS } from '../domain/waste';
@@ -36,6 +38,11 @@ export interface AppState {
   readonly ctx: PlanningContext | null;
   readonly groceryList: GroceryList | null;
   readonly groceryLines: readonly DisplayLine[];
+  /**
+   * Lines taken off this week's list by hand. Not part of the shop, kept so the
+   * screen can offer them back.
+   */
+  readonly removedLines: readonly DisplayLine[];
   readonly staples: readonly StapleItem[];
   readonly pantry: readonly PantryItem[];
   readonly sales: readonly SalePrice[];
@@ -147,7 +154,25 @@ export function useAppState(): AppState {
   }, [settings, ready, ingredients, recipes, staples, pantryRows, saleRows, recentlyUsed,
       carryOverRows, allergenExclusions, rules]);
 
-  const groceryList = useMemo(() => {
+  /**
+   * What has been taken off this week's list by hand — ingredient ids, and treat
+   * ids, which share the table because taking one off is the same gesture on the
+   * same screen.
+   *
+   * Scoped to the active plan. A check row outlives the week it was written for,
+   * and a removal is a statement about one shop rather than about an ingredient.
+   */
+  const removedIds = useMemo(
+    () => new Set(
+      (checkRows ?? [])
+        .filter((c) => c.removed === true && c.planId === plan?.id)
+        .map((c) => c.ingredientId),
+    ),
+    [checkRows, plan?.id],
+  );
+
+  /** Every line the plan implies, ticks merged in, before anything is taken off. */
+  const plannedList = useMemo(() => {
     if (!plan || !ctx) return null;
     const base = buildGroceryList(plan, ctx);
 
@@ -165,12 +190,39 @@ export function useAppState(): AppState {
     };
   }, [plan, ctx, checkRows]);
 
-  const groceryLines = useMemo(() => {
-    if (!groceryList || !ctx || !settings) return [];
-    const rendered = renderGroceryList(groceryList, ctx, settings.unitSystem);
+  /**
+   * The shop itself. Removed lines are gone from here rather than flagged on it,
+   * so that anything asking what this week costs, or what it leaves in the
+   * cupboard, is reading only what is actually being bought.
+   */
+  const groceryList = useMemo(
+    () => (plannedList ? withoutRemoved(plannedList, removedIds) : null),
+    [plannedList, removedIds],
+  );
+
+  const rendered = useMemo(() => {
+    if (!plannedList || !ctx || !settings) return [];
     // renderGroceryList works from the stored lines, so re-apply check state.
-    return rendered.map((line, i) => ({ ...line, checked: groceryList.lines[i].checked }));
-  }, [groceryList, ctx, settings]);
+    return renderGroceryList(plannedList, ctx, settings.unitSystem)
+      .map((line, i) => ({ ...line, checked: plannedList.lines[i].checked }));
+  }, [plannedList, ctx, settings]);
+
+  const groceryLines = useMemo(
+    () => rendered.filter((line) => !removedIds.has(line.ingredientId)),
+    [rendered, removedIds],
+  );
+
+  /**
+   * The same lines, rendered the same way, for the ones that were taken off.
+   *
+   * Rendered rather than reduced to a list of ids because the way back has to
+   * name them — "olive oil, 500 ml" — and the only thing that knows how to say
+   * that is the renderer every other line goes through.
+   */
+  const removedLines = useMemo(
+    () => rendered.filter((line) => removedIds.has(line.ingredientId)),
+    [rendered, removedIds],
+  );
 
   return {
     ready,
@@ -181,6 +233,7 @@ export function useAppState(): AppState {
     ctx,
     groceryList,
     groceryLines,
+    removedLines,
     staples: staples ?? [],
     pantry: pantryRows ?? [],
     sales: saleRows ?? [],

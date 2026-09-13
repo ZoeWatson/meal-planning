@@ -5,8 +5,9 @@ import type { AppState } from '../state/useAppState';
 import { db } from '../db/database';
 import {
   addCustomItem, clearChecks, lookupBarcode, recordCarryOverFromPlan, recordShopTotal,
-  rememberBarcode, removeCustomItem, setChecked, setLinePrice, updateCustomItem,
+  rememberBarcode, removeCustomItem, setChecked, setLinePrice, setRemoved, updateCustomItem,
 } from '../db/repository';
+import type { DisplayLine } from '../domain/grocery';
 import { carryOverOf } from '../domain/waste';
 import { scorePlan } from '../domain/planner/scoring';
 import {
@@ -36,6 +37,8 @@ interface Row {
   readonly meta: string;
   readonly badges: readonly { text: string; tone?: 'warn' | 'accent' }[];
   readonly checked: boolean;
+  /** Taken off this week's list. Off the shop and out of the counts, not deleted. */
+  readonly removed: boolean;
   readonly amountCents?: number;
   readonly custom?: CustomItem;
   readonly ingredientId?: string;
@@ -48,7 +51,7 @@ export function GroceryScreen({
   state: AppState;
   onPlan: () => void;
 }): JSX.Element {
-  const { plan, groceryLines, groceryList, ingredients, ctx, settings } = state;
+  const { plan, groceryLines, removedLines, groceryList, ingredients, ctx, settings } = state;
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hideDone, setHideDone] = useState(false);
   const [pricing, setPricing] = useState<Row | null>(null);
@@ -85,7 +88,7 @@ export function GroceryScreen({
   );
 
   const rows = useMemo<Row[]>(() => {
-    const planned: Row[] = groceryLines.map((line) => ({
+    const plannedRow = (line: DisplayLine, removed: boolean): Row => ({
       key: `p:${line.ingredientId}`,
       name: line.name,
       category: line.category,
@@ -103,10 +106,18 @@ export function GroceryScreen({
         ...(line.wasteCost > 0.35 ? [{ text: 'may spoil', tone: 'warn' as const }] : []),
       ],
       checked: line.checked,
+      removed,
       amountCents: priceByIngredient.get(line.ingredientId),
       ingredientId: line.ingredientId,
       usedBy: line.usedBy,
-    }));
+    });
+
+    // Both halves of the same list, built the same way, because what was taken
+    // off has to be nameable to be offered back.
+    const planned: Row[] = [
+      ...groceryLines.map((line) => plannedRow(line, false)),
+      ...removedLines.map((line) => plannedRow(line, true)),
+    ];
 
     // The week's treat bag. Not grocery lines — they have no grams, no packs and
     // no waste — but they are things to pick up on the same trip, so they belong
@@ -123,6 +134,9 @@ export function GroceryScreen({
         meta: treat.note,
         badges: [{ text: TREAT_KIND_LABELS[treat.kind], tone: 'accent' as const }],
         checked: check?.checked ?? false,
+        // Off this list, not out of the week: the treat bag is the week screen's,
+        // and the ✕ down there is the one that means "not this week at all".
+        removed: check?.removed === true,
         // The catalogue price is an estimate and stays out of the running total
         // until a real one is entered at the shelf, like every other line.
         amountCents: check?.amountCents,
@@ -139,18 +153,29 @@ export function GroceryScreen({
       meta: 'added by you',
       badges: [{ text: 'added', tone: 'accent' as const }],
       checked: item.checked,
+      removed: item.removed === true,
       amountCents: item.amountCents,
       custom: item,
       usedBy: [],
     }));
 
     return [...planned, ...treats, ...extra];
-  }, [groceryLines, customItems, priceByIngredient, plan?.treats, treatChecks]);
+  }, [groceryLines, removedLines, customItems, priceByIngredient, plan?.treats, treatChecks]);
 
-  const done = rows.filter((r) => r.checked).length;
-  const total = rows.length;
-  const enteredCents = rows.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
-  const pricedCount = rows.filter((r) => r.amountCents !== undefined).length;
+  /**
+   * The shop, and what has been taken out of it.
+   *
+   * Every count is over the first list. A line you are not buying is not one of
+   * the things left to find, and a price entered against it before it came off is
+   * not money this trip is going to cost.
+   */
+  const shopping = rows.filter((r) => !r.removed);
+  const takenOff = rows.filter((r) => r.removed);
+
+  const done = shopping.filter((r) => r.checked).length;
+  const total = shopping.length;
+  const enteredCents = shopping.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
+  const pricedCount = shopping.filter((r) => r.amountCents !== undefined).length;
 
   const estimatedCents = useMemo(() => {
     if (!plan || !ctx) return 0;
@@ -165,7 +190,9 @@ export function GroceryScreen({
     return meals + treats;
   }, [plan, ctx]);
 
-  if (!plan || total === 0) {
+  // `rows` rather than `total`: a list every line of which has been taken off is
+  // not an empty list, and "nothing to buy yet" would hide the way back to it.
+  if (!plan || rows.length === 0) {
     return (
       <main className="screen">
         <div className="header"><h1>Shopping list</h1></div>
@@ -179,12 +206,25 @@ export function GroceryScreen({
   }
 
   const planId = plan.id;
-  const visible = hideDone ? rows.filter((r) => !r.checked) : rows;
+  const visible = hideDone ? shopping.filter((r) => !r.checked) : shopping;
   const groups = groupByAisle(visible);
 
   async function toggle(row: Row): Promise<void> {
     if (row.custom) await updateCustomItem(row.custom.id, { checked: !row.checked });
     else if (row.ingredientId) await setChecked(planId, row.ingredientId, !row.checked);
+  }
+
+  /**
+   * Takes a line off this week's list, or puts it back.
+   *
+   * Three kinds of line and two mechanisms, because an item added by hand is a
+   * record of its own while a planned line is derived and has nowhere to keep
+   * anything. Both are hidden rather than deleted, so the way back off the bottom
+   * of the screen is the same for all three.
+   */
+  async function setRowRemoved(row: Row, removed: boolean): Promise<void> {
+    if (row.custom) await updateCustomItem(row.custom.id, { removed });
+    else if (row.ingredientId) await setRemoved(planId, row.ingredientId, removed);
   }
 
   return (
@@ -197,7 +237,7 @@ export function GroceryScreen({
           </span>
         </div>
         <div className="progress">
-          <div style={{ width: `${(done / total) * 100}%` }} />
+          <div style={{ width: total === 0 ? '0%' : `${(done / total) * 100}%` }} />
         </div>
         {/* The running total is the point of entering prices at the shelf: you
             find out you are over before the till, not after. */}
@@ -258,10 +298,59 @@ export function GroceryScreen({
                   ? formatMoney(row.amountCents, settings.currency)
                   : '＋$'}
               </button>
+
+              {/* The same ✕ the week screen puts on a meal, meaning the same
+                  thing one step further along: not this week. Here it is the
+                  trolley it comes out of rather than the week — the meal that
+                  wanted it is untouched, which is why it can say "already have
+                  this" without lying to the planner about next week. */}
+              <button
+                className="btn small ghost"
+                // Not "Remove", which beside an ingredient could mean out of the
+                // meal, or out of the library. It means neither.
+                aria-label={`Take ${row.name} off the list`}
+                onClick={() => void setRowRemoved(row, true)}
+              >
+                ✕
+              </button>
             </div>
           ))}
         </section>
       ))}
+
+      {/* The way back, and the only one. Kept on the same screen rather than
+          offered for ten seconds after the press, because the mistake this
+          insures against is not always noticed in the ten seconds after it: a ✕
+          on a phone in a shop is a thumb's width from the price beside it, and
+          the line simply leaves the aisle it was in. A list is also a thing
+          people put down and pick up again. */}
+      {takenOff.length > 0 && (
+        <section>
+          <h2 className="aisle">Taken off the list</h2>
+          <p className="tiny faint" style={{ margin: '0 0 8px' }}>
+            Not being bought, and not in the total. The meals that wanted them are
+            unchanged, so next week's list starts with them back on it.
+          </p>
+          {takenOff.map((row) => (
+            <div className="gline off" key={row.key}>
+              <span className="grow">
+                <span className="gname">{row.name}</span>
+                <span className="gmeta">
+                  {[row.qtyText, AISLE_LABELS[row.category] ?? row.category]
+                    .filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              <button
+                className="btn small"
+                aria-label={`Put ${row.name} back on the list`}
+                onClick={() => void setRowRemoved(row, false)}
+              >
+                Put back
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
 
       <button
         className="btn primary block"

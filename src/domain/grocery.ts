@@ -1,11 +1,12 @@
 /**
  * Grocery list construction.
  *
- * The list is derived from the plan, never authored directly — except for the
- * `checked` flag, which is the one piece of state that belongs to the shopper
- * standing in the aisle. That split matters for sync: everything else can be
- * recomputed from the plan on any device, so the only thing two devices can ever
- * genuinely disagree about is which boxes are ticked.
+ * The list is derived from the plan, never authored directly — except for what
+ * belongs to the shopper standing in the aisle: which boxes are ticked, and which
+ * lines have been taken off the list altogether. That split matters for sync:
+ * everything else can be recomputed from the plan on any device, so the only
+ * thing two devices can ever genuinely disagree about is a handful of small
+ * facts about single lines.
  */
 
 import {
@@ -64,6 +65,26 @@ export function buildGroceryList(
   });
 
   return { planId: plan.id, lines };
+}
+
+/**
+ * Drops the lines taken off the list by hand.
+ *
+ * The second thing here a human authors, and the second exception to the rule at
+ * the top of this file — for the same reason as `checked`. A line is on the list
+ * because a meal needs it, and taking it off says the one thing the plan cannot:
+ * not this week, not buying it. Nothing about the plan changed, so nothing in the
+ * plan could record it, and the next rebuild would put it straight back.
+ *
+ * A filter rather than a flag left on the line, so everything downstream is
+ * reading a list of what is actually being bought and cannot forget to ask. The
+ * one that matters most is what a finished shop banks as carry-over: surplus off
+ * a line nobody bought is grams of rice that do not exist, and next week's list
+ * would quietly buy that much too little.
+ */
+export function withoutRemoved(list: GroceryList, removed: ReadonlySet<Id>): GroceryList {
+  if (removed.size === 0) return list;
+  return { ...list, lines: list.lines.filter((line) => !removed.has(line.ingredientId)) };
 }
 
 export interface DisplayLine {
