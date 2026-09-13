@@ -14,6 +14,7 @@
 
 import { type RecipeNutrition, isHighProtein, recipeNutrition } from './nutrition';
 import { type Region, isInSeason, seasonStatus } from './seasonality';
+import { type CuisineRegionId, type DishTypeId, dishTypesOf, regionOf } from './taxonomy';
 import type { Id, Ingredient, MealType, Recipe } from './types';
 
 export interface RecipeFilter {
@@ -40,6 +41,17 @@ export interface RecipeFilter {
   readonly anyTags?: readonly string[];
   readonly excludeTags?: readonly string[];
 
+  /**
+   * Must be one of these kinds of dish. Derived, not tagged — see `taxonomy.ts`.
+   *
+   * Matched against EVERY type the recipe is, not only the one it files under, so
+   * asking for pasta finds the minestrone with ditalini in it. Filing and
+   * filtering want different answers and that file says why.
+   */
+  readonly dishTypes?: readonly DishTypeId[];
+  /** Must come from one of these culinary regions — nothing to do with `Region`. */
+  readonly regions?: readonly CuisineRegionId[];
+
   /** Drop recipes containing produce that is out of season in the active region. */
   readonly seasonalOnly?: boolean;
   /** Stricter: every produce item must be at peak, not merely available from storage. */
@@ -63,7 +75,8 @@ export interface FilterContext {
 export type RejectionReason =
   | 'meal-type' | 'diet' | 'missing-ingredient' | 'excluded-ingredient'
   | 'too-slow' | 'protein' | 'calories' | 'fibre'
-  | 'tags' | 'season' | 'search' | 'too-many-ingredients' | 'origin';
+  | 'tags' | 'dish-type' | 'region' | 'season' | 'search'
+  | 'too-many-ingredients' | 'origin';
 
 export function testRecipe(
   recipe: Recipe,
@@ -100,6 +113,12 @@ export function testRecipe(
 
   if (filter.anyTags?.length && !filter.anyTags.some((t) => recipe.tags.includes(t))) return 'tags';
   if (filter.excludeTags?.some((t) => recipe.tags.includes(t))) return 'tags';
+
+  if (filter.dishTypes?.length) {
+    const types = dishTypesOf(recipe, ctx.ingredients);
+    if (!filter.dishTypes.some((t) => types.includes(t))) return 'dish-type';
+  }
+  if (filter.regions?.length && !filter.regions.includes(regionOf(recipe))) return 'region';
 
   const needsNutrition =
     filter.highProteinOnly || filter.minProteinG !== undefined ||

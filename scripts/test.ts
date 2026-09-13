@@ -927,5 +927,101 @@ test('an exported variant comes back a variant', () => {
 
 // ---------------------------------------------------------------------------
 
+group('Dish type and region');
+
+/** A handful of dishes chosen to pull the rules apart, built through the real importer. */
+function taxonomyLibrary(): Map<Id, Recipe> {
+  const dish = (id: string, tags: string[], items: RawRecipe['ingredients']): RawRecipe => ({
+    id, name: id, mealType: 'full', baseServings: 2, prepMinutes: 5, cookMinutes: 10,
+    steps: ['Cook it.'], tags, ingredients: items,
+  } as RawRecipe);
+
+  const g = (item: string, extra: Record<string, unknown> = {}): RawRecipe['ingredients'][number] =>
+    ({ item, quantity: 100, unit: 'g', ...extra });
+
+  const result = importBundle({
+    recipes: [
+      dish('noodle-soup', ['soup', 'japanese'], [g('udon noodles'), g('baby spinach')]),
+      dish('untagged-pasta', ['italian'], [g('penne'), g('cherry tomatoes')]),
+      dish('rice-plate', ['korean'], [g('long grain rice'), g('kimchi')]),
+      dish('rice-noodle-plate', ['thai'], [g('rice noodles'), g('bean sprouts')]),
+      dish('beans-rice-optional', ['mexican'], [g('black beans'), g('long grain rice', { optional: true })]),
+      dish('from-nowhere', [], [g('rolled oats')]),
+    ],
+  }, loadSeedData().ingredients);
+
+  assert.equal(result.rejected.length, 0, `rejected: ${JSON.stringify(result.rejected)}`);
+  return new Map(result.recipes.map((r) => [r.id, r]));
+}
+
+const TAXONOMY = taxonomyLibrary();
+const TAXONOMY_INGREDIENTS = planningContext().ingredients;
+
+function typeOf(id: Id): string {
+  return primaryDishType(TAXONOMY.get(id)!, TAXONOMY_INGREDIENTS);
+}
+
+test('a soup with noodles in it files as a soup and is still found as pasta', () => {
+  // The whole reason filing and filtering are separate calls.
+  assert.equal(typeOf('noodle-soup'), 'soup');
+  assert.ok(
+    dishTypesOf(TAXONOMY.get('noodle-soup')!, TAXONOMY_INGREDIENTS).includes('pasta'),
+    'a search for pasta would miss the noodle soup',
+  );
+});
+
+test('pasta is found in a recipe that never says it is pasta', () => {
+  // Half the library is like this: `pasta e ceci` and `mac and cheese` carry no
+  // pasta tag, and filing them anywhere else would be indefensible.
+  assert.equal(typeOf('untagged-pasta'), 'pasta');
+});
+
+test('rice noodles are noodles, and rice is not', () => {
+  assert.equal(typeOf('rice-noodle-plate'), 'pasta');
+  assert.equal(typeOf('rice-plate'), 'rice');
+});
+
+test('an optional ingredient does not decide what a dish is', () => {
+  // "Serve with rice if you like" is a suggestion the shopping list already
+  // ignores; it should not file the dish under rice either.
+  assert.equal(typeOf('beans-rice-optional'), 'other');
+});
+
+test('a recipe with no cuisine tag is from nowhere rather than from Italy', () => {
+  assert.equal(cuisineOf(TAXONOMY.get('from-nowhere')!), null);
+  assert.equal(regionOf(TAXONOMY.get('from-nowhere')!), 'unfiled');
+});
+
+test('cuisines land in their region', () => {
+  assert.equal(regionOf(TAXONOMY.get('noodle-soup')!), 'east-asia');
+  assert.equal(regionOf(TAXONOMY.get('rice-noodle-plate')!), 'southeast-asia');
+  assert.equal(regionOf(TAXONOMY.get('untagged-pasta')!), 'italy');
+});
+
+test('every cuisine belongs to exactly one region', () => {
+  const seen = new Set<string>();
+  for (const region of CUISINE_REGIONS) {
+    for (const cuisine of region.cuisines) {
+      assert.ok(!seen.has(cuisine), `"${cuisine}" is filed under two regions`);
+      seen.add(cuisine);
+    }
+  }
+});
+
+test('hyphenated cuisine tags read as English', () => {
+  assert.equal(cuisineLabel('middle-eastern'), 'Middle Eastern');
+  assert.equal(cuisineLabel('sri-lankan'), 'Sri Lankan');
+});
+
+test('the dish-type filter matches every type, not only the one it files under', () => {
+  const found = applyFilter(TAXONOMY.values(), { dishTypes: ['pasta'] }, {
+    ingredients: TAXONOMY_INGREDIENTS, region: getRegion('bc-canada'), month: 8,
+  }).map((r) => r.id).sort();
+
+  assert.deepEqual(found, ['noodle-soup', 'rice-noodle-plate', 'untagged-pasta']);
+});
+
+// ---------------------------------------------------------------------------
+
 console.log(`\n${failed === 0 ? '\x1b[32m' : '\x1b[31m'}${passed} passed, ${failed} failed\x1b[0m`);
 process.exit(failed === 0 ? 0 : 1);

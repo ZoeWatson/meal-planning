@@ -372,6 +372,39 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
       </Entry>
 
       <Entry
+        title="How recipes are filed by type and region"
+        kind="design"
+        what="What makes a dish “pasta”, and what makes it “from Italy”."
+      >
+        <p>
+          Neither is stored on the recipe. The kind of dish is read from the
+          tags and from the ingredients, using the same list of what counts as
+          pasta that the pasta grab bag draws from — which matters, because a
+          good half of the pasta in the library is not tagged as pasta. Pasta e
+          ceci and mac and cheese never were.
+        </p>
+        <p>
+          Filing and filtering deliberately give different answers. A minestrone
+          with ditalini in it is filed under soups, because that is what it is,
+          and is still found by a search for pasta, because there is pasta in it.
+          A rule asking for two pasta nights counts it.
+        </p>
+        <p>
+          Region here means where the food is from, and has nothing to do with
+          the region setting that decides what is in season where you shop.
+          Cuisines are grouped into ten broad areas. Italy is one of them on its
+          own, which is not geography — it is the largest cuisine in the library
+          by a distance and the one people go looking for on purpose.
+        </p>
+        <Caveat>
+          The groupings are a convenience for browsing, not a claim about
+          culinary history. Several of them would be argued with, and the generic
+          “asian” tag is filed under East Asia because that is the least wrong
+          shelf rather than a right one.
+        </Caveat>
+      </Entry>
+
+      <Entry
         title="The recipes"
         kind="estimate"
         what="The fifteen meals the app ships with."
