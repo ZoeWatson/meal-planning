@@ -12,6 +12,7 @@
  */
 
 import type { Id, Ingredient, PantryItem, PantryNecessity, PantryStock } from './types';
+import { carryOverOf } from './waste';
 
 export const PANTRY_STOCKS: readonly PantryStock[] = ['stocked', 'low', 'out'];
 
@@ -82,6 +83,29 @@ export function isOnList(item: PantryItem): boolean {
 /** True when the item is on the list only because you put it there, or kept off it. */
 export function isOverridden(item: PantryItem): boolean {
   return item.restock !== undefined && item.restock !== autoRestock(item);
+}
+
+/**
+ * Whether "I already have this" is worth remembering past this week.
+ *
+ * Said on the shopping list, that sentence means two entirely different things
+ * depending on what it is about. Half a bag of rice is a fact that will still be
+ * true in a month, and a pantry row for it saves being asked every week. Half a
+ * bunch of parsley is a fact about Tuesday, and a pantry row for it would be a
+ * standing lie — worse than useless, because a stocked pantry item is FREE to the
+ * planner, so every week after this one would quietly assume parsley costs
+ * nothing.
+ *
+ * The test is the one the waste model already makes for what survives a week, and
+ * the same one a finished shop uses to decide what to bank as carry-over. Two
+ * places asking "does this keep?" should not answer it differently.
+ *
+ * This only decides whether to OFFER. Anything can be put in the pantry by hand
+ * in Settings, where the roster lives — a household that really does keep frozen
+ * stock in is not wrong, it is just not the default worth suggesting.
+ */
+export function worthKeeping(ingredient: Ingredient): boolean {
+  return carryOverOf(ingredient) === 'pantry';
 }
 
 /**

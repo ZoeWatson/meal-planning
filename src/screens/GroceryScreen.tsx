@@ -4,17 +4,19 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { AppState } from '../state/useAppState';
 import { db } from '../db/database';
 import {
-  addCustomItem, clearChecks, lookupBarcode, recordCarryOverFromPlan, recordShopTotal,
-  rememberBarcode, removeCustomItem, setChecked, setLinePrice, setRemoved, updateCustomItem,
+  addCustomItem, clearChecks, keepInPantry, lookupBarcode, recordCarryOverFromPlan,
+  recordShopTotal, rememberBarcode, removeCustomItem, setChecked, setInStock, setLinePrice,
+  setRemoved, updateCustomItem,
 } from '../db/repository';
 import type { DisplayLine } from '../domain/grocery';
+import { worthKeeping } from '../domain/pantry';
 import { carryOverOf } from '../domain/waste';
 import { scorePlan } from '../domain/planner/scoring';
 import {
   centsToInput, formatMoney, parseMoney, todayISO, type CustomItem,
 } from '../domain/budget';
 import { TREAT_KIND_LABELS, getTreat } from '../domain/treats';
-import { CheckIcon } from '../components/icons';
+import { CheckIcon, HouseIcon } from '../components/icons';
 import { BarcodeScanner, isScanningSupported } from '../components/BarcodeScanner';
 import { Sheet } from '../components/Sheet';
 
@@ -39,6 +41,8 @@ interface Row {
   readonly checked: boolean;
   /** Taken off this week's list. Off the shop and out of the counts, not deleted. */
   readonly removed: boolean;
+  /** Off the list because the cupboard already has it. Always implies `removed`. */
+  readonly inStock: boolean;
   readonly amountCents?: number;
   readonly custom?: CustomItem;
   readonly ingredientId?: string;
@@ -51,7 +55,9 @@ export function GroceryScreen({
   state: AppState;
   onPlan: () => void;
 }): JSX.Element {
-  const { plan, groceryLines, removedLines, groceryList, ingredients, ctx, settings } = state;
+  const {
+    plan, groceryLines, removedLines, groceryList, ingredients, pantry, ctx, settings,
+  } = state;
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hideDone, setHideDone] = useState(false);
   const [pricing, setPricing] = useState<Row | null>(null);
@@ -69,6 +75,24 @@ export function GroceryScreen({
   ) ?? [];
 
   const checks = useLiveQuery(() => db.checks.toArray(), []) ?? [];
+
+  /**
+   * Lines said to be in the cupboard already, for this plan.
+   *
+   * Scoped to the plan for the same reason the ticks are: a check row outlives
+   * the week it was written for, and "we have rice" was said about one shop.
+   */
+  const inStockIds = useMemo(
+    () => new Set(checks.filter((c) => c.inStock === true && c.planId === plan?.id)
+      .map((c) => c.ingredientId)),
+    [checks, plan?.id],
+  );
+
+  /** What is already on the pantry roster, so the offer is not made twice. */
+  const inPantry = useMemo(
+    () => new Set(pantry.map((p) => p.ingredientId)),
+    [pantry],
+  );
   const priceByIngredient = useMemo(
     () => new Map(checks.filter((c) => c.amountCents !== undefined)
       .map((c) => [c.ingredientId, c.amountCents!])),
@@ -107,6 +131,7 @@ export function GroceryScreen({
       ],
       checked: line.checked,
       removed,
+      inStock: inStockIds.has(line.ingredientId),
       amountCents: priceByIngredient.get(line.ingredientId),
       ingredientId: line.ingredientId,
       usedBy: line.usedBy,
@@ -137,6 +162,7 @@ export function GroceryScreen({
         // Off this list, not out of the week: the treat bag is the week screen's,
         // and the ✕ down there is the one that means "not this week at all".
         removed: check?.removed === true,
+        inStock: check?.inStock === true,
         // The catalogue price is an estimate and stays out of the running total
         // until a real one is entered at the shelf, like every other line.
         amountCents: check?.amountCents,
@@ -154,13 +180,15 @@ export function GroceryScreen({
       badges: [{ text: 'added', tone: 'accent' as const }],
       checked: item.checked,
       removed: item.removed === true,
+      inStock: item.inStock === true,
       amountCents: item.amountCents,
       custom: item,
       usedBy: [],
     }));
 
     return [...planned, ...treats, ...extra];
-  }, [groceryLines, removedLines, customItems, priceByIngredient, plan?.treats, treatChecks]);
+  }, [groceryLines, removedLines, customItems, priceByIngredient, plan?.treats, treatChecks,
+      inStockIds]);
 
   /**
    * The shop, and what has been taken out of it.
@@ -223,8 +251,42 @@ export function GroceryScreen({
    * of the screen is the same for all three.
    */
   async function setRowRemoved(row: Row, removed: boolean): Promise<void> {
-    if (row.custom) await updateCustomItem(row.custom.id, { removed });
+    if (row.custom) await updateCustomItem(row.custom.id, { removed, inStock: undefined });
     else if (row.ingredientId) await setRemoved(planId, row.ingredientId, removed);
+  }
+
+  /**
+   * Takes a line off because the cupboard has it — the same removal, with the
+   * reason kept.
+   *
+   * Worth keeping because the two are not the same afterwards. "Not this week"
+   * is a decision that expires on its own; "we have this" is a fact about a
+   * cupboard, and a fact about a cupboard is the one kind that might be worth
+   * writing down.
+   */
+  async function setRowInStock(row: Row, inStock: boolean): Promise<void> {
+    if (row.custom) {
+      await updateCustomItem(row.custom.id, {
+        removed: inStock, inStock: inStock ? true : undefined,
+      });
+    } else if (row.ingredientId) {
+      await setInStock(planId, row.ingredientId, inStock);
+    }
+  }
+
+  /**
+   * Whether to offer this a permanent home in the pantry.
+   *
+   * Only for things that keep, and only for what is not on the roster already.
+   * `worthKeeping` says why offering it for parsley would be a bug rather than a
+   * convenience: a stocked pantry item is free to the planner, so a herb in there
+   * silently discounts every week after this one.
+   */
+  function canKeep(row: Row): boolean {
+    if (!row.inStock || row.custom || !row.ingredientId) return false;
+    if (inPantry.has(row.ingredientId)) return false;
+    const ing = ingredients.get(row.ingredientId);
+    return ing !== undefined && worthKeeping(ing);
   }
 
   return (
@@ -299,6 +361,18 @@ export function GroceryScreen({
                   : '＋$'}
               </button>
 
+              {/* On the line itself rather than behind opening it: this is
+                  pressed while standing at the shelf looking at the thing, not
+                  after reading about it, so making it wait for a second tap
+                  would cost more than it saves. */}
+              <button
+                className="btn small ghost"
+                aria-label={`Already have ${row.name} — take it off the list`}
+                onClick={() => void setRowInStock(row, true)}
+              >
+                <HouseIcon size={15} />
+              </button>
+
               {/* The same ✕ the week screen puts on a meal, meaning the same
                   thing one step further along: not this week. Here it is the
                   trolley it comes out of rather than the week — the meal that
@@ -329,24 +403,60 @@ export function GroceryScreen({
           <h2 className="aisle">Taken off the list</h2>
           <p className="tiny faint" style={{ margin: '0 0 8px' }}>
             Not being bought, and not in the total. The meals that wanted them are
-            unchanged, so next week's list starts with them back on it.
+            unchanged, so next week's list starts with them back on it — including
+            the ones you already have, unless you keep them in the pantry.
           </p>
           {takenOff.map((row) => (
             <div className="gline off" key={row.key}>
               <span className="grow">
                 <span className="gname">{row.name}</span>
                 <span className="gmeta">
+                  {/* Which of the two things this line is doing down here. Both
+                      are "not being bought"; only one of them is a fact that
+                      could still be true next week. */}
+                  {row.inStock && <span className="badge">already have</span>}
                   {[row.qtyText, AISLE_LABELS[row.category] ?? row.category]
                     .filter(Boolean).join(' · ')}
                 </span>
               </span>
+
               <button
                 className="btn small"
-                aria-label={`Put ${row.name} back on the list`}
+                aria-label={row.inStock
+                  ? `Put ${row.name} back on the list — you need it after all`
+                  : `Put ${row.name} back on the list`}
                 onClick={() => void setRowRemoved(row, false)}
               >
                 Put back
               </button>
+
+              {/*
+                The offer, and only an offer. Marking a line in stock is about
+                this shop; a pantry row is a standing claim about a cupboard, and
+                promoting one silently would be the app deciding that half a bag
+                of rice is a policy. It shows up only for things that keep, so it
+                never suggests filing a bunch of parsley.
+
+                On its own row under the name rather than beside Put back. Two
+                buttons and a struck-through name do not fit across a phone, and
+                the one that needs the room is this one: "Put back" is obvious and
+                this is not, so it is the one that gets to say what it does.
+              */}
+              {canKeep(row) && (
+                <div className="gline-more">
+                  <button
+                    className="btn small ghost icon-btn"
+                    aria-label={`Add ${row.name} to the pantry, so it stops being added here`}
+                    onClick={() => void keepInPantry(planId, row.ingredientId!)}
+                  >
+                    <HouseIcon size={15} />
+                    Add to pantry
+                  </button>
+                  <span className="tiny faint">
+                    Stops it being added at all, until you say it has run out.
+                  </span>
+                </div>
+              )}
             </div>
           ))}
         </section>

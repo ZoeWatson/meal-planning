@@ -61,6 +61,8 @@ export interface CustomItem {
    * the shop clears these out along with the rest.
    */
   readonly removed?: boolean;
+  /** Off the list because the cupboard has it. See `GroceryCheck.inStock`. */
+  readonly inStock?: boolean;
   /** Set when the item came from a scan, so the next scan recognises it. */
   readonly barcode?: string;
   readonly updatedAtISO: string;

@@ -60,6 +60,21 @@ export interface GroceryCheck {
    * dropping the whole thing to save a boolean would take those with it.
    */
   readonly removed?: boolean;
+  /**
+   * Why it came off: because the cupboard already has it.
+   *
+   * A reason beside `removed` rather than a second way of removing things. "Not
+   * buying this" and "not buying this, I have it" put the same line in the same
+   * place, and two mechanisms that hid lines independently would need two ways
+   * back and could disagree about whether a line was hidden at all.
+   *
+   * It says nothing about the pantry proper. That is a standing claim about a
+   * cupboard — "we keep olive oil in" — and writing every "I have parsley" into
+   * it would fill the roster with herbs and, worse, make them free to the planner
+   * for every week after this one. `worthKeeping` in `domain/pantry.ts` is what
+   * decides which of these are worth offering a pantry row for, and says why.
+   */
+  readonly inStock?: boolean;
   /** The field sync reconciles last-write-wins. */
   readonly updatedAtISO: string;
 }

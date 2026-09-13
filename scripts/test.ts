@@ -37,6 +37,7 @@ import {
   buildVariantIndex, chooseBestVariants, collapseToFamilies, familyIdOf,
 } from '../src/domain/variants';
 import { applyFilter } from '../src/domain/filters';
+import { buildGroceryList, withoutRemoved } from '../src/domain/grocery';
 import {
   CUISINE_REGIONS, cuisineLabel, cuisineOf, dishTypesOf, primaryDishType, regionOf,
 } from '../src/domain/taxonomy';
@@ -47,11 +48,12 @@ import {
 } from '../src/domain/weekRules';
 import {
   DEFAULT_NECESSITY, afterStockChange, autoRestock, describeItem, isOnList, isOverridden,
-  necessityOf, reviewOrder,
+  necessityOf, reviewOrder, worthKeeping,
 } from '../src/domain/pantry';
+import { carryOverOf } from '../src/domain/waste';
 import type {
-  Id, Ingredient, MealType, PantryItem, PantryNecessity, PantryStock, PlanSlot, PlannerSettings,
-  Recipe, SlotSpec, WildcardItem,
+  GroceryList, Id, Ingredient, MealType, PantryItem, PantryNecessity, PantryStock, PlanSlot,
+  PlannerSettings, Recipe, SlotSpec, WeekPlan, WildcardItem,
 } from '../src/domain/types';
 
 let passed = 0;
@@ -951,6 +953,48 @@ test('an excluded ingredient is not bought just because the pantry wants it', ()
 
 // ---------------------------------------------------------------------------
 
+group('Already have it');
+
+test('a bag of rice is worth a pantry row and a bunch of parsley is not', () => {
+  const ingredients = new Map<Id, Ingredient>(
+    loadSeedData().ingredients.map((i) => [i.id, i]),
+  );
+
+  // The distinction the offer turns on. Both are true sentences said in a shop —
+  // "I have rice", "I have parsley" — and only the first is still true in a month.
+  assert.equal(worthKeeping(ingredients.get('arborio-rice')!), true);
+  assert.equal(worthKeeping(ingredients.get('olive-oil')!), true);
+  assert.equal(worthKeeping(ingredients.get('parsley')!), false);
+});
+
+test('what is worth keeping is exactly what survives a week, across the library', () => {
+  // One question, asked in two places: the offer here, and what a finished shop
+  // banks as carry-over. They are the same test on purpose, so a library edit
+  // cannot make them disagree — an ingredient the shop banks but the pantry will
+  // not keep, or the reverse, is a quiet inconsistency nobody would go looking for.
+  for (const ing of loadSeedData().ingredients) {
+    assert.equal(
+      worthKeeping(ing),
+      carryOverOf(ing) === 'pantry',
+      `${ing.name} disagrees with the waste model about whether it keeps`,
+    );
+  }
+});
+
+test('freezing is not the cupboard, however long it lasts', () => {
+  const ingredients = new Map<Id, Ingredient>(
+    loadSeedData().ingredients.map((i) => [i.id, i]),
+  );
+  // A loaf in the freezer keeps for months, and is still not a thing the pantry
+  // should quietly treat as always-in. The pantry makes its contents free to the
+  // planner, so the bar is "always there", not "lasts a while".
+  const frozen = [...ingredients.values()].filter((i) => carryOverOf(i) === 'freezer');
+  assert.ok(frozen.length > 0, 'the library has nothing freezable to check');
+  for (const ing of frozen) assert.equal(worthKeeping(ing), false);
+});
+
+// ---------------------------------------------------------------------------
+
 group('The treat bag');
 
 /** Nobody is allergic to anything and no diet is on. The common case. */
@@ -1599,6 +1643,79 @@ test('shuffling the section brings the week back to the size settings ask for', 
 
   const ids = after.map((s) => s.id);
   assert.equal(new Set(ids).size, ids.length, `duplicate slot id: ${ids.join(', ')}`);
+});
+
+// ---------------------------------------------------------------------------
+
+group('Taking something off the shopping list');
+
+/** A week's shopping, built the way the app builds it. */
+function shoppingList(): { list: GroceryList; ctx: PlanningContext; plan: WeekPlan } {
+  const ctx = planningContext();
+  const { plan } = generateWeekPlan(ctx, { spec: WEEK, restarts: 2, seed: 4242 });
+  const list = buildGroceryList(plan, ctx);
+
+  if (list.lines.length < 3) assert.fail('the generated week bought almost nothing');
+  return { list, ctx, plan };
+}
+
+test('a line taken off is off the list', () => {
+  const { list } = shoppingList();
+  const gone = list.lines[1].ingredientId;
+
+  const after = withoutRemoved(list, new Set([gone]));
+
+  assert.equal(after.lines.length, list.lines.length - 1);
+  assert.equal(after.lines.some((l) => l.ingredientId === gone), false);
+});
+
+test('the rest of the shop is untouched, down to the line', () => {
+  // Not merely "still there": the packs and the grams on every other line are
+  // what the running total and the carry-over are read off, and a removal that
+  // rewrote any of them would be silently changing what the week costs.
+  const { list } = shoppingList();
+  const after = withoutRemoved(list, new Set([list.lines[1].ingredientId]));
+
+  assert.deepEqual(after.lines, [list.lines[0], ...list.lines.slice(2)]);
+  assert.equal(after.lines[0], list.lines[0], 'rewrote a line it was not asked about');
+  assert.equal(after.planId, list.planId);
+});
+
+test('the rebuild brings it straight back, which is why it is stored elsewhere', () => {
+  // The whole reason a removal lives beside the ticks rather than anywhere in the
+  // derived list. Nothing about the week changed, so the builder has no way to
+  // know — handed the shortened list as the previous one, it still returns the
+  // line, because the plan still wants the ingredient. Staying off is the removal
+  // being applied over the top, every time.
+  const { list, ctx, plan } = shoppingList();
+  const gone = list.lines[1].ingredientId;
+  const removed = new Set([gone]);
+
+  const rebuilt = buildGroceryList(plan, ctx, withoutRemoved(list, removed));
+
+  assert.equal(
+    rebuilt.lines.some((l) => l.ingredientId === gone),
+    true,
+    'the builder remembered something the plan does not say',
+  );
+  assert.equal(
+    withoutRemoved(rebuilt, removed).lines.some((l) => l.ingredientId === gone),
+    false,
+  );
+});
+
+test('a treat id takes nothing off the groceries', () => {
+  // Both kinds of line are taken off through the same table, keyed by treat id
+  // for one and ingredient id for the other, and they meet in one set.
+  const { list } = shoppingList();
+
+  assert.equal(withoutRemoved(list, new Set(['treat-dark-chocolate'])).lines.length,
+    list.lines.length);
+});
+
+test('nothing taken off hands the same list straight back', () => {
+  const { list } = shoppingList();
+  assert.equal(withoutRemoved(list, new Set()), list);
 });
 
 // ---------------------------------------------------------------------------
