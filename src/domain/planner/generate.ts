@@ -28,6 +28,7 @@
 import type {
   Id, Ingredient, MealType, PlanSlot, Recipe, SlotSpec, WeekPlan, WildcardItem,
 } from '../types';
+import type { TreatItem } from '../treats';
 import type { BagLane } from '../grabbag';
 import { type RecipeFilter, explainFilter } from '../filters';
 import { seasonStatus } from '../seasonality';
@@ -43,6 +44,15 @@ export interface GenerateOptions {
   readonly pinnedSlots?: readonly PlanSlot[];
   /** Wildcards the user promoted — the plan must use these ingredients. */
   readonly wildcards?: readonly WildcardItem[];
+  /**
+   * The week's treat bag, carried onto the plan untouched.
+   *
+   * Nothing here scores it and nothing here reads it: a bar of chocolate and a
+   * face mask have no bearing on which meals overlap. It travels through
+   * generation only so that planning a week produces one complete plan, rather
+   * than a plan plus a second write that a crash could lose.
+   */
+  readonly treats?: readonly TreatItem[];
   /**
    * Hard constraints on what may be planned. Same type the library browser uses,
    * so "show me X" and "plan a week of X" can never drift apart.
@@ -327,6 +337,7 @@ export function generateWeekPlan(ctx: PlanningContext, opts: GenerateOptions): G
       weekStartISO: new Date().toISOString().slice(0, 10),
       slots,
       wildcards,
+      treats: opts.treats ?? [],
       generatedAtISO: new Date().toISOString(),
       seed: baseSeed,
     },

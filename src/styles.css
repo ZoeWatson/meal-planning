@@ -292,6 +292,11 @@ button { cursor: pointer; }
 
 .badge {
   display: inline-block;
+  /* A label is one short thing and reads as one: "NOT FOOD" broken over two
+     lines beside a name that is itself wrapping looks like a layout bug. Held to
+     its own width in a flex row rather than being squeezed by a long name. */
+  white-space: nowrap;
+  flex: 0 0 auto;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.05em;

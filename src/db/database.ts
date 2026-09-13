@@ -21,11 +21,20 @@ import type { Change, SyncedCollection } from '../domain/sync/types';
 import type { BarcodeEntry, CustomItem, Expense } from '../domain/budget';
 import type { CookedMeal, Leftover, MealLogEntry } from '../domain/cooking';
 
-/** A single ticked box, keyed by plan and ingredient. */
+/** A single ticked box, keyed by plan and by whatever is being ticked. */
 export interface GroceryCheck {
   /** `${planId}:${ingredientId}` */
   readonly id: string;
   readonly planId: Id;
+  /**
+   * What was ticked: an ingredient for a planned line, a treat id for a line
+   * from the treat bag.
+   *
+   * One table rather than two, because ticking is ticking — it is the same
+   * gesture in the same aisle, and the reason this table exists at all (one small
+   * record per line, so two devices merge last-write-wins on a boolean instead of
+   * fighting over a whole plan) applies identically to both.
+   */
   readonly ingredientId: Id;
   readonly checked: boolean;
   /**
@@ -197,6 +206,10 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
   pastaBagCount: 1,
   cheeseBagEnabled: true,
   cheeseBagCount: 1,
+  // Three, so the default bag is exactly one of each kind — a tea, something to
+  // eat, and something that is not food.
+  treatBagEnabled: true,
+  treatCount: 3,
   cycleDays: 7,
   monthlyBudgetCents: null,
   currency: 'CAD',

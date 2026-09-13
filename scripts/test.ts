@@ -782,6 +782,172 @@ test('an ingredient that has left the library is dropped rather than kept', () =
 
 // ---------------------------------------------------------------------------
 
+group('The treat bag');
+
+/** Nobody is allergic to anything and no diet is on. The common case. */
+const NO_RESTRICTIONS: TreatEligibility = { allergens: [], diets: [] };
+
+function treatKinds(items: readonly TreatItem[]): TreatKind[] {
+  return items.map((t) => {
+    const treat = getTreat(t.treatId);
+    if (!treat) assert.fail(`drew ${t.treatId}, which is not in the catalogue`);
+    return treat.kind;
+  });
+}
+
+function countKind(items: readonly TreatItem[], kind: TreatKind): number {
+  return treatKinds(items).filter((k) => k === kind).length;
+}
+
+test('nothing in the catalogue costs more than ten dollars', () => {
+  // The ceiling is the feature: a treat you have to think about is a purchase.
+  for (const treat of TREATS) {
+    assert.ok(
+      treat.priceCents > 0 && treat.priceCents <= MAX_TREAT_CENTS,
+      `${treat.id} is ${treat.priceCents} cents`,
+    );
+    // Cents, not dollars — a price written as 6 rather than 600 would pass the
+    // ceiling check and then be wrong everywhere it was displayed.
+    assert.ok(Number.isInteger(treat.priceCents), `${treat.id} price is not whole cents`);
+  }
+});
+
+test('the catalogue is well formed and offers all three kinds', () => {
+  assert.equal(new Set(TREATS.map((t) => t.id)).size, TREATS.length, 'duplicate treat id');
+
+  for (const treat of TREATS) {
+    assert.ok(treat.name.trim() !== '', `${treat.id} has no name`);
+    assert.ok(treat.note.trim() !== '', `${treat.id} has no note`);
+  }
+
+  for (const kind of TREAT_KINDS) {
+    const count = TREATS.filter((t) => t.kind === kind).length;
+    // A kind with a handful of entries repeats itself within a month of redraws.
+    assert.ok(count >= 8, `only ${count} treats of kind ${kind}`);
+  }
+});
+
+test('a bag is never all food', () => {
+  // The whole reason the draw balances kinds rather than picking uniformly. Two
+  // thirds of the catalogue is edible, so a uniform draw of three would come
+  // back with nothing to do and everything to eat often enough to be annoying.
+  for (let seed = 0; seed < 40; seed++) {
+    const bag = fitTreats(NO_RESTRICTIONS, 3, seed);
+    assert.equal(bag.length, 3, `seed ${seed}`);
+    for (const kind of TREAT_KINDS) {
+      assert.equal(countKind(bag, kind), 1, `seed ${seed} wanted one ${kind}`);
+    }
+  }
+});
+
+test('a bigger bag keeps the kinds even', () => {
+  const bag = fitTreats(NO_RESTRICTIONS, 6, 99);
+  assert.equal(bag.length, 6);
+  for (const kind of TREAT_KINDS) assert.equal(countKind(bag, kind), 2, kind);
+});
+
+test('the same treat is never drawn twice', () => {
+  for (let seed = 0; seed < 20; seed++) {
+    const bag = fitTreats(NO_RESTRICTIONS, 9, seed);
+    assert.equal(new Set(bag.map((t) => t.treatId)).size, bag.length, `seed ${seed}`);
+  }
+});
+
+test('a bag of zero is a bag of zero', () => {
+  assert.deepEqual(fitTreats(NO_RESTRICTIONS, 0, 7), []);
+});
+
+test('an allergen rules a treat out of the draw entirely', () => {
+  // Not flagged in the bag with a warning on it — never drawn. Offering someone
+  // a bag of pistachios they cannot eat is not a treat.
+  const nutty = TREATS.filter((t) => t.allergens?.includes('tree-nuts')).map((t) => t.id);
+  assert.ok(nutty.length > 0, 'the catalogue has nothing with tree nuts in it to test');
+
+  const settings: TreatEligibility = { allergens: ['tree-nuts'], diets: [] };
+  assert.ok(eligibleTreats(settings).every((t) => !nutty.includes(t.id)));
+
+  for (let seed = 0; seed < 20; seed++) {
+    const bag = fitTreats(settings, 9, seed);
+    for (const item of bag) assert.ok(!nutty.includes(item.treatId), `seed ${seed}`);
+  }
+});
+
+test('a diet rules a treat out of the draw entirely', () => {
+  const honeyAndWax = TREATS.filter((t) => t.excludesDiets?.includes('vegan')).map((t) => t.id);
+  assert.ok(honeyAndWax.length > 0, 'the catalogue has nothing non-vegan to test');
+
+  const bag = fitTreats({ allergens: [], diets: ['vegan'] }, 9, 5);
+  for (const item of bag) assert.ok(!honeyAndWax.includes(item.treatId));
+});
+
+test('topping up keeps what is there and balances the whole bag', () => {
+  // Pin two teas, ask for four. The two new ones must not be more tea — a
+  // top-up that only balanced the new items would hand back four teas.
+  const teas = TREATS.filter((t) => t.kind === 'tea').slice(0, 2);
+  const pinned: TreatItem[] = teas.map((t) => ({ treatId: t.id, pinned: true }));
+
+  const grown = fitTreats(NO_RESTRICTIONS, 4, 4242, pinned);
+
+  assert.equal(grown.length, 4);
+  for (const tea of teas) {
+    assert.ok(grown.some((t) => t.treatId === tea.id), `${tea.id} was dropped`);
+  }
+  assert.equal(countKind(grown, 'tea'), 2, 'topped the bag up with yet more tea');
+});
+
+test('shrinking the bag drops what was not kept, and keeps the order', () => {
+  const start = fitTreats(NO_RESTRICTIONS, 6, 2024);
+  // Pin the last two, which are the two a naive "keep the first N" would lose.
+  const pinnedIds = [start[4].treatId, start[5].treatId];
+  const marked = start.map((t) => ({ ...t, pinned: pinnedIds.includes(t.treatId) }));
+
+  const shrunk = fitTreats(NO_RESTRICTIONS, 2, 11, marked);
+
+  assert.equal(shrunk.length, 2);
+  assert.deepEqual(shrunk.map((t) => t.treatId), pinnedIds, 'lost a kept treat, or reordered');
+});
+
+test('a bag bigger than what is left is short, not padded with repeats', () => {
+  // Three treats to choose from and a bag of eight asked for. The honest answer
+  // is three: padding it would mean drawing something twice.
+  const tiny = TREATS.filter((t) => ['tea-chamomile', 'kombucha', 'flowers'].includes(t.id));
+  assert.equal(tiny.length, 3, 'the ids this test pins have moved');
+
+  const bag = pickTreats(NO_RESTRICTIONS, 8, 1234, { catalogue: tiny });
+
+  assert.equal(bag.length, 3);
+  assert.equal(new Set(bag.map((t) => t.treatId)).size, 3);
+});
+
+test('a treat that has left the catalogue is dropped rather than drawn', () => {
+  // A plan synced from a version that had a treat this one does not. Rendering a
+  // blank row would look like a bug; quietly replacing it is the right answer.
+  const stale: TreatItem[] = [{ treatId: 'tea-of-the-ancients', pinned: true }];
+  const bag = fitTreats(NO_RESTRICTIONS, 3, 8, stale);
+
+  assert.equal(bag.length, 3);
+  assert.ok(bag.every((t) => getTreat(t.treatId) !== undefined));
+});
+
+test('switching the bag off draws nothing but keeps the size', () => {
+  // The switch and the size are separate settings on purpose. Off has to mean a
+  // bag of nothing, and switching back on has to give back the bag the household
+  // chose rather than the default one.
+  const off = { treatBagEnabled: false, treatCount: 5 };
+  assert.equal(treatTarget(off), 0);
+  assert.deepEqual(fitTreats(NO_RESTRICTIONS, treatTarget(off), 11), []);
+
+  assert.equal(treatTarget({ ...off, treatBagEnabled: true }), 5, 'the size did not survive');
+});
+
+test('a negative size is read as none rather than trusted', () => {
+  // Nothing in the UI can produce one, but a settings row synced from another
+  // build can, and `fitTreats` would otherwise be handed a negative target.
+  assert.equal(treatTarget({ treatBagEnabled: true, treatCount: -2 }), 0);
+});
+
+// ---------------------------------------------------------------------------
+
 group('Recipe variants');
 
 /** A family plus an unrelated meal, built through the real importer so grams resolve. */

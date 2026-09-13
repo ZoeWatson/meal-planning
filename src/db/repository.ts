@@ -17,6 +17,7 @@ import {
   addDays, estimateKeeping, localDate,
   type CookedMeal, type Leftover, type MealLogEntry, type MealSource, type StorageKind,
 } from '../domain/cooking';
+import type { TreatItem } from '../domain/treats';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
   Id, PantryItem, SalePrice, StapleItem, WeekPlan, WildcardItem,
@@ -136,6 +137,31 @@ export async function removeWildcard(planId: Id, ingredientId: Id): Promise<void
   await editPlan(planId, (plan) => ({
     ...plan,
     wildcards: plan.wildcards.filter((w) => w.ingredientId !== ingredientId),
+  }));
+}
+
+// --- the treat bag ----------------------------------------------------------
+// `plan.treats ?? []` throughout: plans written before the treat bag existed
+// have no such field, and a plan is a stored document rather than a row with a
+// schema, so nothing backfills it.
+
+/** Keeps a treat through the next redraw. The treat equivalent of pinning a meal. */
+export async function setTreatPinned(planId: Id, treatId: string, pinned: boolean): Promise<void> {
+  await editPlan(planId, (plan) => ({
+    ...plan,
+    treats: (plan.treats ?? []).map((t) => (t.treatId === treatId ? { ...t, pinned } : t)),
+  }));
+}
+
+/** Replaces the whole treat bag. Used by the redraw and by the size control. */
+export async function setTreats(planId: Id, treats: readonly TreatItem[]): Promise<void> {
+  await editPlan(planId, (plan) => ({ ...plan, treats }));
+}
+
+export async function removeTreat(planId: Id, treatId: string): Promise<void> {
+  await editPlan(planId, (plan) => ({
+    ...plan,
+    treats: (plan.treats ?? []).filter((t) => t.treatId !== treatId),
   }));
 }
 

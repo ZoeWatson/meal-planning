@@ -16,6 +16,7 @@
 
 import type { DisplayPreference, UnitSystem } from './units';
 import type { GrabBagSettings } from './grabbag';
+import type { TreatItem } from './treats';
 import type { CarryOver } from './waste';
 
 export type Id = string;
@@ -284,6 +285,13 @@ export interface WeekPlan {
   readonly weekStartISO: string;
   readonly slots: readonly PlanSlot[];
   readonly wildcards: readonly WildcardItem[];
+  /**
+   * The week's treat bag — herbal teas and other small, cheap pleasures.
+   *
+   * Drawn and redrawn independently of the meals, and deliberately not
+   * ingredients: see `treats.ts` for why half of them could not be.
+   */
+  readonly treats: readonly TreatItem[];
   readonly generatedAtISO: string;
   /** RNG seed used, so a plan can be reproduced or nudged deterministically. */
   readonly seed: number;
@@ -365,4 +373,22 @@ export interface PlannerSettings extends GrabBagSettings {
   readonly weeklyTimeBudgetMinutes: number;
   /** Recipes used within this many weeks are penalized, to keep the rotation moving. */
   readonly repeatWindowWeeks: number;
+
+  /**
+   * Whether the treat bag is drawn at all.
+   *
+   * Separate from `treatCount` rather than folded into a size of zero, for the
+   * reason every grab bag has both: switching the bag off keeps the size it had,
+   * so switching it back on restores the bag the household chose. Read it through
+   * `treatTarget`, never directly.
+   */
+  readonly treatBagEnabled: boolean;
+  /**
+   * How many treats to draw each week, while the bag is switched on.
+   *
+   * One number rather than one per kind, unlike the grab bags: the treat draw
+   * spreads itself across teas, edibles and non-food on its own, so there is
+   * nothing here for anyone to balance by hand.
+   */
+  readonly treatCount: number;
 }

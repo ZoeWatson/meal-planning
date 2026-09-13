@@ -12,6 +12,7 @@ import { scorePlan } from '../domain/planner/scoring';
 import {
   centsToInput, formatMoney, parseMoney, todayISO, type CustomItem,
 } from '../domain/budget';
+import { TREAT_KIND_LABELS, getTreat } from '../domain/treats';
 import { CheckIcon } from '../components/icons';
 import { BarcodeScanner, isScanningSupported } from '../components/BarcodeScanner';
 import { Sheet } from '../components/Sheet';
@@ -21,6 +22,9 @@ const AISLE_LABELS: Record<string, string> = {
   dairy: 'Dairy & eggs', frozen: 'Frozen', grain: 'Grains & pasta', legume: 'Legumes',
   canned: 'Tins & jars', condiment: 'Condiments', oil: 'Oils', spice: 'Spices',
   baking: 'Baking', beverage: 'Drinks', other: 'Other',
+  // Not an aisle in any shop, which is rather the point — half of these are not
+  // sold in a supermarket at all, so they get their own heading at the bottom.
+  treat: 'Treats',
 };
 
 /** A planned line and an ad-hoc one, flattened so the list renders uniformly. */
@@ -68,6 +72,18 @@ export function GroceryScreen({
     [checks],
   );
 
+  /**
+   * This plan's ticks, by item id.
+   *
+   * Planned lines arrive with their check already merged in, but treats do not —
+   * they are not grocery lines and never pass through the list builder — so
+   * their ticks are read straight from the table here.
+   */
+  const treatChecks = useMemo(
+    () => new Map(checks.filter((c) => c.planId === plan?.id).map((c) => [c.ingredientId, c])),
+    [checks, plan?.id],
+  );
+
   const rows = useMemo<Row[]>(() => {
     const planned: Row[] = groceryLines.map((line) => ({
       key: `p:${line.ingredientId}`,
@@ -92,6 +108,29 @@ export function GroceryScreen({
       usedBy: line.usedBy,
     }));
 
+    // The week's treat bag. Not grocery lines — they have no grams, no packs and
+    // no waste — but they are things to pick up on the same trip, so they belong
+    // on the same list rather than in a second one nobody opens in a shop.
+    const treats: Row[] = (plan?.treats ?? []).flatMap((item) => {
+      const treat = getTreat(item.treatId);
+      if (!treat) return [];
+      const check = treatChecks.get(treat.id);
+      return [{
+        key: `t:${treat.id}`,
+        name: treat.name,
+        category: 'treat',
+        qtyText: '',
+        meta: treat.note,
+        badges: [{ text: TREAT_KIND_LABELS[treat.kind], tone: 'accent' as const }],
+        checked: check?.checked ?? false,
+        // The catalogue price is an estimate and stays out of the running total
+        // until a real one is entered at the shelf, like every other line.
+        amountCents: check?.amountCents,
+        ingredientId: treat.id,
+        usedBy: [],
+      }];
+    });
+
     const extra: Row[] = customItems.map((item) => ({
       key: `c:${item.id}`,
       name: item.label,
@@ -105,8 +144,8 @@ export function GroceryScreen({
       usedBy: [],
     }));
 
-    return [...planned, ...extra];
-  }, [groceryLines, customItems, priceByIngredient]);
+    return [...planned, ...treats, ...extra];
+  }, [groceryLines, customItems, priceByIngredient, plan?.treats, treatChecks]);
 
   const done = rows.filter((r) => r.checked).length;
   const total = rows.length;
@@ -115,7 +154,15 @@ export function GroceryScreen({
 
   const estimatedCents = useMemo(() => {
     if (!plan || !ctx) return 0;
-    return Math.round(scorePlan(plan.slots, plan.wildcards, ctx).spend * 100);
+    const meals = Math.round(scorePlan(plan.slots, plan.wildcards, ctx).spend * 100);
+    // Treats are priced by the catalogue rather than by the waste model, so they
+    // are added on here. Leaving them out would make every shop that included
+    // them look over the estimate by the price of a bar of chocolate.
+    const treats = (plan.treats ?? []).reduce(
+      (sum, t) => sum + (getTreat(t.treatId)?.priceCents ?? 0),
+      0,
+    );
+    return meals + treats;
   }, [plan, ctx]);
 
   if (!plan || total === 0) {
