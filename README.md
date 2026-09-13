@@ -24,6 +24,13 @@ npm run sync-server    # optional, for syncing between devices
   the meal joins the week at the portions the rest of that week's meals use. It
   takes a slot the planner could not fill, or makes one, and arrives pinned so
   the next regenerate keeps it.
+- **Take a meal out**, with the ✕ on its card, for the Thursday you are eating
+  out. The week gets shorter rather than gaining a hole to fill, and the shopping
+  list drops exactly that meal's share of every ingredient — its half of the
+  coriander, and the whole bunch if nothing else wanted any. Undo puts it back
+  where it was, portions and pin and all. It is an edit to this week and not a
+  change to how big a week is: the next regenerate, or Shuffle all over that kind
+  of meal, rebuilds the section to the shape Settings asks for.
 - **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
   cooking time, in-season, ingredient count.
 - **Browsing by type and region.** The Recipes tab groups the library by kind of

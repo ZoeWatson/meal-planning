@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import type { AppState } from '../state/useAppState';
 import {
   generateAndSave, redrawTreats, regenerateMealSection, regenerateSlot,
 } from '../state/useAppState';
 import {
-  removeTreat, setSlotPinned, setSlotRecipe, setSlotServings, setTreatPinned,
+  removeSlot, removeTreat, restoreSlot, setSlotPinned, setSlotRecipe, setSlotServings,
+  setTreatPinned,
 } from '../db/repository';
 import { scorePlan } from '../domain/planner/scoring';
 import { applyFilter } from '../domain/filters';
@@ -17,7 +18,7 @@ import { formatMoneyShort } from '../domain/budget';
 import { checkRecipe, describeMatches } from '../domain/allergens';
 import { isOnList } from '../domain/pantry';
 import { type RuleStatus, describeRule, evaluateRules, impossibleReason } from '../domain/weekRules';
-import type { Id, MealType, PlanSlot, WeekPlan } from '../domain/types';
+import type { Id, MealType, PlanSlot, Recipe, WeekPlan } from '../domain/types';
 import { PinIcon, ShuffleIcon } from '../components/icons';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { RecipeDetail } from '../components/RecipeDetail';
@@ -31,6 +32,31 @@ const MEAL_LABELS: Record<MealType, string> = {
   snack: 'Snacks',
 };
 
+/**
+ * How long Undo stays on offer after a meal is removed.
+ *
+ * Long enough to cover the press you did not mean — the ✕ sits beside the pin,
+ * and on a phone those are a thumb's width apart — and short enough that a week
+ * you meant to shorten is not still explaining itself on Thursday.
+ */
+const UNDO_SECONDS = 12;
+
+/**
+ * A meal taken out of the week, kept so it can be put back.
+ *
+ * On the screen rather than in the plan. An undo is a fact about the last few
+ * seconds in front of this device, and a plan is a synced document: writing it
+ * there would push the removal and then the retraction at the other phone as two
+ * more edits to reconcile, for a button nobody pressed.
+ */
+interface RemovedSlot {
+  /** The plan it came out of. A Regenerate mints a new one, and the undo dies with the old. */
+  readonly planId: Id;
+  readonly slot: PlanSlot;
+  /** Where it sat in `plan.slots`, so Undo puts it back rather than on the end. */
+  readonly index: number;
+}
+
 export function PlanScreen({
   state,
   onShop,
@@ -43,6 +69,20 @@ export function PlanScreen({
   const [redrawingTreats, setRedrawingTreats] = useState(false);
   const [rerolling, setRerolling] = useState<MealType | null>(null);
   const [picking, setPicking] = useState<PlanSlot | null>(null);
+  const [removed, setRemoved] = useState<RemovedSlot | null>(null);
+
+  /**
+   * The undo does not outlive the press it was insuring against.
+   *
+   * On `removed` alone and not on the plan, so that an unrelated write — a
+   * portion stepped up on another card — does not quietly hand the offer another
+   * twelve seconds.
+   */
+  useEffect(() => {
+    if (!removed) return;
+    const timer = window.setTimeout(() => setRemoved(null), UNDO_SECONDS * 1000);
+    return () => window.clearTimeout(timer);
+  }, [removed]);
 
   const score = useMemo(
     () => (plan && ctx ? scorePlan(plan.slots, plan.wildcards, ctx) : null),
@@ -136,6 +176,25 @@ export function PlanScreen({
     }
   }
 
+  /**
+   * Takes a meal out of the week.
+   *
+   * Where it was is remembered before the write, not after: the slot is about to
+   * stop existing, and its position is the half of Undo that cannot be
+   * reconstructed from anything left behind.
+   */
+  async function removeMeal(slot: PlanSlot): Promise<void> {
+    if (!plan) return;
+    setRemoved({ planId: plan.id, slot, index: plan.slots.findIndex((s) => s.id === slot.id) });
+    await removeSlot(plan.id, slot.id);
+  }
+
+  async function undoRemove(): Promise<void> {
+    if (!removed) return;
+    setRemoved(null);
+    await restoreSlot(removed.planId, removed.slot, removed.index);
+  }
+
   if (!plan) {
     return (
       <main className="screen">
@@ -157,6 +216,31 @@ export function PlanScreen({
   const byType = (type: MealType): PlanSlot[] => plan.slots.filter((s) => s.mealType === type);
   const pinnedCount = plan.slots.filter((s) => s.pinned).length;
   const emptyCount = plan.slots.filter((s) => s.recipeId === null).length;
+
+  /**
+   * The removal Undo is currently offering to reverse, if it still means
+   * anything.
+   *
+   * Worked out here rather than cleared in an effect, because what it depends on
+   * arrives LATE: the write is a round trip through the database, and the plan on
+   * screen is still the one with the meal in it for a tick after ✕ is pressed.
+   * Anything that tidied itself up by looking at `plan.slots` from an effect would
+   * fire on exactly that tick and throw the undo away before the card it replaces
+   * had even gone.
+   *
+   * So it answers no while the removal is still in flight — the card is on
+   * screen, and one of the two is the honest thing to show, not both — and no
+   * again once the week has moved past it. A Regenerate replaces the plan
+   * outright; a section shuffle numbers its new slots around whichever ids are
+   * free, so the one a removal just vacated is the first it reaches for, and an
+   * Undo that would land on a stranger's meal is not an undo.
+   */
+  const undoable =
+    removed !== null &&
+    removed.planId === plan.id &&
+    !plan.slots.some((s) => s.id === removed.slot.id)
+      ? removed
+      : null;
 
   // Restrictions can leave the library with too few recipes to fill a week. That
   // is correct behaviour, but a column of "Empty slot" with no explanation looks
@@ -233,6 +317,7 @@ export function PlanScreen({
               ? `Not enough recipes get past ${restrictions.join(' and ')}. `
               : 'Not enough recipes match the current filters. '}
             Add more recipes, loosen a restriction, or shrink the week in Settings.
+            The ✕ on a card takes that one slot out of this week alone.
           </div>
         </div>
       )}
@@ -248,7 +333,22 @@ export function PlanScreen({
       {settings.mealsSectionEnabled &&
         (['full', 'light', 'snack'] as const).map((type) => {
           const slots = byType(type);
-          if (slots.length === 0) return null;
+          const undo = undoable?.slot.mealType === type ? undoable : null;
+
+          // A section with nothing in it and nothing asked for is not a section.
+          // One the settings still ask for stays, empty, because Shuffle all is
+          // on its heading and that heading is the way back from having removed
+          // everything under it.
+          if (slots.length === 0 && settings.spec[type] === 0 && !undo) return null;
+
+          /**
+           * Where the removed card was, so Undo sits in the gap it left rather
+           * than at the bottom of the section. Everything ahead of it kept its
+           * place when it went, so counting those is enough to find the gap.
+           */
+          const undoAt = undo
+            ? plan.slots.slice(0, undo.index).filter((s) => s.mealType === type).length
+            : -1;
 
           // Nothing for this button to do when every meal of the kind is pinned
           // and the section is already the size Settings asks for. Pressing it
@@ -261,7 +361,7 @@ export function PlanScreen({
               key={type}
               id={`meals:${type}`}
               title={MEAL_LABELS[type]}
-              closedNote={`${slots.length} planned`}
+              closedNote={slots.length === 0 ? 'none' : `${slots.length} planned`}
               actions={
                 <button
                   className="btn small"
@@ -283,15 +383,30 @@ export function PlanScreen({
                 </button>
               }
             >
-              {slots.map((slot) => (
-                <SlotCard
-                  key={slot.id}
-                  slot={slot}
-                  plan={plan}
-                  state={state}
-                  onPick={() => setPicking(slot)}
-                />
+              {slots.length === 0 && (
+                <p className="tiny faint" style={{ margin: '6px 0 10px' }}>
+                  {emptyMealReason(settings.spec[type], MEAL_LABELS[type].toLowerCase())}
+                </p>
+              )}
+
+              {slots.map((slot, i) => (
+                <Fragment key={slot.id}>
+                  {undo && undoAt === i && (
+                    <UndoRow slot={undo.slot} recipes={recipes} onUndo={() => void undoRemove()} />
+                  )}
+                  <SlotCard
+                    slot={slot}
+                    plan={plan}
+                    state={state}
+                    onPick={() => setPicking(slot)}
+                    onRemove={() => void removeMeal(slot)}
+                  />
+                </Fragment>
               ))}
+
+              {undo && undoAt >= slots.length && (
+                <UndoRow slot={undo.slot} recipes={recipes} onUndo={() => void undoRemove()} />
+              )}
             </CollapsibleSection>
           );
         })}
@@ -486,6 +601,55 @@ function WeekRulesReport({
   );
 }
 
+/**
+ * What is left where a removed meal was: what went, and the way back.
+ *
+ * In the gap the card left rather than at the top of the screen, because on a
+ * page this long an undo anywhere else is an undo you have already scrolled
+ * past. `role="status"` so it is read out on the way past — the card it replaces
+ * vanished without a word otherwise.
+ *
+ * It says the name rather than "meal removed" for the case that makes an undo
+ * worth having at all: pressing ✕ on the wrong card, where knowing WHICH meal
+ * went is the entire question.
+ */
+function UndoRow({
+  slot,
+  recipes,
+  onUndo,
+}: {
+  slot: PlanSlot;
+  recipes: ReadonlyMap<Id, Recipe>;
+  onUndo: () => void;
+}): JSX.Element {
+  const recipe = slot.recipeId ? recipes.get(slot.recipeId) : undefined;
+
+  return (
+    <div className="card tight row between" role="status">
+      <span className="small dim grow">Removed {recipe?.name ?? 'the empty slot'}.</span>
+      <button className="btn small" onClick={onUndo}>Undo</button>
+    </div>
+  );
+}
+
+/**
+ * Why a kind of meal has none of it in the week.
+ *
+ * Two ways it happens and they want different answers: the week is set to have
+ * none of this kind, or there were some and they have all been taken out. Only
+ * the second has a way out, and Shuffle all on the heading beside this is it.
+ *
+ * Deliberately not "you removed them all". A section also empties itself when
+ * the week's shape changes in Settings after the plan was made, and a sentence
+ * that blames the reader for that is wrong in a way they cannot argue with.
+ */
+function emptyMealReason(target: number, label: string): string {
+  if (target === 0) return `The week is set to no ${label}.`;
+  return `Nothing here. Shuffle all draws ${target}, or add ${
+    target === 1 ? 'one' : 'them'
+  } by name from the Recipes tab.`;
+}
+
 function Header({ subtitle }: { subtitle?: string }): JSX.Element {
   return (
     <div className="header">
@@ -500,11 +664,13 @@ function SlotCard({
   plan,
   state,
   onPick,
+  onRemove,
 }: {
   slot: PlanSlot;
   plan: WeekPlan;
   state: AppState;
   onPick: () => void;
+  onRemove: () => void;
 }): JSX.Element {
   const { ctx, settings } = state;
   const recipe = slot.recipeId ? state.recipes.get(slot.recipeId) : null;
@@ -587,6 +753,27 @@ function SlotCard({
           onClick={() => void setSlotPinned(plan.id, slot.id, !slot.pinned)}
         >
           <PinIcon filled={slot.pinned} />
+        </button>
+
+        {/* The same ✕ that takes a treat or a grab-bag item out further down
+            this screen, meaning the same thing here. Beside the pin rather than
+            down with Pick and Shuffle: those two are about what goes IN the
+            slot, and this is about the slot itself.
+
+            A pin does not stop it, and nor does it grey the button out. A pin
+            means keep this through a shuffle; pressing ✕ is not a shuffle, it is
+            someone saying they do not want the meal, and a control that needs a
+            pin undone first would only be asking them to say it twice. */}
+        <button
+          className="btn small ghost"
+          // "Remove" beside a recipe name could mean out of the library, which
+          // is the one thing it does not do.
+          aria-label={
+            recipe ? `Remove ${recipe.name} from this week` : 'Remove this empty slot'
+          }
+          onClick={onRemove}
+        >
+          ✕
         </button>
       </div>
 

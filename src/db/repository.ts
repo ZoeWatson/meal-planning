@@ -18,7 +18,7 @@ import {
   type CookedMeal, type Leftover, type MealLogEntry, type MealSource, type StorageKind,
 } from '../domain/cooking';
 import { afterStockChange } from '../domain/pantry';
-import { placeRecipe } from '../domain/planner/generate';
+import { dropSlot, placeRecipe, reinstateSlot } from '../domain/planner/generate';
 import type { TreatItem } from '../domain/treats';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
@@ -138,6 +138,27 @@ export async function addRecipeToPlan(
     ...plan,
     slots: placeRecipe(plan.slots, recipe, servings),
   }));
+}
+
+/**
+ * Takes a meal out of the week.
+ *
+ * The inverse of `addRecipeToPlan`, and it shortens the week rather than leaving
+ * a hole in it — `dropSlot` is where that choice is argued.
+ */
+export async function removeSlot(planId: Id, slotId: Id): Promise<void> {
+  await editPlan(planId, (plan) => ({ ...plan, slots: dropSlot(plan.slots, slotId) }));
+}
+
+/**
+ * Puts a removed meal back. What Undo on the week screen calls.
+ *
+ * The slot travels in from the screen rather than being read back out of
+ * anything: it is no longer in the plan, which is the point, and the week screen
+ * is the only thing that still has a copy.
+ */
+export async function restoreSlot(planId: Id, slot: PlanSlot, index: number): Promise<void> {
+  await editPlan(planId, (plan) => ({ ...plan, slots: reinstateSlot(plan.slots, slot, index) }));
 }
 
 /**
