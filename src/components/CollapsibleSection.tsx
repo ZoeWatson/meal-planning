@@ -94,6 +94,25 @@ function writeFold(id: string, open: boolean): void {
   }
 }
 
+/**
+ * One remembered fold: whether it is open, and the toggle that flips it.
+ *
+ * Exported because the fold and the heading it hangs on are separable, and
+ * Settings needs them apart. Its bands fold too now, but a band is a caption in
+ * louder type rather than a section heading — same memory, same caret, its own
+ * markup. Everything about *where* a fold is stored stays in this file.
+ */
+export function useFold(id: string, defaultOpen: boolean): readonly [boolean, () => void] {
+  const [open, setOpen] = useState(() => readFolds()[id] ?? defaultOpen);
+  return [
+    open,
+    () => {
+      writeFold(id, !open);
+      setOpen(!open);
+    },
+  ];
+}
+
 export function CollapsibleSection({
   id,
   title,
@@ -101,6 +120,7 @@ export function CollapsibleSection({
   closedNote,
   noteTone = 'quiet',
   defaultOpen = true,
+  headingLevel = 2,
   children,
 }: {
   /**
@@ -147,24 +167,32 @@ export function CollapsibleSection({
    * `closedNote` are a better first screen than the first two controls are.
    */
   readonly defaultOpen?: boolean;
+  /**
+   * Where the section sits in the document outline.
+   *
+   * Two by default, which is what a section directly under the screen's `h1` is.
+   * Settings passes three, because its sections now live inside bands that fold
+   * and so are headings themselves — leaving both at `h2` would tell a screen
+   * reader that "Your week" and "Week shape" are peers when one contains the
+   * other.
+   */
+  readonly headingLevel?: 2 | 3;
   readonly children: React.ReactNode;
 }): JSX.Element {
-  const [open, setOpen] = useState(() => readFolds()[id] ?? defaultOpen);
+  const [open, toggle] = useFold(id, defaultOpen);
   const bodyId = `section-${id.replace(/[^a-z0-9]+/gi, '-')}`;
+  const Heading = headingLevel === 3 ? 'h3' : 'h2';
 
   return (
     <section>
       <div className="row between" style={{ alignItems: 'baseline' }}>
-        <h2 className="section-title folds grow">
+        <Heading className="section-title folds grow">
           <button
             type="button"
             className="section-toggle"
             aria-expanded={open}
             aria-controls={bodyId}
-            onClick={() => {
-              writeFold(id, !open);
-              setOpen(!open);
-            }}
+            onClick={toggle}
           >
             <CaretIcon />
             <span className="grow">{title}</span>
@@ -174,7 +202,7 @@ export function CollapsibleSection({
               </span>
             )}
           </button>
-        </h2>
+        </Heading>
         {open && actions}
       </div>
 

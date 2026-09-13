@@ -206,9 +206,9 @@ button { cursor: pointer; }
 
 .section-toggle > .grow { flex: 0 0 auto; white-space: nowrap; }
 
-/* Names a run of related sections on Settings — "Your week", "What you eat".
-   A caption rather than a container: the rule above it does the grouping, so
-   nothing has to be nested inside it and nothing gains a second fold.
+/* Names a run of related sections on Settings — "Your week", "What you eat" —
+   and folds the run away. The rule above it does the grouping; the caret does
+   the hiding.
 
    Louder than the `.section-title`s it gathers, which inverts the usual order
    and is the point. Those are all folded, so the screen is a column of thirteen
@@ -224,8 +224,23 @@ button { cursor: pointer; }
   color: var(--text-dim);
 }
 
+/* Same give-back as `.section-title.folds`: the toggle's padding is height the
+   heading did not have, so the margins pay some of it back. */
+.band-label.folds { margin: 22px 0 0; padding-top: 11px; }
+
 /* The first band sits right under the header, which already has a rule. */
-.header + .band-label { margin-top: 10px; border-top: 0; padding-top: 0; }
+.header + section > .band-label { margin-top: 10px; border-top: 0; padding-top: 0; }
+
+/* The band's caret borrows the section toggle's whole-line tap target and
+   nothing else — the band keeps its own louder type, since `.section-toggle`
+   inherits font, tracking and case from whatever heading it sits in. Tighter
+   than a section's, because a band label is a line of 11px type and the 6px a
+   section takes reads as a gap in the run it is naming. */
+.band-toggle { padding: 4px 0; }
+
+/* A band's caret is the one that means "this is a group", so it leads rather
+   than matching the twelve faint ones below it. */
+.band-label .section-toggle svg { color: var(--text-faint); }
 
 /* Subdivides a section — the fruit/veg halves of the grab bag. Quieter than
    `.section-title` so the section still reads as one thing. */
