@@ -189,6 +189,10 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
   excludedIngredients: [],
   weeklyTimeBudgetMinutes: 300,
   repeatWindowWeeks: 3,
+  // No rules to begin with. A rule is a household saying what it wants out of a
+  // week, and there is no default answer to that — a shipped one would just be
+  // this app's opinion about somebody else's dinners.
+  weekRules: [],
   produceBagEnabled: true,
   wildcardCount: 6,
   wildcardSplit: false,

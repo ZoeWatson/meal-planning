@@ -1357,5 +1357,136 @@ test('the dish-type filter matches every type, not only the one it files under',
 
 // ---------------------------------------------------------------------------
 
+group('Week rules');
+
+function weekRule(overrides: Partial<WeekRule> = {}): WeekRule {
+  return { ...newRule(), id: 'rule-test', ...overrides };
+}
+
+function compileOne(r: WeekRule, ctx: PlanningContext): CompiledRule {
+  return compileRules([r], ctx.recipes.values(), {
+    ingredients: ctx.ingredients, region: ctx.region, month: ctx.month,
+  })[0];
+}
+
+test('a rule counts only the meals it covers', () => {
+  const ctx = planningContext();
+  const quick = compileOne(weekRule({ subject: 'quick', minutes: 30, mealTypes: ['full'] }), ctx);
+
+  const quickSnack = [...ctx.recipes.values()].find(
+    (r) => r.mealType === 'snack' && r.prepMinutes + r.cookMinutes <= 30,
+  )!;
+
+  // Nearly every snack in the library is already under half an hour, which is
+  // exactly why a rule that counted them would be met before it was written.
+  assert.equal(countMatching([planSlot('snack-0', 'snack', quickSnack.id)], quick), 0);
+});
+
+test('at least and at most are short in opposite directions', () => {
+  const ctx = planningContext();
+  const pasta = [...ctx.recipes.values()]
+    .filter((r) => r.mealType === 'full' && dishTypesOf(r, ctx.ingredients).includes('pasta'))
+    .slice(0, 2);
+  const slots = pasta.map((r, i) => planSlot(`full-${i}`, 'full', r.id));
+
+  const atLeast = compileOne(
+    weekRule({ subject: 'dish-type', dishType: 'pasta', comparison: 'at-least', count: 3 }), ctx);
+  const atMost = compileOne(
+    weekRule({ subject: 'dish-type', dishType: 'pasta', comparison: 'at-most', count: 1 }), ctx);
+
+  assert.equal(shortfallOf(slots, atLeast), 1, 'two of the three asked for');
+  assert.equal(shortfallOf(slots, atMost), 1, 'one over the cap');
+  assert.equal(
+    rulePenalty(slots, [atLeast, atMost]), 2,
+    'the penalty is the sum of the shortfalls, not a count of broken rules',
+  );
+});
+
+test('a rule the library cannot meet says so before the week does', () => {
+  const ctx = planningContext();
+  const impossible = compileOne(
+    weekRule({ subject: 'ingredient', ingredientId: 'not-a-real-ingredient', count: 2 }), ctx);
+  const [status] = evaluateRules([], [impossible]);
+
+  assert.equal(status.available, 0);
+  assert.equal(impossibleReason(status), 'Nothing in your library matches this.');
+  // An "at most" rule is satisfied by a week with none of the thing in it, so an
+  // empty library can never break one.
+  assert.equal(
+    impossibleReason({ ...status, rule: { ...status.rule, comparison: 'at-most' } }),
+    null,
+  );
+});
+
+test('switching what a rule is about brings a parameter with it', () => {
+  // The bug this locks in: the dropdown showed "Pasta & noodles" while the rule
+  // still meant "any kind of dish", so it was quietly satisfied by every meal.
+  const switched = withSubject(weekRule({ subject: 'quick' }), 'dish-type');
+
+  assert.equal(switched.dishType, 'pasta');
+  assert.ok(isConfigured(switched));
+  assert.equal(describeRule(switched), 'At least 2 full meals that are pasta or noodles');
+});
+
+test('an unfinished rule matches nothing rather than everything', () => {
+  const ctx = planningContext();
+  const unfinished = weekRule({ subject: 'ingredient', ingredientId: undefined });
+
+  assert.ok(!isConfigured(unfinished));
+  assert.equal(compileOne(unfinished, ctx).matches.size, 0, 'every recipe in the library matched');
+});
+
+test('a rule reads as the sentence it is', () => {
+  assert.equal(
+    describeRule(weekRule({ subject: 'quick', minutes: 30, count: 3, mealTypes: ['full'] })),
+    'At least 3 full meals under 30 minutes',
+  );
+  assert.equal(
+    describeRule(
+      weekRule({ subject: 'ingredient', ingredientId: 'halloumi', count: 1, mealTypes: [] }),
+      'Halloumi',
+    ),
+    'At least 1 meal with Halloumi',
+  );
+});
+
+const RULE_WEEK: SlotSpec = {
+  full: 5, light: 3, snack: 2, servingsPerMeal: { full: 4, light: 2, snack: 2 },
+};
+
+test('the planner builds a week around a rule', () => {
+  const base = planningContext();
+  const wanted = weekRule({ subject: 'region', region: 'mediterranean', count: 2, mealTypes: ['full'] });
+  const rules = [compileOne(wanted, base)];
+
+  const { plan } = generateWeekPlan({ ...base, rules }, { spec: RULE_WEEK, restarts: 2, seed: 31 });
+  const [status] = evaluateRules(plan.slots, rules);
+
+  assert.ok(status.satisfied, `asked for 2 Mediterranean dinners and got ${status.matched}`);
+});
+
+test('an at-most rule keeps out a thing the library is full of', () => {
+  // The library is pasta-heavy, so a week chosen on cost alone is very likely to
+  // contain some. This is the version of the pair that can actually fail.
+  const base = planningContext();
+  const none = weekRule({
+    subject: 'dish-type', dishType: 'pasta', comparison: 'at-most', count: 0, mealTypes: ['full'],
+  });
+  const rules = [compileOne(none, base)];
+
+  const { plan } = generateWeekPlan({ ...base, rules }, { spec: RULE_WEEK, restarts: 2, seed: 31 });
+  const [status] = evaluateRules(plan.slots, rules);
+
+  assert.equal(status.matched, 0, 'a full meal is still pasta');
+});
+
+test('no rules costs nothing', () => {
+  // The term has to vanish rather than merely be small, or every plan scored
+  // before rules existed would score differently now.
+  assert.equal(rulePenalty([planSlot('full-0', 'full', 'anything')], []), 0);
+});
+
+// ---------------------------------------------------------------------------
+
 console.log(`\n${failed === 0 ? '\x1b[32m' : '\x1b[31m'}${passed} passed, ${failed} failed\x1b[0m`);
 process.exit(failed === 0 ? 0 : 1);

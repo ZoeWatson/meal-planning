@@ -18,6 +18,7 @@ import type { DisplayPreference, UnitSystem } from './units';
 import type { GrabBagSettings } from './grabbag';
 import type { TreatItem } from './treats';
 import type { CarryOver } from './waste';
+import type { WeekRuleSettings } from './weekRules';
 
 export type Id = string;
 
@@ -381,9 +382,11 @@ export interface SalePrice {
 /**
  * The grab bag sizes and switches live in `GrabBagSettings`, in `grabbag.ts`,
  * next to the bags they describe — there are four bags now and the fields only
- * mean anything alongside the shelves they draw from.
+ * mean anything alongside the shelves they draw from. The week rules do the same
+ * from `weekRules.ts`, for the same reason: the list is meaningless without the
+ * subjects that say what a rule can be about.
  */
-export interface PlannerSettings extends GrabBagSettings {
+export interface PlannerSettings extends GrabBagSettings, WeekRuleSettings {
   readonly unitSystem: UnitSystem;
   /**
    * Selects the season table in `seasonality.ts`. User-changeable in Settings;

@@ -26,6 +26,7 @@ import {
 } from '../types';
 import { isOnList } from '../pantry';
 import { type Region, seasonScore, seasonStatus } from '../seasonality';
+import { type CompiledRule, rulePenalty } from '../weekRules';
 import { type WasteSettings, DEFAULT_WASTE_SETTINGS, analyzeSurplus } from '../waste';
 
 /** Everything the scorer needs to look things up, assembled once per generation run. */
@@ -52,6 +53,15 @@ export interface PlanningContext {
    */
   readonly carriedOver?: ReadonlyMap<Id, number>;
   readonly wasteSettings?: WasteSettings;
+  /**
+   * The week rules, with their matching recipes already resolved — see
+   * `weekRules.ts`. Compiled once here rather than re-tested per score, because
+   * this object is assembled once per generation run and `scorePlan` is not.
+   *
+   * Absent means no rules, which costs nothing: the term is zero and the plan is
+   * scored exactly as it was before rules existed.
+   */
+  readonly rules?: readonly CompiledRule[];
 }
 
 /** Aggregated demand for one ingredient across a whole plan. */
@@ -80,6 +90,15 @@ export interface ScoreWeights {
    * Raise it if a cheap week is explicitly the goal.
    */
   readonly spend: number;
+  /**
+   * Cost per meal a week rule is still short of. Far above every other weight on
+   * purpose: a rule is something the household asked for by name, and a plan that
+   * quietly trades it away for forty cents of parsley is not answering the
+   * question. Finite rather than infinite so that an unsatisfiable rule — three
+   * pasta nights out of two pasta recipes — still yields a full week with one
+   * rule unmet, which the week screen can then say out loud.
+   */
+  readonly rules: number;
 }
 
 /**
@@ -104,11 +123,12 @@ export const DEFAULT_WEIGHTS: ScoreWeights = {
   effort: 0.02,
   repeat: 1.5,
   spend: 0,
+  rules: 25,
 };
 
 /** Waste alone. Used by the tuning harness to verify the search itself works. */
 export const WASTE_ONLY_WEIGHTS: ScoreWeights = {
-  waste: 1.0, variety: 0, season: 0, sale: 0, effort: 0, repeat: 0, spend: 0,
+  waste: 1.0, variety: 0, season: 0, sale: 0, effort: 0, repeat: 0, spend: 0, rules: 0,
 };
 
 /**
@@ -374,6 +394,8 @@ export interface ScoreBreakdown {
   readonly effort: number;
   readonly repeat: number;
   readonly spend: number;
+  /** Meals the week is still short across every rule. Zero when they are all met. */
+  readonly rules: number;
 }
 
 /** Lower is better. Bonuses are subtracted so the whole thing stays a minimization. */
@@ -399,6 +421,7 @@ export function scorePlan(
   const sale = saleBonus(needs, ctx);
   const effort = effortPenalty(slots, ctx);
   const repeat = repeatPenalty(slots, ctx);
+  const rules = ctx.rules ? rulePenalty(slots, ctx.rules) : 0;
 
   const total =
     weights.waste * waste +
@@ -407,7 +430,8 @@ export function scorePlan(
     weights.sale * sale +
     weights.effort * effort +
     weights.repeat * repeat +
-    weights.spend * spend;
+    weights.spend * spend +
+    weights.rules * rules;
 
-  return { total, waste, variety, season, sale, effort, repeat, spend };
+  return { total, waste, variety, season, sale, effort, repeat, spend, rules };
 }
