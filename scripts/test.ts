@@ -29,7 +29,8 @@ import {
   DISPLAY_SECTIONS, DRAWN_SECTIONS, WEEK_SECTIONS,
 } from '../src/domain/weekSections';
 import {
-  fitWildcards, generateWeekPlan, placeRecipe, regenerateMeals, rerollSlot,
+  dropSlot, fitWildcards, generateWeekPlan, placeRecipe, regenerateMeals, reinstateSlot,
+  rerollSlot,
 } from '../src/domain/planner/generate';
 import { aggregateNeeds, DEFAULT_WEIGHTS, type PlanningContext } from '../src/domain/planner/scoring';
 import {
@@ -1496,6 +1497,108 @@ test('an empty pool says so instead of pretending', () => {
 test('a slot the week does not have draws nothing', () => {
   const { ctx, slots } = weekOfMeals();
   assert.equal(rerollSlot(ctx, slots, 'full-99', { spec: SPEC, seed: 1 }), null);
+});
+
+// ---------------------------------------------------------------------------
+
+group('Taking a meal out of the week');
+
+test('it takes exactly the one out and leaves the rest untouched', () => {
+  const week = [
+    planSlot('full-0', 'full', 'stew'),
+    planSlot('full-1', 'full', 'curry'),
+    planSlot('light-0', 'light', 'soup'),
+  ];
+  const after = dropSlot(week, 'full-1');
+
+  assert.deepEqual(after.map((s) => s.id), ['full-0', 'light-0']);
+  assert.equal(after[0], week[0], 'rewrote a slot it was not asked about');
+});
+
+test('the week gets shorter rather than gaining a slot to fill', () => {
+  // The difference between removing a meal and clearing one. An empty slot is a
+  // hole the week still wants filled — it is what the "could not be filled"
+  // warning counts — and a removed meal is not wanted at all.
+  const after = dropSlot([planSlot('full-0', 'full', 'stew')], 'full-0');
+
+  assert.equal(after.length, 0);
+  assert.equal(after.filter((s) => s.recipeId === null).length, 0, 'left a hole behind');
+});
+
+test('a pinned meal comes out too', () => {
+  // A pin means keep through a shuffle. Pressing ✕ is not a shuffle, and a pin
+  // that could not be undone by the button next to it would be a trap.
+  assert.equal(dropSlot([planSlot('full-0', 'full', 'stew', true)], 'full-0').length, 0);
+});
+
+test('an id the week does not have changes nothing', () => {
+  const week = [planSlot('full-0', 'full', 'stew')];
+  assert.deepEqual(dropSlot(week, 'full-7'), week);
+});
+
+test('undo puts it back where it was, not on the end', () => {
+  const week = [
+    planSlot('full-0', 'full', 'stew'),
+    planSlot('full-1', 'full', 'curry'),
+    planSlot('full-2', 'full', 'chilli'),
+  ];
+  const after = reinstateSlot(dropSlot(week, 'full-1'), week[1], 1);
+
+  assert.deepEqual(after.map((s) => s.id), ['full-0', 'full-1', 'full-2']);
+});
+
+test('out and back again leaves the week exactly as it was', () => {
+  // Portions and the pin travel with it. Recovering the meal but not the four
+  // portions it was set to is the kind of undo that is worse than none.
+  const week = [
+    planSlot('full-0', 'full', 'stew'),
+    { ...planSlot('full-1', 'full', 'curry', true), servings: 6 },
+    planSlot('light-0', 'light', 'soup'),
+  ];
+  assert.deepEqual(reinstateSlot(dropSlot(week, 'full-1'), week[1], 1), week);
+});
+
+test('a slot whose id the week has handed out again is not put back', () => {
+  // `freeSlotId` takes the lowest number going spare, so the id a removal just
+  // vacated is the first one a section shuffle reaches for. Two slots answering
+  // to `full-1` means every per-slot write from then on lands on both.
+  const week = [planSlot('full-0', 'full', 'curry'), planSlot('full-1', 'full', 'chilli')];
+
+  assert.equal(reinstateSlot(week, planSlot('full-1', 'full', 'stew'), 1), week);
+});
+
+test('an index the week has outgrown is clamped rather than dropped', () => {
+  const week = [planSlot('full-0', 'full', 'curry')];
+  const after = reinstateSlot(week, planSlot('full-9', 'full', 'stew'), 7);
+
+  assert.deepEqual(after.map((s) => s.id), ['full-0', 'full-9']);
+});
+
+test('a lost position puts it back at the front rather than nowhere', () => {
+  // -1 is what `findIndex` answers when the slot had already gone, which is the
+  // realistic way a nonsense index reaches this.
+  const after = reinstateSlot([planSlot('full-0', 'full', 'curry')], planSlot('full-1', 'full', 'stew'), -1);
+
+  assert.deepEqual(after.map((s) => s.id), ['full-1', 'full-0']);
+});
+
+test('shuffling the section brings the week back to the size settings ask for', () => {
+  // What the empty-section note on the week screen promises, and the only way
+  // back from having removed every meal of one kind. Removing is an edit to this
+  // week; how big a week is lives in Settings.
+  const ctx = planningContext();
+  const week = plannedWeek(ctx);
+  const aLightMeal = week.find((s) => s.mealType === 'light');
+  if (!aLightMeal) assert.fail('the generated week has no light meals to remove');
+
+  const shortened = dropSlot(week, aLightMeal.id);
+  assert.equal(shortened.filter((s) => s.mealType === 'light').length, WEEK.light - 1);
+
+  const after = reroll(ctx, shortened, 'light', 11);
+  assert.equal(after.filter((s) => s.mealType === 'light').length, WEEK.light);
+
+  const ids = after.map((s) => s.id);
+  assert.equal(new Set(ids).size, ids.length, `duplicate slot id: ${ids.join(', ')}`);
 });
 
 // ---------------------------------------------------------------------------
