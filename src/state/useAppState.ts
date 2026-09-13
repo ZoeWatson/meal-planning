@@ -10,7 +10,7 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { db, DEFAULT_SETTINGS, type AppSettings } from '../db/database';
-import { getSettings, savePlan, setTreats, setWildcards } from '../db/repository';
+import { getSettings, savePlan, setSlots, setTreats, setWildcards } from '../db/repository';
 import { buildGroceryList, renderGroceryList, type DisplayLine } from '../domain/grocery';
 import { getRegion } from '../domain/seasonality';
 import { excludedByAllergens } from '../domain/allergens';
@@ -18,11 +18,13 @@ import { DEFAULT_WASTE_SETTINGS } from '../domain/waste';
 import { fitTreats, treatTarget } from '../domain/treats';
 import { type GrabBagId, bagOf, grabBagLanes } from '../domain/grabbag';
 import { compileRules } from '../domain/weekRules';
-import { type WildcardSizes, fitWildcards, generateWeekPlan } from '../domain/planner/generate';
+import {
+  fitWildcards, generateWeekPlan, regenerateMeals, rerollSlot,
+} from '../domain/planner/generate';
 import type { PlanningContext } from '../domain/planner/scoring';
 import type { RecipeFilter } from '../domain/filters';
 import type {
-  GroceryList, Id, Ingredient, PantryItem, PlannerSettings, Recipe, SalePrice, StapleItem, WeekPlan,
+  GroceryList, Id, Ingredient, MealType, PantryItem, Recipe, SalePrice, StapleItem, WeekPlan,
 } from '../domain/types';
 
 export interface AppState {
@@ -222,20 +224,68 @@ export async function generateAndSave(
   return result.plan;
 }
 
-/** The grab bag half of settings, in the shape the draw wants. */
-export function wildcardSizes(settings: PlannerSettings): WildcardSizes {
-  return {
-    split: settings.wildcardSplit,
-    count: settings.wildcardCount,
-    fruitCount: settings.wildcardFruitCount,
-    vegCount: settings.wildcardVegCount,
-  };
+/**
+ * Rerolls one kind of meal — the full meals, the light ones or the snacks —
+ * leaving the other two, the bags and the treats where they are.
+ *
+ * The meal-shaped answer to the same question the per-bag redraw answers: not
+ * liking this week's snacks is not a reason to lose the four dinners you do like,
+ * and a single Regenerate makes the snacks cost the dinners. Pinning every meal
+ * you wanted to keep first is the other way to get here, and nobody does it.
+ *
+ * Written into the current plan rather than saved as a new one, which is what
+ * separates this from Regenerate, and the same bargain `redrawWildcards` makes.
+ * The promoted wildcards travel in so the reroll is still built around them.
+ */
+export async function regenerateMealSection(
+  ctx: PlanningContext,
+  plan: WeekPlan,
+  mealType: MealType,
+): Promise<void> {
+  const settings = await getSettings();
+  const slots = regenerateMeals(ctx, plan.slots, mealType, {
+    spec: settings.spec,
+    wildcards: plan.wildcards,
+    seed: Math.floor(Math.random() * 2 ** 31),
+  });
+  await setSlots(plan.id, slots);
 }
 
 /**
- * Redraws the grab bag without touching the meals.
+ * Throws out one meal and draws another for its slot.
  *
- * The bag and the plan answer different questions — "what should I cook" versus
+ * The same idea as the section reroll, narrowed to a single card, and written
+ * into the current plan for the same reason: a new plan id would untick the
+ * whole shopping list, and "not this one" did not ask for that.
+ *
+ * `passedOver` is what this slot has already been offered and had rejected.
+ * Without it the meal just dismissed is free to come straight back — it is no
+ * longer in the week, and it was near the top of the ranking or the optimizer
+ * would not have chosen it in the first place — and a shuffle that returns what
+ * you just threw out reads as a broken button.
+ *
+ * Answers whether it actually drew anything, so a caller can tell the
+ * difference between a redraw and an empty pool.
+ */
+export async function regenerateSlot(
+  ctx: PlanningContext,
+  plan: WeekPlan,
+  slotId: Id,
+  passedOver: ReadonlySet<Id> = new Set(),
+): Promise<boolean> {
+  const settings = await getSettings();
+  const slots = rerollSlot(ctx, plan.slots, slotId, {
+    spec: settings.spec,
+    wildcards: plan.wildcards,
+    exclude: passedOver,
+    seed: Math.floor(Math.random() * 2 ** 31),
+  });
+
+  if (!slots) return false;
+  await setSlots(plan.id, slots);
+  return true;
+}
+
 /**
  * Redraws a grab bag without touching the meals.
  *

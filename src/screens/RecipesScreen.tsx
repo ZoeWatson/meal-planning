@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { AppState } from '../state/useAppState';
+import { addRecipeToPlan } from '../db/repository';
 import { FILTER_PRESETS, explainFilter, type RecipeFilter } from '../domain/filters';
 import { recipeNutrition } from '../domain/nutrition';
 import { checkRecipe, describeMatches } from '../domain/allergens';
@@ -8,8 +9,8 @@ import {
   CUISINE_REGIONS, DISH_TYPES, DISH_TYPE_LABELS, TAXONOMY_TAGS, cuisineLabel,
   cuisineOf, primaryDishType, regionOf,
 } from '../domain/taxonomy';
-import { formatQuantity } from '../domain/units';
-import { scaledGrams, type Recipe } from '../domain/types';
+import type { Recipe } from '../domain/types';
+import { RecipeDetail } from '../components/RecipeDetail';
 import { Sheet } from '../components/Sheet';
 import { AddRecipeSheet } from './AddRecipeSheet';
 
@@ -110,9 +111,12 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
       ? DISH_TYPES.map((t) => ({ id: t.id as string, label: t.label }))
       : CUISINE_REGIONS.map((r) => ({ id: r.id as string, label: r.label }));
     return order
-      .filter((g) => (counts.get(g.id) ?? 0) > 0)
-      .map((g) => ({ ...g, count: counts.get(g.id) as number }));
-  }, [safe, axis, ingredients]);
+      // The one being browsed stays even at zero. A search that empties the
+      // group you are standing in would otherwise take its chip off the screen,
+      // leaving no selected chip, no results, and nothing to press to get back.
+      .filter((g) => (counts.get(g.id) ?? 0) > 0 || g.id === group)
+      .map((g) => ({ ...g, count: counts.get(g.id) ?? 0 }));
+  }, [safe, axis, ingredients, group]);
 
   /**
    * Grouped AFTER filtering rather than through the filter, because the counts
@@ -212,6 +216,16 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         ))}
       </div>
 
+      {/* Only when there is nothing to add to. Every Add button below is dead in
+          that state, and a row of greyed-out buttons with no reason given is the
+          kind of thing people take for a broken app. */}
+      {!state.plan && (
+        <p className="tiny faint" style={{ marginTop: 10 }}>
+          No week to add to yet — plan one on This week, and Add will put a meal
+          straight into it.
+        </p>
+      )}
+
       {avoided.length > 0 && (
         <button
           className="btn block"
@@ -264,27 +278,49 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         </div>
       )}
 
-      {safe.map((recipe) => {
+      {/* A row rather than one big button, because the card now holds a control
+          of its own and a button inside a button is not a thing. The text block
+          keeps the whole tap target it had. */}
+      {shown.map((recipe) => {
         const n = recipeNutrition(recipe, ingredients);
+        const cuisine = cuisineOf(recipe);
+        // What the taxonomy has not already said. The type and the region are
+        // printed in full above them, and repeating `italian` and `pasta` in the
+        // tag line is the screen saying the same thing twice.
+        const rest = recipe.tags.filter((t) => !TAXONOMY_TAGS.has(t));
         return (
-          <button
-            key={recipe.id}
-            className="card"
-            style={{ display: 'block', width: '100%', textAlign: 'left' }}
-            onClick={() => setOpen(recipe)}
-          >
-            <div className="strong">{recipe.name}</div>
-            <div className="tiny dim" style={{ marginTop: 3 }}>
-              {recipe.mealType} · {recipe.prepMinutes + recipe.cookMinutes} min ·{' '}
-              {recipe.ingredients.length} ingredients
-              {n.coverage > 0.7 && ` · ${Math.round(n.proteinG)} g protein`}
-            </div>
-            {recipe.tags.length > 0 && (
-              <div className="tiny faint" style={{ marginTop: 4 }}>
-                {recipe.tags.join(' · ')}
+          <div className="card row between" key={recipe.id} style={{ alignItems: 'flex-start' }}>
+            <button
+              className="grow"
+              style={{ background: 'none', border: 0, padding: 0, textAlign: 'left' }}
+              onClick={() => setOpen(recipe)}
+            >
+              <div className="strong">{recipe.name}</div>
+              {/* Named, because the list is flat and two members of a family
+                  otherwise read as the library having duplicated itself. */}
+              {recipe.variantOf && (
+                <div className="tiny faint" style={{ marginTop: 2 }}>
+                  a variant of {recipes.get(recipe.variantOf)?.name ?? recipe.variantOf}
+                </div>
+              )}
+              <div className="tiny dim" style={{ marginTop: 3 }}>
+                {DISH_TYPE_LABELS[primaryDishType(recipe, ingredients)]}
+                {cuisine !== null && ` · ${cuisineLabel(cuisine)}`}
               </div>
-            )}
-          </button>
+              <div className="tiny dim" style={{ marginTop: 3 }}>
+                {recipe.mealType} · {recipe.prepMinutes + recipe.cookMinutes} min ·{' '}
+                {recipe.ingredients.length} ingredients
+                {n.coverage > 0.7 && ` · ${Math.round(n.proteinG)} g protein`}
+              </div>
+              {rest.length > 0 && (
+                <div className="tiny faint" style={{ marginTop: 4 }}>
+                  {rest.join(' · ')}
+                </div>
+              )}
+            </button>
+
+            <AddToWeek recipe={recipe} state={state} />
+          </div>
         );
       })}
 
@@ -299,81 +335,55 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   );
 }
 
-function RecipeDetail({
-  recipe,
-  state,
-  unitSystem,
-}: {
-  recipe: Recipe;
-  state: AppState;
-  unitSystem: 'metric' | 'imperial';
-}): JSX.Element {
-  const [servings, setServings] = useState(recipe.baseServings);
-  const nutrition = recipeNutrition(recipe, state.ingredients, servings);
+/**
+ * Puts one recipe into this week, from the list.
+ *
+ * Its own component so each row owns its in-flight state rather than the screen
+ * holding a set of ids mid-write, and so a list of two hundred recipes re-renders
+ * one row when one row changes.
+ *
+ * Portions come from the week's own shape rather than from the recipe: a meal
+ * joining a week where every full meal is four portions should be four, and the
+ * stepper on This week is right there for the exception.
+ *
+ * Once it is in the week the button becomes a badge. There is nothing left to
+ * press — a plan holds a recipe once — and a disabled button that says "Added"
+ * invites the press anyway.
+ */
+function AddToWeek({ recipe, state }: { recipe: Recipe; state: AppState }): JSX.Element {
+  const [saving, setSaving] = useState(false);
+  const { plan, settings } = state;
+
+  if (plan?.slots.some((s) => s.recipeId === recipe.id)) {
+    return <span className="badge accent" style={{ marginTop: 2 }}>planned</span>;
+  }
+
+  async function add(): Promise<void> {
+    if (!plan) return;
+    setSaving(true);
+    try {
+      await addRecipeToPlan(
+        plan.id,
+        recipe,
+        settings.spec.servingsPerMeal[recipe.mealType] ?? recipe.baseServings,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <>
-      <div className="row between" style={{ marginBottom: 12 }}>
-        <div className="stepper">
-          <button aria-label="Fewer" onClick={() => setServings((s) => Math.max(1, s - 1))}>−</button>
-          <span className="val">{servings}</span>
-          <button aria-label="More" onClick={() => setServings((s) => s + 1)}>+</button>
-          <span className="tiny faint" style={{ marginLeft: 6 }}>portions</span>
-        </div>
-        <span className="small dim">{recipe.prepMinutes + recipe.cookMinutes} min</span>
-      </div>
-
-      {nutrition.coverage > 0.7 && (
-        <div className="stat-grid" style={{ marginBottom: 14 }}>
-          <div className="stat">
-            <div className="v">{Math.round(nutrition.kcal)}</div>
-            <div className="k">kcal / serving</div>
-          </div>
-          <div className="stat">
-            <div className="v">{Math.round(nutrition.proteinG)} g</div>
-            <div className="k">protein</div>
-          </div>
-          <div className="stat">
-            <div className="v">{Math.round(nutrition.fibreG ?? 0)} g</div>
-            <div className="k">fibre</div>
-          </div>
-        </div>
-      )}
-
-      <h3 className="section-title" style={{ marginTop: 0 }}>Ingredients</h3>
-      {recipe.ingredients.map((ri, i) => {
-        const ing = state.ingredients.get(ri.ingredientId);
-        if (!ing) return null;
-        const grams = scaledGrams(ri, servings, recipe.baseServings);
-        return (
-          <div className="row between card tight" key={`${ri.ingredientId}-${i}`}>
-            <span className="grow">
-              {ing.name}
-              {ri.prep && <span className="dim">, {ri.prep}</span>}
-              {ri.optional && <span className="badge" style={{ marginLeft: 6 }}>optional</span>}
-            </span>
-            <span className="small strong">{formatQuantity(grams, ing, unitSystem).text}</span>
-          </div>
-        );
-      })}
-
-      {recipe.steps.length > 0 && (
-        <>
-          <h3 className="section-title">Method</h3>
-          <ol style={{ paddingLeft: 20, margin: 0 }}>
-            {recipe.steps.map((step, i) => (
-              <li key={i} style={{ marginBottom: 10 }}>{step}</li>
-            ))}
-          </ol>
-        </>
-      )}
-
-      {recipe.diets.length > 0 && (
-        <p className="tiny faint" style={{ marginTop: 16 }}>
-          {recipe.diets.join(' · ')}
-        </p>
-      )}
-    </>
+    <button
+      className="btn small"
+      style={{ flex: '0 0 auto' }}
+      disabled={!plan || saving}
+      // The visible label is one word in a list of hundreds, which is no use to
+      // anyone reading by ear.
+      aria-label={`Add ${recipe.name} to this week`}
+      onClick={() => void add()}
+    >
+      {saving ? '…' : 'Add'}
+    </button>
   );
 }
 

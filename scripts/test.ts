@@ -1116,6 +1116,390 @@ test('a negative size is read as none rather than trusted', () => {
 
 // ---------------------------------------------------------------------------
 
+group('The This week screen sections');
+
+test('every grab bag has a switch, and every switch is its own', () => {
+  // The switchboard in Settings is built from this list, so a fifth bag added
+  // without a row here would be a bag nobody can switch off.
+  for (const bag of GRAB_BAGS) {
+    const section = WEEK_SECTIONS.find((s) => s.enabledKey === bag.enabledKey);
+    assert.ok(section !== undefined, `${bag.id} has no switch`);
+    assert.equal(section.effect, 'grab-bag', `${bag.id} is switched as the wrong kind`);
+  }
+
+  assert.equal(
+    new Set(WEEK_SECTIONS.map((s) => s.id)).size,
+    WEEK_SECTIONS.length,
+    'two sections share an id, so React keys and the switchboard would collide',
+  );
+  assert.equal(
+    new Set(WEEK_SECTIONS.map((s) => s.enabledKey)).size,
+    WEEK_SECTIONS.length,
+    'two sections share a setting, so one switch would move both',
+  );
+});
+
+test('the two groups are the whole list and nothing twice', () => {
+  // Settings renders the groups, not the list. Anything falling out of both would
+  // be a section with a setting and no way to reach it.
+  assert.equal(DISPLAY_SECTIONS.length + DRAWN_SECTIONS.length, WEEK_SECTIONS.length);
+  assert.ok(DRAWN_SECTIONS.every((s) => s.effect !== 'display'));
+  assert.ok(DISPLAY_SECTIONS.every((s) => s.effect === 'display'));
+});
+
+// ---------------------------------------------------------------------------
+
+group('Adding a recipe to the week by hand');
+
+function planSlot(id: Id, mealType: MealType, recipeId: Id | null, pinned = false): PlanSlot {
+  return { id, mealType, recipeId, servings: 2, pinned };
+}
+
+const CHILLI: Pick<Recipe, 'id' | 'mealType'> = { id: 'chilli', mealType: 'full' };
+
+test('it goes into an empty slot of its own meal type', () => {
+  const slots = [
+    planSlot('full-0', 'full', 'stew'),
+    planSlot('full-1', 'full', null),
+    planSlot('light-0', 'light', null),
+  ];
+  const after = placeRecipe(slots, CHILLI, 4);
+
+  assert.equal(after.length, 3, 'made a new slot with one going spare');
+  assert.equal(after[1].recipeId, 'chilli');
+  assert.equal(after[1].id, 'full-1', 'renamed the slot, orphaning anything keyed to it');
+  assert.equal(after[0].recipeId, 'stew', 'threw out a meal the optimizer chose');
+});
+
+test('a snack does not land in an empty full-meal slot', () => {
+  const after = placeRecipe([planSlot('full-0', 'full', null)], { id: 'popcorn', mealType: 'snack' }, 2);
+
+  assert.equal(after[0].recipeId, null, 'put a snack where a full meal goes');
+  assert.equal(after.length, 2);
+  assert.equal(after[1].mealType, 'snack');
+});
+
+test('a full week gets another slot rather than losing a meal', () => {
+  const slots = [planSlot('full-0', 'full', 'stew'), planSlot('full-1', 'full', 'curry')];
+  const after = placeRecipe(slots, CHILLI, 4);
+
+  assert.deepEqual(after.map((s) => s.recipeId), ['stew', 'curry', 'chilli']);
+});
+
+test('the new slot answers to an id nothing else does', () => {
+  // Ids are numbered per meal type and unique only within their plan, so a gap in
+  // the numbering is the case worth getting right: `full-1` is free here.
+  const slots = [planSlot('full-0', 'full', 'stew'), planSlot('full-2', 'full', 'curry')];
+  const ids = placeRecipe(slots, CHILLI, 4).map((s) => s.id);
+
+  assert.equal(new Set(ids).size, ids.length, `two slots share an id: ${ids.join(', ')}`);
+});
+
+test('it is added at the portions it was added at', () => {
+  assert.equal(placeRecipe([planSlot('full-0', 'full', null)], CHILLI, 6)[0].servings, 6);
+});
+
+test('it arrives pinned, so the next regenerate keeps it', () => {
+  // The whole point of picking a meal by name is that it is in the week. A
+  // regenerate quietly dropping it would read as the button not having worked.
+  assert.equal(placeRecipe([planSlot('full-0', 'full', null)], CHILLI, 4)[0].pinned, true);
+});
+
+test('adding one the week already has changes nothing at all', () => {
+  const slots = [planSlot('full-0', 'full', 'chilli')];
+  assert.equal(placeRecipe(slots, CHILLI, 8), slots, 'a second copy, or a pointless write');
+});
+
+test('regenerating around a pinned slot does not mint a duplicate id', () => {
+  // Pinning the third full meal and regenerating used to produce two slots both
+  // called `full-2`, because the skeleton numbered from the pinned count rather
+  // than around the ids already taken. Every per-slot write then hit both.
+  const ctx = planningContext();
+  const someFullMeal = [...ctx.recipes.values()].find((r) => r.mealType === 'full');
+  if (!someFullMeal) assert.fail('the seed library has no full meals');
+
+  const { plan } = generateWeekPlan(ctx, {
+    spec: { full: 4, light: 3, snack: 2, servingsPerMeal: { full: 2, light: 2, snack: 1 } },
+    pinnedSlots: [planSlot('full-2', 'full', someFullMeal.id, true)],
+    restarts: 1,
+    seed: 7,
+  });
+
+  const ids = plan.slots.map((s) => s.id);
+  assert.equal(new Set(ids).size, ids.length, `duplicate slot id: ${ids.join(', ')}`);
+});
+
+// ---------------------------------------------------------------------------
+
+group('Rerolling one kind of meal');
+
+const WEEK: SlotSpec = {
+  full: 4, light: 3, snack: 2, servingsPerMeal: { full: 2, light: 2, snack: 1 },
+};
+
+/** A generated week to reroll a section of. */
+function plannedWeek(ctx: PlanningContext): readonly PlanSlot[] {
+  return generateWeekPlan(ctx, { spec: WEEK, restarts: 2, seed: 4242 }).plan.slots;
+}
+
+function reroll(
+  ctx: PlanningContext,
+  slots: readonly PlanSlot[],
+  mealType: MealType,
+  seed: number,
+  spec: SlotSpec = WEEK,
+): readonly PlanSlot[] {
+  return regenerateMeals(ctx, slots, mealType, { spec, restarts: 2, seed });
+}
+
+/** The recipes of one kind, as something two weeks can be compared on. */
+function meals(slots: readonly PlanSlot[], mealType: MealType): string {
+  return slots.filter((s) => s.mealType === mealType).map((s) => s.recipeId).sort().join(',');
+}
+
+test('the other kinds of meal come back untouched', () => {
+  // The whole reason the button exists: not liking this week's light meals is
+  // not a reason to lose four dinners you do like.
+  const ctx = planningContext();
+  const before = plannedWeek(ctx);
+  const after = reroll(ctx, before, 'light', 9);
+
+  const rest = (slots: readonly PlanSlot[]): PlanSlot[] =>
+    slots.filter((s) => s.mealType !== 'light');
+  assert.deepEqual(rest(after), rest(before));
+});
+
+test('it does not hand the same meals straight back', () => {
+  // With the rest of the week standing still there is one best set of light
+  // meals and the optimizer finds it from every start, so a reroll that merely
+  // re-optimized would return the same three for ever — a button doing nothing.
+  const ctx = planningContext();
+  const before = plannedWeek(ctx);
+  const after = reroll(ctx, before, 'light', 9);
+
+  const rejected = new Set(before.filter((s) => s.mealType === 'light').map((s) => s.recipeId));
+  assert.ok(
+    after.filter((s) => s.mealType === 'light').every((s) => !rejected.has(s.recipeId)),
+    'served back a light meal that had just been rejected',
+  );
+  assert.notEqual(meals(after, 'light'), meals(before, 'light'));
+});
+
+test('a library with nothing spare refills rather than leaving holes', () => {
+  // Three light recipes and three light slots: the rejection cannot be honoured
+  // and the section filled, and an empty slot is much the worse of the two.
+  const ctx = planningContext();
+  const only = [...ctx.recipes.values()].filter((r) => r.mealType === 'light').slice(0, 3);
+  const small: PlanningContext = {
+    ...ctx,
+    recipes: new Map(
+      [...ctx.recipes].filter(([, r]) => r.mealType !== 'light' || only.includes(r)),
+    ),
+  };
+
+  const before = plannedWeek(small);
+  const after = reroll(small, before, 'light', 9);
+  const lights = after.filter((s) => s.mealType === 'light');
+
+  assert.equal(lights.length, 3);
+  assert.ok(lights.every((s) => s.recipeId !== null), 'left a light slot empty');
+});
+
+test('a pinned meal of that kind survives it', () => {
+  const ctx = planningContext();
+  const before = plannedWeek(ctx).map((s) => (s.id === 'light-0' ? { ...s, pinned: true } : s));
+  const kept = before.find((s) => s.id === 'light-0');
+
+  const slot = reroll(ctx, before, 'light', 11).find((s) => s.id === 'light-0');
+  assert.equal(slot?.recipeId, kept?.recipeId, 'threw out a meal that was pinned');
+  assert.equal(slot?.pinned, true);
+});
+
+test('a rerolled meal is never one the rest of the week already has', () => {
+  // The other meal types arrive already filled, so they have to count as used —
+  // or rerolling the light meals serves the soup the full meals are having.
+  const ctx = planningContext();
+  const after = reroll(ctx, plannedWeek(ctx), 'light', 3);
+
+  const used = after.map((s) => s.recipeId).filter((id): id is Id => id !== null);
+  assert.equal(new Set(used).size, used.length, 'the same recipe twice in one week');
+});
+
+test('it does not mint a duplicate slot id around a pin', () => {
+  const ctx = planningContext();
+  const before = plannedWeek(ctx).map((s) => (s.id === 'light-1' ? { ...s, pinned: true } : s));
+
+  const ids = reroll(ctx, before, 'light', 5).map((s) => s.id);
+  assert.equal(new Set(ids).size, ids.length, `duplicate slot id: ${ids.join(', ')}`);
+});
+
+test('the section comes back at the size Settings asks for', () => {
+  const ctx = planningContext();
+  const before = plannedWeek(ctx);
+
+  const grown = reroll(ctx, before, 'light', 8, { ...WEEK, light: 5 });
+  assert.equal(grown.filter((s) => s.mealType === 'light').length, 5);
+  assert.equal(
+    grown.filter((s) => s.mealType === 'full').length, 4,
+    'resized a section it was not asked about',
+  );
+
+  const shrunk = reroll(ctx, before, 'light', 8, { ...WEEK, light: 1 });
+  assert.equal(shrunk.filter((s) => s.mealType === 'light').length, 1);
+});
+
+test('rerolling the snacks leaves the meals and the portions they were set to', () => {
+  const ctx = planningContext();
+  const before = plannedWeek(ctx).map((s) => (s.mealType === 'full' ? { ...s, servings: 6 } : s));
+
+  const after = reroll(ctx, before, 'snack', 17);
+  assert.ok(after.filter((s) => s.mealType === 'full').every((s) => s.servings === 6));
+  assert.equal(meals(after, 'full'), meals(before, 'full'));
+  assert.equal(meals(after, 'light'), meals(before, 'light'));
+});
+
+// ---------------------------------------------------------------------------
+
+group('Redrawing one meal');
+
+const SPEC = { full: 4, light: 3, snack: 2, servingsPerMeal: { full: 2, light: 2, snack: 1 } };
+
+/** A week of real recipes, so the reroll has a pool and a plan worth scoring. */
+function weekOfMeals(): { ctx: PlanningContext; slots: readonly PlanSlot[] } {
+  const ctx = planningContext();
+  const { plan } = generateWeekPlan(ctx, { spec: SPEC, restarts: 2, seed: 11 });
+  return { ctx, slots: plan.slots };
+}
+
+test('it changes the one meal it was asked about and nothing else', () => {
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  const after = rerollSlot(ctx, slots, target.id, { spec: SPEC, seed: 3 });
+  if (!after) assert.fail('nothing was drawn from a full seed library');
+
+  assert.notEqual(
+    after.find((s) => s.id === target.id)?.recipeId,
+    target.recipeId,
+    'handed back the meal it was told to throw out',
+  );
+  assert.deepEqual(
+    after.filter((s) => s.id !== target.id).map((s) => s.recipeId),
+    slots.filter((s) => s.id !== target.id).map((s) => s.recipeId),
+    'moved a meal it was not asked about',
+  );
+  assert.equal(after.length, slots.length, 'changed the shape of the week');
+});
+
+test('it never draws something the week is already having', () => {
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  // Once is luck; the draw is random, so this is the claim worth repeating.
+  for (let seed = 0; seed < 25; seed++) {
+    const after = rerollSlot(ctx, slots, target.id, { spec: SPEC, seed });
+    if (!after) assert.fail(`nothing drawn at seed ${seed}`);
+    const ids = after.map((s) => s.recipeId).filter((id) => id !== null);
+    assert.equal(new Set(ids).size, ids.length, `the week eats the same thing twice at seed ${seed}`);
+  }
+});
+
+test('pressing it again does not hand back what it just threw out', () => {
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  const first = rerollSlot(ctx, slots, target.id, { spec: SPEC, seed: 5 });
+  if (!first) assert.fail('nothing drawn on the first press');
+  const passedOver = new Set([target.recipeId as Id]);
+
+  // The dismissed meal is no longer in the week, so only `exclude` keeps it out
+  // — and it was the optimizer's own pick, which is to say near the top of the
+  // ranking the second draw is about to sample from.
+  for (let seed = 0; seed < 25; seed++) {
+    const again = rerollSlot(ctx, first, target.id, { spec: SPEC, seed, exclude: passedOver });
+    if (!again) assert.fail(`nothing drawn at seed ${seed}`);
+    assert.notEqual(
+      again.find((s) => s.id === target.id)?.recipeId,
+      target.recipeId,
+      `seed ${seed} brought back the meal that was passed over`,
+    );
+  }
+});
+
+test('it gives a different answer on a different press', () => {
+  // A steepest-descent reroll would find the single cheapest replacement every
+  // time, and a shuffle button that repeats itself is a broken shuffle button.
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  const drawn = new Set(
+    Array.from({ length: 20 }, (_, seed) =>
+      rerollSlot(ctx, slots, target.id, { spec: SPEC, seed })?.find((s) => s.id === target.id)
+        ?.recipeId),
+  );
+  assert.ok(drawn.size > 1, 'twenty presses drew the same meal every time');
+});
+
+test('the new meal comes at the portions the spec asks for', () => {
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  // The portions belonged to the meal being thrown out, exactly as they do when
+  // a whole section is rerolled.
+  const hand = slots.map((s) => (s.id === target.id ? { ...s, servings: 9 } : s));
+  const after = rerollSlot(ctx, hand, target.id, { spec: SPEC, seed: 2 });
+
+  assert.equal(after?.find((s) => s.id === target.id)?.servings, SPEC.servingsPerMeal.full);
+});
+
+test('a pinned meal is left alone', () => {
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  const pinned = slots.map((s) => (s.id === target.id ? { ...s, pinned: true } : s));
+  assert.equal(rerollSlot(ctx, pinned, target.id, { spec: SPEC, seed: 1 }), null);
+});
+
+test('it fills an empty slot rather than refusing one', () => {
+  // The slot the "could not be filled" warning is about. There is no meal to
+  // dismiss, but there is still one to draw.
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  const emptied = slots.map((s) => (s.id === target.id ? { ...s, recipeId: null } : s));
+  const after = rerollSlot(ctx, emptied, target.id, { spec: SPEC, seed: 4 });
+
+  assert.notEqual(after?.find((s) => s.id === target.id)?.recipeId ?? null, null);
+});
+
+test('an empty pool says so instead of pretending', () => {
+  const { ctx, slots } = weekOfMeals();
+  const target = slots.find((s) => s.mealType === 'full' && s.recipeId !== null);
+  if (!target) assert.fail('the generated week has no full meals');
+
+  const everyFullMeal = new Set(
+    [...ctx.recipes.values()].filter((r) => r.mealType === 'full').map((r) => r.id),
+  );
+  assert.equal(
+    rerollSlot(ctx, slots, target.id, { spec: SPEC, seed: 1, exclude: everyFullMeal }),
+    null,
+  );
+});
+
+test('a slot the week does not have draws nothing', () => {
+  const { ctx, slots } = weekOfMeals();
+  assert.equal(rerollSlot(ctx, slots, 'full-99', { spec: SPEC, seed: 1 }), null);
+});
+
+// ---------------------------------------------------------------------------
+
 group('Recipe variants');
 
 /** A family plus an unrelated meal, built through the real importer so grams resolve. */

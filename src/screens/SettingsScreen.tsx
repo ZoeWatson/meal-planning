@@ -9,6 +9,7 @@ import { KitchenScreen } from './KitchenScreen';
 import { PantrySettings } from './PantrySection';
 import { GrabBagControls } from '../components/GrabBagControls';
 import { GRAB_BAGS } from '../domain/grabbag';
+import { WeekSectionsSettings } from './WeekSectionsSettings';
 import { WeekRulesSettings } from './WeekRulesSettings';
 import { TreatControls } from '../components/TreatControls';
 import { Sheet } from '../components/Sheet';
@@ -71,6 +72,14 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
           Imperial
         </button>
       </div>
+
+      {/* --- This week screen --------------------------------------------- */}
+      <h2 className="section-title">This week screen</h2>
+      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+        Which parts of the week you actually want. Everything ships switched on;
+        turn off what you do not use and the screen gets shorter.
+      </p>
+      <WeekSectionsSettings state={state} />
 
       {/* --- Week shape --------------------------------------------------- */}
       <h2 className="section-title">Week shape</h2>
@@ -330,7 +339,7 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
       {syncing && <SyncSheet onClose={() => setSyncing(false)} />}
       {cited && <WorksCitedSheet onClose={() => setCited(false)} />}
       {kitchen && (
-        <Sheet title="Staples & pantry" onClose={() => setKitchen(false)}>
+        <Sheet title="Staples & leftovers" onClose={() => setKitchen(false)}>
           <KitchenScreen state={state} embedded />
         </Sheet>
       )}

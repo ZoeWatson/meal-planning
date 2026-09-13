@@ -17,6 +17,7 @@ import type {
   GroceryList, Id, Ingredient, PantryItem, Recipe, SalePrice, SlotSpec,
   PlannerSettings, StapleItem, WeekPlan,
 } from '../domain/types';
+import type { WeekSectionSettings } from '../domain/weekSections';
 import type { Change, SyncedCollection } from '../domain/sync/types';
 import type { BarcodeEntry, CustomItem, Expense } from '../domain/budget';
 import type { CookedMeal, Leftover, MealLogEntry } from '../domain/cooking';
@@ -56,7 +57,7 @@ export interface CarryOverEntry {
   readonly updatedAtISO: string;
 }
 
-export interface AppSettings extends PlannerSettings {
+export interface AppSettings extends PlannerSettings, WeekSectionSettings {
   readonly id: 'settings';
   readonly spec: SlotSpec;
   /** Monthly food budget in cents. Null means no goal set. */
@@ -214,6 +215,12 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
   // eat, and something that is not food.
   treatBagEnabled: true,
   treatCount: 3,
+  // Every section of the This week screen starts visible. A section switched off
+  // by default is a feature nobody finds, and these are switches for pruning a
+  // screen you have seen rather than for discovering one you have not.
+  summarySectionEnabled: true,
+  mealsSectionEnabled: true,
+  pantrySectionEnabled: true,
   cycleDays: 7,
   monthlyBudgetCents: null,
   currency: 'CAD',
