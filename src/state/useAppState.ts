@@ -10,11 +10,12 @@ import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { db, DEFAULT_SETTINGS, type AppSettings } from '../db/database';
-import { getSettings, savePlan, setWildcards } from '../db/repository';
+import { getSettings, savePlan, setTreats, setWildcards } from '../db/repository';
 import { buildGroceryList, renderGroceryList, type DisplayLine } from '../domain/grocery';
 import { getRegion } from '../domain/seasonality';
 import { excludedByAllergens } from '../domain/allergens';
 import { DEFAULT_WASTE_SETTINGS } from '../domain/waste';
+import { fitTreats, treatTarget } from '../domain/treats';
 import { type GrabBagId, bagOf, grabBagLanes } from '../domain/grabbag';
 import { type WildcardSizes, fitWildcards, generateWeekPlan } from '../domain/planner/generate';
 import type { PlanningContext } from '../domain/planner/scoring';
@@ -188,11 +189,14 @@ export async function generateAndSave(
 
   // Promoted wildcards are kept; the rest are redrawn so the grab bag stays fresh.
   const keptWildcards = (options.keepPinnedFrom?.wildcards ?? []).filter((w) => w.promoted);
+  // Same bargain for treats: pinned ones carry over, everything else is new.
+  const keptTreats = (options.keepPinnedFrom?.treats ?? []).filter((t) => t.pinned);
 
   const result = generateWeekPlan(ctx, {
     spec: settings.spec,
     pinnedSlots,
     wildcards: fitWildcards(ctx, grabBagLanes(settings), seed, keptWildcards),
+    treats: fitTreats(settings, treatTarget(settings), seed, keptTreats),
     filter: options.filter,
     seed,
   });
@@ -265,4 +269,41 @@ export async function resizeWildcards(ctx: PlanningContext, plan: WeekPlan): Pro
   if (unchanged) return;
 
   await setWildcards(plan.id, next);
+}
+
+// ---------------------------------------------------------------------------
+// The treat bag
+// ---------------------------------------------------------------------------
+//
+// No `PlanningContext` in either of these, unlike their produce equivalents. The
+// treat draw reads the catalogue, the allergen list and the diets, and nothing
+// else — it has no opinion about what is in season, what is on sale or what is
+// being cooked, because a bar of soap has no opinion about any of that either.
+
+/** Redraws the treat bag. Pinned treats survive; the meals are untouched. */
+export async function redrawTreats(plan: WeekPlan): Promise<void> {
+  const settings = await getSettings();
+  const keep = (plan.treats ?? []).filter((t) => t.pinned);
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  await setTreats(plan.id, fitTreats(settings, treatTarget(settings), seed, keep));
+}
+
+/**
+ * Brings the current bag to whatever size the settings now ask for.
+ *
+ * Called after the stepper moves, so the control has a visible effect
+ * immediately rather than at the start of next week.
+ */
+export async function resizeTreats(plan: WeekPlan): Promise<void> {
+  const settings = await getSettings();
+  const current = plan.treats ?? [];
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  const next = fitTreats(settings, treatTarget(settings), seed, current);
+
+  const unchanged =
+    next.length === current.length &&
+    next.every((t, i) => t.treatId === current[i].treatId);
+  if (unchanged) return;
+
+  await setTreats(plan.id, next);
 }

@@ -8,6 +8,7 @@ import { AllergySection } from './AllergySection';
 import { KitchenScreen } from './KitchenScreen';
 import { GrabBagControls } from '../components/GrabBagControls';
 import { GRAB_BAGS } from '../domain/grabbag';
+import { TreatControls } from '../components/TreatControls';
 import { Sheet } from '../components/Sheet';
 import { ImportSheet } from './ImportSheet';
 import { SyncSheet } from './SyncSheet';
@@ -225,6 +226,15 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
           <GrabBagControls state={state} bag={bag.id} />
         </div>
       ))}
+
+      {/* --- Treats ------------------------------------------------------- */}
+      <h2 className="section-title">Treats</h2>
+      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+        Herbal teas and other small, cheap good things — and not all of them
+        food. Anything you are allergic to, or that your diets rule out, is never
+        drawn. How many; whether at all is above, under This week screen.
+      </p>
+      <TreatControls state={state} />
 
       {/* --- Kitchen ------------------------------------------------------ */}
       <h2 className="section-title">Kitchen</h2>

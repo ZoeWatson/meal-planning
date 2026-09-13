@@ -143,6 +143,44 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
       </Entry>
 
       <Entry
+        title="The treat bag"
+        kind="mixed"
+        what="Herbal teas and other small things, drawn fresh each week."
+      >
+        <p>
+          The catalogue is a fixed list written for this app: teas, a few things
+          to eat, and a good many things that are not food at all. Nothing in it
+          costs more than ten dollars, and that ceiling is the feature — a treat
+          you have to think about has become a purchase.
+        </p>
+        <p>
+          The draw takes a tea, then something to eat, then something that is not
+          food, and goes round again. Picking at random from the whole list would
+          be simpler and worse: most of the catalogue is edible, so the bag would
+          come back as three snacks often enough to stop being a treat bag. The
+          rotation is what keeps a bath, a bunch of flowers or an hour with a
+          crossword in the week.
+        </p>
+        <p>
+          The teas are all caffeine-free tisanes. Green, black and white tea are
+          the same plant as each other and carry caffeine, so they are not in the
+          list — a herbal tea in the evening is a different proposition from a
+          cup of something that keeps you awake.
+        </p>
+        <Caveat>
+          Prices are estimates of British Columbia shelf prices, written from
+          general knowledge like every other price here. They are there to set an
+          expectation — “about six dollars” — not to tell you what you will pay.
+        </Caveat>
+        <Caveat>
+          Herbal teas are not inert, and a few of them interact with common
+          medications. The bag knows nothing about that. It checks the allergen
+          groups you have set and the diets you have chosen, and nothing else —
+          if you take anything regularly, that is worth a look of your own.
+        </Caveat>
+      </Entry>
+
+      <Entry
         title="Nutrition"
         kind="estimate"
         what="Per-serving calories and macros, and the “high protein” filter."

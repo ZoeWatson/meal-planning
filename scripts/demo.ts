@@ -66,6 +66,8 @@ const settings: PlannerSettings = {
   pastaBagCount: 1,
   cheeseBagEnabled: true,
   cheeseBagCount: 1,
+  treatBagEnabled: true,
+  treatCount: 3,
 };
 
 // Things bought every week regardless of the plan.

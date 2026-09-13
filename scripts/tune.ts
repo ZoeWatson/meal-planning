@@ -51,6 +51,8 @@ const settings: PlannerSettings = {
   pastaBagCount: 1,
   cheeseBagEnabled: true,
   cheeseBagCount: 1,
+  treatBagEnabled: true,
+  treatCount: 3,
 };
 
 const staples: StapleItem[] = [
