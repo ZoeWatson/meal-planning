@@ -34,7 +34,7 @@ import {
 } from '../src/domain/planner/generate';
 import { aggregateNeeds, DEFAULT_WEIGHTS, type PlanningContext } from '../src/domain/planner/scoring';
 import {
-  buildVariantIndex, chooseBestVariants, collapseToFamilies, familyIdOf,
+  buildVariantIndex, chooseBestVariants, collapseToFamilies, familyIdOf, swapRecipeIngredient,
 } from '../src/domain/variants';
 import { applyFilter } from '../src/domain/filters';
 import { buildGroceryList, withoutRemoved } from '../src/domain/grocery';
@@ -2088,6 +2088,70 @@ test('no rules costs nothing', () => {
   // The term has to vanish rather than merely be small, or every plan scored
   // before rules existed would score differently now.
   assert.equal(rulePenalty([planSlot('full-0', 'full', 'anything')], []), 0);
+});
+
+// ---------------------------------------------------------------------------
+
+group('Swapping an ingredient in a recipe');
+
+const swapIngredients = new Map(loadSeedData().ingredients.map((i) => [i.id, i]));
+
+/** Feta and cucumber, the shape the user's own example swaps out of. */
+function greekSalad(): Recipe {
+  return {
+    id: 'greek-salad', name: 'Greek salad', mealType: 'light', baseServings: 2,
+    ingredients: [
+      { ingredientId: 'feta', quantity: 100, unit: 'g', grams: 100, optional: false, scaling: 'linear' },
+      { ingredientId: 'cucumber', quantity: 1, unit: 'each', grams: 300, optional: false, scaling: 'linear' },
+    ],
+    steps: ['Toss.'], prepMinutes: 10, cookMinutes: 0, tags: [], diets: [], builtIn: true,
+  };
+}
+
+test('swapping replaces only the targeted line, and keeps the mass', () => {
+  const cheddar = swapIngredients.get('cheddar')!;
+  const recipe = greekSalad();
+
+  const swapped = swapRecipeIngredient(recipe, 'feta', cheddar);
+  if (!swapped) return assert.fail('expected a swap');
+
+  const line = swapped.ingredients.find((ri) => ri.ingredientId === 'cheddar');
+  assert.ok(line, 'the new ingredient did not replace the old one');
+  assert.equal(line!.grams, 100, 'changed how much cheese the recipe buys');
+  assert.equal(swapped.ingredients.length, recipe.ingredients.length, 'lines appeared or vanished');
+  assert.equal(
+    swapped.ingredients.find((ri) => ri.ingredientId === 'cucumber'),
+    recipe.ingredients[1],
+    'touched a line nobody asked to swap',
+  );
+});
+
+test('the swap is a new variant of the family, not an edit in place', () => {
+  const swapped = swapRecipeIngredient(greekSalad(), 'feta', swapIngredients.get('cheddar')!)!;
+
+  assert.equal(swapped.variantOf, 'greek-salad');
+  assert.equal(swapped.variantLabel, 'with Cheddar cheese');
+  assert.equal(swapped.name, 'Greek salad (with Cheddar cheese)');
+});
+
+test('swapping inside an existing variant still names the top-level family', () => {
+  // Variants do not nest: a swap made on an already-swapped recipe must point
+  // back at the original, not at the variant it was made from.
+  const variant: Recipe = {
+    ...greekSalad(), id: 'greek-salad-mozzarella', variantOf: 'greek-salad', variantLabel: 'with mozzarella',
+  };
+
+  const swapped = swapRecipeIngredient(variant, 'cucumber', swapIngredients.get('bell-pepper')!)!;
+
+  assert.equal(swapped.variantOf, 'greek-salad', 'nested the family under the variant instead of the parent');
+});
+
+test('nothing to swap when the ingredient is not in the recipe', () => {
+  assert.equal(swapRecipeIngredient(greekSalad(), 'cheddar', swapIngredients.get('feta')!), undefined);
+});
+
+test('swapping an ingredient for itself is not a swap', () => {
+  assert.equal(swapRecipeIngredient(greekSalad(), 'feta', swapIngredients.get('feta')!), undefined);
 });
 
 // ---------------------------------------------------------------------------

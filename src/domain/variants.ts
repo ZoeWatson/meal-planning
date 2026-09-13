@@ -18,8 +18,9 @@
  * different recipe belongs in the library as one.
  */
 
-import type { Id, PlanSlot, Recipe, WildcardItem } from './types';
+import type { Id, Ingredient, PlanSlot, Recipe, RecipeIngredient, WildcardItem } from './types';
 import { type PlanningContext, type ScoreWeights, scorePlan } from './planner/scoring';
+import { formatQuantity } from './units';
 
 /** The family a recipe belongs to, named by its parent's id. */
 export function familyIdOf(recipe: Pick<Recipe, 'id' | 'variantOf'>): Id {
@@ -150,4 +151,57 @@ export function chooseBestVariants(
 /** A week carries a recipe at most once, and two members of a family are still two meals. */
 function usedElsewhere(slots: readonly PlanSlot[], skipIndex: number, id: Id): boolean {
   return slots.some((s, i) => i !== skipIndex && s.recipeId === id);
+}
+
+export interface SwappedRecipe {
+  readonly name: string;
+  readonly ingredients: readonly RecipeIngredient[];
+  readonly variantOf: Id;
+  readonly variantLabel: string;
+}
+
+/**
+ * The pure half of a shopping-list ingredient swap: feta for a cheaper cheese, a
+ * vegetable for whatever is on sale.
+ *
+ * Written as a new variant rather than an edit to `recipe` itself, for the same
+ * reason every other variant exists — the swap should not change what the
+ * recipe book hands back to a week that already relied on the original. Mass is
+ * carried over unchanged rather than reconverted from the written quantity, so a
+ * swap can never quietly inflate or shrink what the plan buys — only what it
+ * buys it as. `variantOf` points at the family, not at `recipe.id`, so swapping
+ * inside an existing variant still produces a sibling rather than a nested one.
+ *
+ * Returns `undefined` if the recipe does not contain `fromIngredientId`, or the
+ * replacement is the same ingredient — nothing to swap either way.
+ */
+export function swapRecipeIngredient(
+  recipe: Recipe,
+  fromIngredientId: Id,
+  toIngredient: Ingredient,
+): SwappedRecipe | undefined {
+  const oldLine = recipe.ingredients.find((ri) => ri.ingredientId === fromIngredientId);
+  if (!oldLine || oldLine.ingredientId === toIngredient.id) return undefined;
+
+  const quantity = formatQuantity(oldLine.grams, toIngredient, 'metric');
+  const ingredients = recipe.ingredients.map((ri): RecipeIngredient => (
+    ri.ingredientId === fromIngredientId
+      ? {
+        ingredientId: toIngredient.id,
+        quantity: quantity.value,
+        unit: quantity.unit,
+        grams: oldLine.grams,
+        optional: ri.optional,
+        scaling: ri.scaling,
+      }
+      : ri
+  ));
+
+  const variantLabel = `with ${toIngredient.name}`;
+  return {
+    name: `${recipe.name} (${variantLabel})`,
+    ingredients,
+    variantOf: familyIdOf(recipe),
+    variantLabel,
+  };
 }

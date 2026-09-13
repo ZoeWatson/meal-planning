@@ -19,6 +19,7 @@ import {
 } from '../domain/cooking';
 import { DEFAULT_NECESSITY, afterStockChange } from '../domain/pantry';
 import { dropSlot, placeRecipe, reinstateSlot } from '../domain/planner/generate';
+import { swapRecipeIngredient } from '../domain/variants';
 import type { TreatItem } from '../domain/treats';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
@@ -121,6 +122,47 @@ export async function setSlotRecipe(planId: Id, slotId: Id, recipeId: Id | null)
     ...plan,
     slots: plan.slots.map((s) => (s.id === slotId ? { ...s, recipeId } : s)),
   }));
+}
+
+/**
+ * Swaps one ingredient for another inside a recipe — feta for a cheaper cheese,
+ * a vegetable for whatever is on sale today — from the shopping list.
+ *
+ * Writes a new variant rather than editing `recipeId` in place, so the recipe
+ * book keeps the original intact and gains a reusable alternative, then repoints
+ * every slot in this plan that was cooking that recipe at the variant — the
+ * swap reaches this week's shop without reaching into any other week that also
+ * uses the recipe.
+ */
+export async function swapIngredientInRecipe(
+  planId: Id,
+  recipeId: Id,
+  fromIngredientId: Id,
+  toIngredient: Ingredient,
+): Promise<Id | undefined> {
+  const recipe = await db.recipes.get(recipeId);
+  if (!recipe) return undefined;
+
+  const swapped = swapRecipeIngredient(recipe, fromIngredientId, toIngredient);
+  if (!swapped) return undefined;
+
+  const variant: Recipe = {
+    ...recipe,
+    id: newId('recipe'),
+    name: swapped.name,
+    ingredients: swapped.ingredients,
+    variantOf: swapped.variantOf,
+    variantLabel: swapped.variantLabel,
+    builtIn: false,
+  };
+
+  await syncedPut('recipes', variant as unknown as Record<string, unknown>);
+  await editPlan(planId, (plan) => ({
+    ...plan,
+    slots: plan.slots.map((s) => (s.recipeId === recipeId ? { ...s, recipeId: variant.id } : s)),
+  }));
+
+  return variant.id;
 }
 
 /**

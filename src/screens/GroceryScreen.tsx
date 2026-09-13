@@ -6,9 +6,9 @@ import { db } from '../db/database';
 import {
   addCustomItem, clearChecks, keepInPantry, lookupBarcode, recordCarryOverFromPlan,
   recordShopTotal, rememberBarcode, removeCustomItem, setChecked, setInStock, setLinePrice,
-  setRemoved, updateCustomItem,
+  setRemoved, swapIngredientInRecipe, updateCustomItem,
 } from '../db/repository';
-import type { DisplayLine } from '../domain/grocery';
+import type { DisplayLine, UsedByRecipe } from '../domain/grocery';
 import { worthKeeping } from '../domain/pantry';
 import { carryOverOf } from '../domain/waste';
 import { scorePlan } from '../domain/planner/scoring';
@@ -16,10 +16,23 @@ import {
   centsToInput, formatMoney, parseMoney, todayISO, type CustomItem,
 } from '../domain/budget';
 import { TREAT_KIND_LABELS, getTreat } from '../domain/treats';
-import { CheckIcon, HouseIcon } from '../components/icons';
+import type { Id, Ingredient, Recipe } from '../domain/types';
+import { CheckIcon, HouseIcon, SwapIcon } from '../components/icons';
 import { BarcodeScanner, isScanningSupported } from '../components/BarcodeScanner';
 import { CollapsibleSection } from '../components/CollapsibleSection';
+import { IngredientPicker } from '../components/IngredientPicker';
 import { Sheet } from '../components/Sheet';
+
+/**
+ * Kept out of the swap picker's suggestions unless the recipe already contains
+ * one — a household preference, not a data-integrity rule. See
+ * `no-tomatoes-in-recipes`: the library stays tomato-free except for dishes that
+ * are definitionally a tomato dish, and a recipe that already uses one of these
+ * plainly is.
+ */
+const TOMATO_INGREDIENT_IDS: ReadonlySet<Id> = new Set([
+  'tomato', 'cherry-tomato', 'canned-tomatoes', 'tomato-paste', 'passata', 'sun-dried-tomatoes',
+]);
 
 const AISLE_LABELS: Record<string, string> = {
   produce: 'Produce', bakery: 'Bakery', meat: 'Meat', seafood: 'Seafood',
@@ -45,9 +58,13 @@ interface Row {
   /** Off the list because the cupboard already has it. Always implies `removed`. */
   readonly inStock: boolean;
   readonly amountCents?: number;
+  /** What this line is expected to cost, until a real price is entered at the shelf. */
+  readonly estimatedCents: number;
   readonly custom?: CustomItem;
   readonly ingredientId?: string;
   readonly usedBy: readonly string[];
+  /** As `usedBy`, but with what a swap needs: which recipe, which slots. */
+  readonly usedByRecipes: readonly UsedByRecipe[];
 }
 
 export function GroceryScreen({
@@ -57,13 +74,14 @@ export function GroceryScreen({
   onPlan: () => void;
 }): JSX.Element {
   const {
-    plan, groceryLines, removedLines, groceryList, ingredients, pantry, ctx, settings,
+    plan, groceryLines, removedLines, groceryList, ingredients, recipes, pantry, ctx, settings,
   } = state;
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hideDone, setHideDone] = useState(false);
   const [pricing, setPricing] = useState<Row | null>(null);
   const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [swapping, setSwapping] = useState<Row | null>(null);
 
   // No default argument: `useLiveQuery`'s third parameter infers `never[]` from an
   // empty literal and poisons the element type. `?? []` after the fact keeps the
@@ -134,8 +152,10 @@ export function GroceryScreen({
       removed,
       inStock: inStockIds.has(line.ingredientId),
       amountCents: priceByIngredient.get(line.ingredientId),
+      estimatedCents: line.estimatedCents,
       ingredientId: line.ingredientId,
       usedBy: line.usedBy,
+      usedByRecipes: line.usedByRecipes,
     });
 
     // Both halves of the same list, built the same way, because what was taken
@@ -167,8 +187,10 @@ export function GroceryScreen({
         // The catalogue price is an estimate and stays out of the running total
         // until a real one is entered at the shelf, like every other line.
         amountCents: check?.amountCents,
+        estimatedCents: treat.priceCents,
         ingredientId: treat.id,
         usedBy: [],
+        usedByRecipes: [],
       }];
     });
 
@@ -183,8 +205,12 @@ export function GroceryScreen({
       removed: item.removed === true,
       inStock: item.inStock === true,
       amountCents: item.amountCents,
+      // Nothing prices an item added by hand, so it adds nothing to the projected
+      // total until it is entered at the shelf like everything else.
+      estimatedCents: 0,
       custom: item,
       usedBy: [],
+      usedByRecipes: [],
     }));
 
     return [...planned, ...treats, ...extra];
@@ -205,6 +231,14 @@ export function GroceryScreen({
   const total = shopping.length;
   const enteredCents = shopping.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
   const pricedCount = shopping.filter((r) => r.amountCents !== undefined).length;
+
+  // What is left to find its way into `enteredCents`: the model's guess for every
+  // line not yet priced at the shelf. Added to what has actually been recorded,
+  // rather than replacing it, so a real price always displaces its own estimate.
+  const remainingEstimateCents = shopping
+    .filter((r) => r.amountCents === undefined)
+    .reduce((sum, r) => sum + r.estimatedCents, 0);
+  const projectedCents = enteredCents + remainingEstimateCents;
 
   const estimatedCents = useMemo(() => {
     if (!plan || !ctx) return 0;
@@ -302,10 +336,19 @@ export function GroceryScreen({
         <div className="progress">
           <div style={{ width: total === 0 ? '0%' : `${(done / total) * 100}%` }} />
         </div>
+        {/* Projected is what this trip is expected to come to: prices already
+            entered, plus the model's estimate for whatever is not priced yet. It
+            moves as you shop, converging on the current total by the till. */}
+        <div className="row between" style={{ marginTop: 6 }}>
+          <span className="tiny faint">Projected</span>
+          <span className="small strong" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {formatMoney(projectedCents, settings.currency)}
+          </span>
+        </div>
         {/* The running total is the point of entering prices at the shelf: you
             find out you are over before the till, not after. */}
         {pricedCount > 0 && (
-          <div className="row between" style={{ marginTop: 6 }}>
+          <div className="row between" style={{ marginTop: 2 }}>
             <span className="tiny faint">{pricedCount} of {total} priced</span>
             <span className="small strong" style={{ fontVariantNumeric: 'tabular-nums' }}>
               {formatMoney(enteredCents, settings.currency)}
@@ -365,6 +408,18 @@ export function GroceryScreen({
                   ? formatMoney(row.amountCents, settings.currency)
                   : '＋$'}
               </button>
+
+              {/* Only for a planned line — a swap edits the recipe behind it,
+                  which a custom item or a treat does not have. */}
+              {row.usedByRecipes.length > 0 && (
+                <button
+                  className="btn small ghost"
+                  aria-label={`Swap ${row.name} for something else`}
+                  onClick={() => setSwapping(row)}
+                >
+                  <SwapIcon size={15} />
+                </button>
+              )}
 
               {/* On the line itself rather than behind opening it: this is
                   pressed while standing at the shelf looking at the thing, not
@@ -494,6 +549,15 @@ export function GroceryScreen({
           planId={planId}
           currency={settings.currency}
           onClose={() => setAdding(false)}
+        />
+      )}
+      {swapping && (
+        <SwapIngredientSheet
+          row={swapping}
+          planId={planId}
+          ingredients={ingredients}
+          recipes={recipes}
+          onClose={() => setSwapping(null)}
         />
       )}
       {finishing && (
@@ -695,6 +759,67 @@ function AddItemSheet({
         </>
       )}
     </Sheet>
+  );
+}
+
+/**
+ * Swaps one ingredient in a recipe for another — feta for a cheaper cheese, a
+ * vegetable for whatever is on sale — from the shopping list.
+ *
+ * Two steps folded into one sheet: which meal, when the ingredient is used by
+ * more than one this week, then what to swap it for. The recipe book gains the
+ * result as a new variant; this week's plan is repointed at it. See
+ * `swapIngredientInRecipe`.
+ */
+function SwapIngredientSheet({
+  row, planId, ingredients, recipes, onClose,
+}: {
+  row: Row;
+  planId: string;
+  ingredients: ReadonlyMap<Id, Ingredient>;
+  recipes: ReadonlyMap<Id, Recipe>;
+  onClose: () => void;
+}): JSX.Element {
+  const [target, setTarget] = useState<UsedByRecipe | null>(
+    row.usedByRecipes.length === 1 ? row.usedByRecipes[0] : null,
+  );
+
+  if (!target) {
+    return (
+      <Sheet title={`Swap ${row.name} in which meal?`} onClose={onClose}>
+        {row.usedByRecipes.map((r) => (
+          <button
+            key={r.recipeId}
+            className="card tight row between"
+            style={{ width: '100%', textAlign: 'left' }}
+            onClick={() => setTarget(r)}
+          >
+            <span className="grow">{r.name}</span>
+          </button>
+        ))}
+      </Sheet>
+    );
+  }
+
+  // Tomato-free unless the recipe has already opted in by using one — see the
+  // constant's own comment.
+  const recipe = recipes.get(target.recipeId);
+  const alreadyTomato = recipe?.ingredients.some((ri) => TOMATO_INGREDIENT_IDS.has(ri.ingredientId))
+    ?? false;
+  const exclude = new Set<Id>(row.ingredientId ? [row.ingredientId] : []);
+  if (!alreadyTomato) for (const id of TOMATO_INGREDIENT_IDS) exclude.add(id);
+
+  return (
+    <IngredientPicker
+      title={`Swap ${row.name} in "${target.name}" for…`}
+      ingredients={ingredients}
+      exclude={exclude}
+      onPick={(ing) => {
+        void swapIngredientInRecipe(planId, target.recipeId, row.ingredientId!, ing);
+        onClose();
+      }}
+      onClose={onClose}
+    />
   );
 }
 

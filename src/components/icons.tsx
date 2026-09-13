@@ -96,6 +96,14 @@ export const ShuffleIcon = ({ size = 17 }: IconProps) => (
   </Svg>
 );
 
+/** Two things trading places — swapping one ingredient in a recipe for another. */
+export const SwapIcon = ({ size = 15 }: IconProps) => (
+  <Svg size={size}>
+    <path d="M6 7h14M16 3l4 4-4 4" />
+    <path d="M18 17H4M8 21l-4-4 4-4" />
+  </Svg>
+);
+
 /** The cupboard something is going into, on the button that puts it there. */
 export const HouseIcon = ({ size = 16 }: IconProps) => (
   <Svg size={size}>
