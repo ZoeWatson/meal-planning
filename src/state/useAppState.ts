@@ -17,6 +17,7 @@ import { excludedByAllergens } from '../domain/allergens';
 import { DEFAULT_WASTE_SETTINGS } from '../domain/waste';
 import { fitTreats, treatTarget } from '../domain/treats';
 import { type GrabBagId, bagOf, grabBagLanes } from '../domain/grabbag';
+import { compileRules } from '../domain/weekRules';
 import { type WildcardSizes, fitWildcards, generateWeekPlan } from '../domain/planner/generate';
 import type { PlanningContext } from '../domain/planner/scoring';
 import type { RecipeFilter } from '../domain/filters';
@@ -105,11 +106,27 @@ export function useAppState(): AppState {
     [ingredients, settings?.allergens],
   );
 
+  /**
+   * The week rules with their matching recipes worked out — once per library
+   * change rather than once per candidate plan. `weekRules.ts` says why that
+   * matters: the search scores thousands of plans and the season and protein
+   * subjects are expensive to test.
+   */
+  const rules = useMemo(() => {
+    if (!settings || !ready || settings.weekRules.length === 0) return [];
+    return compileRules(settings.weekRules, recipes.values(), {
+      ingredients,
+      region: getRegion(settings.regionId),
+      month: new Date().getMonth() + 1,
+    });
+  }, [settings, ready, recipes, ingredients]);
+
   const ctx = useMemo<PlanningContext | null>(() => {
     if (!settings || !ready) return null;
     return {
       ingredients,
       recipes,
+      rules,
       staples: staples ?? [],
       pantry: new Map((pantryRows ?? []).map((p) => [p.ingredientId, p])),
       sales: new Map((saleRows ?? []).map((s) => [s.ingredientId, s])),
@@ -126,7 +143,7 @@ export function useAppState(): AppState {
       wasteSettings: { ...DEFAULT_WASTE_SETTINGS, cycleDays: settings.cycleDays },
     };
   }, [settings, ready, ingredients, recipes, staples, pantryRows, saleRows, recentlyUsed,
-      carryOverRows, allergenExclusions]);
+      carryOverRows, allergenExclusions, rules]);
 
   const groceryList = useMemo(() => {
     if (!plan || !ctx) return null;

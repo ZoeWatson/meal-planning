@@ -38,6 +38,7 @@ const settings: PlannerSettings = {
   diets: [],
   allergens: [],
   excludedIngredients: [],
+  weekRules: [],
   weeklyTimeBudgetMinutes: 240,
   repeatWindowWeeks: 3,
   produceBagEnabled: true,

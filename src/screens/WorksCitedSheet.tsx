@@ -457,6 +457,34 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
       </Entry>
 
       <Entry
+        title="Week rules"
+        kind="design"
+        what="Why “three quick meals” is not the same as a filter."
+      >
+        <p>
+          A filter is a fact about one recipe — it is vegetarian, it takes 25
+          minutes. A rule is a fact about the week: three of them, not all of
+          them. Asking a filter for “under 30 minutes” gives you a week of
+          stir-fries; asking a rule for “three meals under 30 minutes” gives you
+          three quick nights and four you can take your time over.
+        </p>
+        <p>
+          Rules reach the planner as a cost rather than as a hard constraint.
+          Every meal a rule is still short is charged at about twenty-five times
+          what a unit of waste costs, so the search will give up almost any
+          saving to satisfy one — but the cost is finite, which is what lets an
+          impossible rule produce a week with one rule unmet instead of no week
+          at all. That unmet rule is then named on the This week screen rather
+          than swallowed.
+        </p>
+        <Caveat>
+          The weight is a judgement, not a measurement. It is high enough that
+          rules behave like requirements in every week tested, and nothing has
+          been calibrated against real households.
+        </Caveat>
+      </Entry>
+
+      <Entry
         title="How recipes are filed by type and region"
         kind="design"
         what="What makes a dish “pasta”, and what makes it “from Italy”."

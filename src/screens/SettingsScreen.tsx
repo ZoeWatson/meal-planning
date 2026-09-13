@@ -9,6 +9,7 @@ import { KitchenScreen } from './KitchenScreen';
 import { PantrySettings } from './PantrySection';
 import { GrabBagControls } from '../components/GrabBagControls';
 import { GRAB_BAGS } from '../domain/grabbag';
+import { WeekRulesSettings } from './WeekRulesSettings';
 import { TreatControls } from '../components/TreatControls';
 import { Sheet } from '../components/Sheet';
 import { ImportSheet } from './ImportSheet';
@@ -139,6 +140,21 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
       <p className="tiny faint" style={{ marginTop: 4 }}>
         Left: how many meals. Right: portions each.
       </p>
+
+      {/* --- Week rules --------------------------------------------------- */}
+      <h2 className="section-title">Week rules</h2>
+      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+        What a week has to contain, whatever else it does — three meals under 30
+        minutes, two pasta nights, something using the halloumi. Each rule is a
+        count rather than a filter, so "three quick meals" gives you three quick
+        meals and four you can take your time over, instead of a week of
+        stir-fries.
+      </p>
+      <p className="tiny faint" style={{ margin: '0 0 8px' }}>
+        Regenerate and every shuffle honour these. The This week screen says
+        whether the week you have met them.
+      </p>
+      <WeekRulesSettings state={state} />
 
       {/* --- Diets -------------------------------------------------------- */}
       <h2 className="section-title">Diet</h2>
