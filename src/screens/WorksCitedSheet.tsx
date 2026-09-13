@@ -181,6 +181,53 @@ export function WorksCitedSheet({ onClose }: { onClose: () => void }): JSX.Eleme
       </Entry>
 
       <Entry
+        title="The pantry"
+        kind="design"
+        what="Two dials — how much is left, and how much that matters."
+      >
+        <p>
+          Stock is how much is left: in, low, or out. Necessity is how much that
+          matters: must-have, nice to have, alright without. Being out of salt
+          and being out of capers are the same stock and nothing like the same
+          problem, and a pantry that only knows the first number has to either
+          nag about both or stay quiet about both.
+        </p>
+        <p>
+          So the two together decide the list. A must-have goes on it as soon as
+          it runs low, because the point of calling something a must-have is not
+          running out of it. A nice-to-have waits until it is actually gone.
+          Something you are alright without is never added on its own — it is
+          there so the planner knows you have it, not so it can be bought.
+        </p>
+        <p>
+          New items start at <em>alright without</em>. A pantry fills up with
+          things you added once and forgot, and a default that puts every one of
+          them on a shopping list teaches you to stop reading the list.
+        </p>
+        <p>
+          Anything can be put on the list by hand whatever the rule says, and
+          taken off again. That choice lasts until the thing is back in stock,
+          which is the shop it was about. The obvious alternative — forget the
+          override whenever anything changes — is wrong in the common case: you
+          add soy sauce, then look properly and find the bottle emptier than you
+          thought, and marking it out would cancel the request exactly when it
+          became more urgent.
+        </p>
+        <p>
+          Stock is set by hand and never inferred from cooking. Depleting it
+          automatically was considered and rejected: nobody measures their olive
+          oil, so the model drifts from the cupboard within weeks and then lies
+          quietly on every grocery list afterwards. A wrong pantry is worse than
+          no pantry, because you stop checking it.
+        </p>
+        <Caveat>
+          Restocking buys one pack, at the pack size the library has for that
+          ingredient. It has no idea how much of the thing you actually go
+          through, and does not try to guess.
+        </Caveat>
+      </Entry>
+
+      <Entry
         title="Nutrition"
         kind="estimate"
         what="Per-serving calories and macros, and the “high protein” filter."

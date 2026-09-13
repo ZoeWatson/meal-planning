@@ -6,6 +6,7 @@ import { REGIONS } from '../domain/seasonality';
 import { DERIVABLE_DIETS } from '../domain/nutrition';
 import { AllergySection } from './AllergySection';
 import { KitchenScreen } from './KitchenScreen';
+import { PantrySettings } from './PantrySection';
 import { GrabBagControls } from '../components/GrabBagControls';
 import { GRAB_BAGS } from '../domain/grabbag';
 import { TreatControls } from '../components/TreatControls';
@@ -236,14 +237,26 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
       </p>
       <TreatControls state={state} />
 
+      {/* --- Pantry ------------------------------------------------------- */}
+      <h2 className="section-title">Pantry</h2>
+      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
+        Things kept in stock rather than bought weekly. Anything you have in is
+        treated as free, which quietly steers plans toward what you can already
+        mostly cook.
+      </p>
+      <p className="tiny faint" style={{ margin: '0 0 8px' }}>
+        Set how much each one matters here; say what is left of it on the This week
+        screen, where it can go on the shopping list.
+      </p>
+      <PantrySettings state={state} />
+
       {/* --- Kitchen ------------------------------------------------------ */}
       <h2 className="section-title">Kitchen</h2>
       <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
-        Weekly staples, what is in the pantry, and shelf-stable leftovers banked
-        from previous shops.
+        Weekly staples, and shelf-stable leftovers banked from previous shops.
       </p>
       <button className="btn block" style={{ marginBottom: 10 }} onClick={() => setKitchen(true)}>
-        Staples &amp; pantry
+        Staples &amp; leftovers
       </button>
 
       {/* --- Sync --------------------------------------------------------- */}

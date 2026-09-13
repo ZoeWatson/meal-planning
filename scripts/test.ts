@@ -782,6 +782,174 @@ test('an ingredient that has left the library is dropped rather than kept', () =
 
 // ---------------------------------------------------------------------------
 
+group('The pantry');
+
+function pantryItem(
+  ingredientId: Id,
+  status: PantryStock,
+  necessity?: PantryNecessity,
+): PantryItem {
+  return { ingredientId, status, necessity, usesSincePurchase: 0 };
+}
+
+test('necessity decides how empty a thing has to get before it is bought', () => {
+  // The whole reason for the second dial: same stock, three different answers.
+  assert.equal(autoRestock(pantryItem('x', 'low', 'must-have')), true);
+  assert.equal(autoRestock(pantryItem('x', 'low', 'nice-to-have')), false);
+  assert.equal(autoRestock(pantryItem('x', 'out', 'nice-to-have')), true);
+  assert.equal(autoRestock(pantryItem('x', 'out', 'alright-without')), false);
+  assert.equal(autoRestock(pantryItem('x', 'stocked', 'must-have')), false);
+});
+
+test('a new pantry item is quiet, an old one keeps the behaviour it had', () => {
+  // Two different questions that look like one. A new item defaults to the quiet
+  // end; a row written before the field existed was restocked whenever it ran
+  // low, and reading it as anything else drops things off people's lists.
+  assert.equal(DEFAULT_NECESSITY, 'alright-without');
+  assert.equal(necessityOf({ ingredientId: 'x', status: 'low', usesSincePurchase: 0 }), 'must-have');
+  assert.equal(autoRestock({ ingredientId: 'x', status: 'low', usesSincePurchase: 0 }), true);
+});
+
+test('adding something by hand beats the rule, in both directions', () => {
+  const quiet = { ...pantryItem('x', 'out', 'alright-without'), restock: true };
+  const loud = { ...pantryItem('x', 'out', 'must-have'), restock: false };
+
+  assert.equal(isOnList(quiet), true, 'asked for it and did not get it');
+  assert.equal(isOnList(loud), false, 'said not this week and got it anyway');
+  assert.ok(isOverridden(quiet) && isOverridden(loud));
+});
+
+test('an override that agrees with the rule is not called an override', () => {
+  // It is stored either way, because a button that writes nothing looks broken.
+  // But it has not overridden anything, and the row should not claim it has.
+  const agreeing = { ...pantryItem('x', 'out', 'must-have'), restock: true };
+  assert.equal(isOnList(agreeing), true);
+  assert.equal(isOverridden(agreeing), false);
+});
+
+test('a one-line row can still say why it is on the list', () => {
+  // Everything a three-line card showed, for the row that has one line: the tick
+  // and the stock buttons are the whole row, so this phrase is the only place
+  // left to answer "why is that on here".
+  assert.equal(
+    describeItem(pantryItem('x', 'low', 'must-have')),
+    'Must-have, low — on the list',
+  );
+  assert.equal(
+    describeItem(pantryItem('x', 'out', 'alright-without')),
+    'Alright without, out — not on the list',
+  );
+  assert.equal(
+    describeItem({ ...pantryItem('x', 'stocked', 'alright-without'), restock: true }),
+    'Alright without, in stock — on the list because you added it',
+  );
+  assert.equal(
+    describeItem({ ...pantryItem('x', 'out', 'must-have'), restock: false }),
+    'Must-have, out — off the list because you took it off',
+  );
+});
+
+test('finding the jar emptier than you thought does not cancel your order', () => {
+  // The bug the obvious rule has: clearing the override on any change cancels
+  // "buy this" at the exact moment it became more urgent.
+  const asked = { ...pantryItem('x', 'low', 'alright-without'), restock: true };
+  assert.equal(isOnList(afterStockChange(asked, 'out')), true);
+});
+
+test('getting it back in stock ends the override, whichever way it pointed', () => {
+  const asked = { ...pantryItem('x', 'out', 'alright-without'), restock: true };
+  const declined = { ...pantryItem('x', 'out', 'must-have'), restock: false };
+
+  assert.equal(afterStockChange(asked, 'stocked').restock, undefined);
+  assert.equal(afterStockChange(declined, 'stocked').restock, undefined);
+  // And the rule is back in charge the next time it runs low.
+  assert.equal(isOnList(afterStockChange(afterStockChange(declined, 'stocked'), 'low')), true);
+});
+
+test('the review puts what needs deciding at the top', () => {
+  const ingredients = new Map<Id, Ingredient>(
+    loadSeedData().ingredients.map((i) => [i.id, i]),
+  );
+  const [a, b, c] = [...ingredients.keys()];
+
+  const order = reviewOrder([
+    pantryItem(a, 'stocked', 'must-have'),
+    pantryItem(b, 'out', 'alright-without'),
+    pantryItem(c, 'out', 'must-have'),
+  ], ingredients);
+
+  assert.deepEqual(
+    order.map((r) => r.item.ingredientId),
+    [c, b, a],
+    'on the list first, then empty, then what is fine',
+  );
+});
+
+test('a pantry item nobody has in the library is skipped, not rendered blank', () => {
+  const ingredients = new Map<Id, Ingredient>(
+    loadSeedData().ingredients.map((i) => [i.id, i]),
+  );
+  const order = reviewOrder([pantryItem('ingredient-that-left', 'out', 'must-have')], ingredients);
+  assert.equal(order.length, 0);
+});
+
+test('the grocery list buys a pack of what the pantry says to buy', () => {
+  const base = planningContext();
+  const id = [...base.ingredients.keys()][0];
+  const ing = base.ingredients.get(id)!;
+
+  const ctx: PlanningContext = {
+    ...base,
+    pantry: new Map([[id, pantryItem(id, 'out', 'must-have')]]),
+  };
+  const needs = aggregateNeeds([], [], ctx);
+
+  assert.equal(needs.get(id)?.grams, ing.purchase.gramsPerPack);
+  assert.deepEqual(needs.get(id)?.origins, [{ kind: 'pantry' }]);
+});
+
+test('what the pantry is alright without stays off the list even when empty', () => {
+  const base = planningContext();
+  const id = [...base.ingredients.keys()][0];
+
+  const ctx: PlanningContext = {
+    ...base,
+    pantry: new Map([[id, pantryItem(id, 'out', 'alright-without')]]),
+  };
+
+  assert.equal(aggregateNeeds([], [], ctx).has(id), false);
+});
+
+test('a restock you asked for is bought even though the cupboard is not empty', () => {
+  // The two halves of "stocked" pulling in opposite directions, and both right:
+  // recipes using it are still free, and the top-up you asked for is still a pack
+  // you are paying for.
+  const base = planningContext();
+  const id = [...base.ingredients.keys()][0];
+
+  const ctx: PlanningContext = {
+    ...base,
+    pantry: new Map([[id, { ...pantryItem(id, 'stocked', 'must-have'), restock: true }]]),
+  };
+
+  assert.equal(aggregateNeeds([], [], ctx).get(id)?.grams, base.ingredients.get(id)!.purchase.gramsPerPack);
+});
+
+test('an excluded ingredient is not bought just because the pantry wants it', () => {
+  const base = planningContext();
+  const id = [...base.ingredients.keys()][0];
+
+  const ctx: PlanningContext = {
+    ...base,
+    pantry: new Map([[id, pantryItem(id, 'out', 'must-have')]]),
+    settings: { ...base.settings, excludedIngredients: [id] },
+  };
+
+  assert.equal(aggregateNeeds([], [], ctx).has(id), false);
+});
+
+// ---------------------------------------------------------------------------
+
 group('The treat bag');
 
 /** Nobody is allergic to anything and no diet is on. The common case. */

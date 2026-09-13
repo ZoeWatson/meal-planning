@@ -17,10 +17,12 @@ import {
   addDays, estimateKeeping, localDate,
   type CookedMeal, type Leftover, type MealLogEntry, type MealSource, type StorageKind,
 } from '../domain/cooking';
+import { afterStockChange } from '../domain/pantry';
 import type { TreatItem } from '../domain/treats';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
-  Id, PantryItem, SalePrice, StapleItem, WeekPlan, WildcardItem,
+  Id, PantryItem, PantryNecessity, PantryStock, SalePrice, StapleItem, WeekPlan,
+  WildcardItem,
 } from '../domain/types';
 
 /**
@@ -212,20 +214,42 @@ export async function removePantryItem(ingredientId: Id): Promise<void> {
   await syncedDelete('pantry', ingredientId);
 }
 
-export async function cyclePantryStatus(ingredientId: Id): Promise<void> {
+export async function setPantryStock(ingredientId: Id, status: PantryStock): Promise<void> {
   const item = await db.pantry.get(ingredientId);
-  if (!item) return;
-  const next: PantryItem['status'] =
-    item.status === 'stocked' ? 'low' : item.status === 'low' ? 'out' : 'stocked';
+  if (!item || item.status === status) return;
 
   await syncedPut('pantry', {
-    ...item,
-    status: next,
-    // Returning to stocked means it was just bought — reset the "probably low?" counter.
-    ...(next === 'stocked'
+    ...afterStockChange(item, status),
+    // Back in stock means it was just bought — reset the "probably low?" counter.
+    ...(status === 'stocked'
       ? { lastPurchasedISO: new Date().toISOString(), usesSincePurchase: 0 }
       : {}),
   });
+}
+
+export async function setPantryNecessity(
+  ingredientId: Id,
+  necessity: PantryNecessity,
+): Promise<void> {
+  const item = await db.pantry.get(ingredientId);
+  if (!item) return;
+  // Any override is left standing: changing how much something matters is not a
+  // retraction of "buy this", and silently dropping it off the list would be.
+  await syncedPut('pantry', { ...item, necessity });
+}
+
+/**
+ * Puts an item on this week's list, or takes it off, whatever the rule says.
+ *
+ * Always written as an explicit override rather than as "agrees with the rule
+ * anyway, so store nothing": pressing the button and having the row not change
+ * is indistinguishable from a bug, and the override clears itself the moment
+ * stock or necessity moves.
+ */
+export async function setPantryRestock(ingredientId: Id, onList: boolean): Promise<void> {
+  const item = await db.pantry.get(ingredientId);
+  if (!item) return;
+  await syncedPut('pantry', { ...item, restock: onList });
 }
 
 export async function upsertSale(sale: SalePrice): Promise<void> {

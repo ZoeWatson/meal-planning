@@ -507,14 +507,17 @@ select, input[type='number'], input[type='text'], input[type='url'] {
 
 .budget-caption { font-size: 11px; fill: var(--text-faint); }
 
-.month-nav {
+/* The same prev / label / next control the month picker uses, under a name that
+   does not claim to be about months. Both selectors, so neither screen has to
+   know about the other. */
+.month-nav, .pager {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.month-nav button {
+.month-nav button, .pager button {
   width: 40px;
   height: 40px;
   border: 1px solid var(--border);
@@ -524,7 +527,7 @@ select, input[type='number'], input[type='text'], input[type='url'] {
   line-height: 1;
 }
 
-.month-nav button:disabled { opacity: 0.35; }
+.month-nav button:disabled, .pager button:disabled { opacity: 0.35; }
 
 .bars {
   display: flex;
@@ -657,3 +660,67 @@ select, input[type='number'], input[type='text'], input[type='url'] {
 }
 
 .cite-refs li { margin-bottom: 4px; }
+
+/* -------------------------------------------------------------- pantry */
+
+/*
+ * One pantry item on one line: its name, how much is left, and whether it is on
+ * the list.
+ *
+ * A stocked pantry runs to thirty-odd things. At three lines each that is a
+ * screen and a half of scrolling before you have read any of it, which is how a
+ * review list stops being reviewed — so everything that does not fit on the line
+ * moves to the row's tooltip and its labels rather than onto a second line.
+ */
+.prow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 6px 5px 10px;
+  margin-bottom: 6px;
+}
+
+.prow .pname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* The stock control, shrunk to sit beside a name rather than under it. */
+.segmented.mini {
+  flex: 0 0 auto;
+  border-radius: 6px;
+}
+
+.segmented.mini button {
+  min-height: 30px;
+  min-width: 40px;
+  padding: 0 7px;
+  font-size: 12px;
+}
+
+/* On the list, or not. A tick carries that at a width no word fits into. */
+.ptick {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 30px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.ptick[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
