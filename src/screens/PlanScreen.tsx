@@ -19,7 +19,7 @@ import { checkRecipe, describeMatches } from '../domain/allergens';
 import { isOnList } from '../domain/pantry';
 import {
   type RuleStatus, type WeekRule, availableCounts, describeRule, evaluateRules,
-  impossibleReason, ruleTagVocabulary,
+  impossibleReason, newRule, ruleTagVocabulary,
 } from '../domain/weekRules';
 import type { Id, MealType, PlanSlot, Recipe, WeekPlan } from '../domain/types';
 import { PinIcon, ShuffleIcon } from '../components/icons';
@@ -307,9 +307,7 @@ export function PlanScreen({
         <button className="btn" onClick={onShop}>Shop</button>
       </div>
 
-      {ruleStatuses.length > 0 && (
-        <WeekRulesReport statuses={ruleStatuses} state={state} />
-      )}
+      <WeekRulesReport statuses={ruleStatuses} state={state} />
 
       {emptyCount > 0 && (
         <div className="card" style={{ borderColor: 'var(--warn)', marginTop: 10 }}>
@@ -555,7 +553,9 @@ export function PlanScreen({
  * this report still just says whether the week in front of you honoured it. But
  * the sentence you'd otherwise have to go find in Settings is sitting right
  * here, so a line opens the same editor Settings uses, in a sheet, rather than
- * sending you off to a different tab to change the one thing you just read.
+ * sending you off to a different tab to change the one thing you just read —
+ * and the same door works for a rule that does not exist yet, so a week you are
+ * looking at is where you can decide it needs one.
  */
 function WeekRulesReport({
   statuses,
@@ -581,6 +581,12 @@ function WeekRulesReport({
     await updateSettings({ weekRules: rules.filter((r) => r.id !== id) });
   }
 
+  async function add(): Promise<void> {
+    const rule = newRule('quick', tags);
+    await updateSettings({ weekRules: [...rules, rule] });
+    setEditingId(rule.id);
+  }
+
   return (
     <div
       className="card"
@@ -588,10 +594,19 @@ function WeekRulesReport({
     >
       <div className="row between">
         <span className="strong">Week rules</span>
-        <span className="tiny faint">
-          {unmet === 0 ? 'all met' : `${unmet} not met`}
-        </span>
+        {rules.length > 0 && (
+          <span className="tiny faint">
+            {unmet === 0 ? 'all met' : `${unmet} not met`}
+          </span>
+        )}
       </div>
+
+      {rules.length === 0 && (
+        <p className="tiny faint" style={{ margin: '6px 0 0' }}>
+          No rules yet, so a week is whatever wastes least. Add one and every
+          regenerate and shuffle has to honour it.
+        </p>
+      )}
 
       {statuses.map((status) => {
         const name = status.rule.ingredientId
@@ -631,6 +646,14 @@ function WeekRulesReport({
           for. Pinned meals are kept, so a pin can be what is in the way.
         </div>
       )}
+
+      <button
+        className="btn small"
+        style={{ marginTop: rules.length === 0 ? 10 : 8 }}
+        onClick={() => void add()}
+      >
+        Add a rule
+      </button>
 
       {editing && (
         <Sheet title="Edit week rule" onClose={() => setEditingId(null)}>
