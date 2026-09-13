@@ -20,6 +20,7 @@
  */
 
 import type { Ingredient } from './types';
+import { nameTexts, vocabulary, words } from './nameWords';
 
 export type ProduceKind = 'fruit' | 'vegetable';
 
@@ -34,7 +35,7 @@ export const PRODUCE_KIND_LABELS: Readonly<Record<ProduceKind, string>> = {
  * Things eaten as fruit. Matched as whole words against the name and aliases, so
  * "green apple" and "apples" both land, and "pineapple" is not caught by "apple".
  */
-const FRUIT_WORDS: ReadonlySet<string> = new Set([
+const FRUIT_WORDS: ReadonlySet<string> = vocabulary([
   'apple', 'apricot', 'banana', 'cantaloupe', 'cherry', 'clementine', 'coconut',
   'currant', 'date', 'fig', 'grape', 'grapefruit', 'guava', 'honeydew', 'kiwi',
   'lemon', 'lime', 'lychee', 'mandarin', 'mango', 'melon', 'nectarine', 'orange',
@@ -59,24 +60,7 @@ const FRUIT_SUFFIXES: readonly string[] = ['berry', 'fruit', 'melon'];
  * tomatoes is the same bug report as one containing zucchini. Kept deliberately
  * short — it only needs the vegetables whose names borrow a fruit's.
  */
-const VEGETABLE_WORDS: ReadonlySet<string> = new Set(['tomato', 'pepper', 'squash']);
-
-/** Crude singulariser. Only has to handle ingredient names, not English. */
-function singular(word: string): string {
-  if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`;
-  if (word.endsWith('oes')) return word.slice(0, -2);
-  if (/(ch|sh|ss|x|z)es$/.test(word)) return word.slice(0, -2);
-  if (word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
-  return word;
-}
-
-function words(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z]+/)
-    .filter(Boolean)
-    .map(singular);
-}
+const VEGETABLE_WORDS: ReadonlySet<string> = vocabulary(['tomato', 'pepper', 'squash']);
 
 function isFruitWord(word: string): boolean {
   return FRUIT_WORDS.has(word) || FRUIT_SUFFIXES.some((s) => word.length > s.length && word.endsWith(s));
@@ -90,8 +74,7 @@ function isFruitWord(word: string): boolean {
  * total and therefore testable.
  */
 export function produceKind(ingredient: Ingredient): ProduceKind {
-  const haystack = [ingredient.id, ingredient.name, ...ingredient.aliases];
-  for (const text of haystack) {
+  for (const text of nameTexts(ingredient)) {
     const parts = words(text);
     if (parts.some((w) => VEGETABLE_WORDS.has(w))) return 'vegetable';
     if (parts.some(isFruitWord)) return 'fruit';
