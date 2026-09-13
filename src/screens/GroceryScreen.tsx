@@ -4,18 +4,35 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import type { AppState } from '../state/useAppState';
 import { db } from '../db/database';
 import {
-  addCustomItem, clearChecks, lookupBarcode, recordCarryOverFromPlan, recordShopTotal,
-  rememberBarcode, removeCustomItem, setChecked, setLinePrice, updateCustomItem,
+  addCustomItem, clearChecks, keepInPantry, lookupBarcode, recordCarryOverFromPlan,
+  recordShopTotal, rememberBarcode, removeCustomItem, setChecked, setInStock, setLinePrice,
+  setRemoved, swapIngredientInRecipe, updateCustomItem,
 } from '../db/repository';
+import type { DisplayLine, UsedByRecipe } from '../domain/grocery';
+import { worthKeeping } from '../domain/pantry';
 import { carryOverOf } from '../domain/waste';
 import { scorePlan } from '../domain/planner/scoring';
 import {
   centsToInput, formatMoney, parseMoney, todayISO, type CustomItem,
 } from '../domain/budget';
 import { TREAT_KIND_LABELS, getTreat } from '../domain/treats';
-import { CheckIcon } from '../components/icons';
+import type { Id, Ingredient, Recipe } from '../domain/types';
+import { CheckIcon, HouseIcon, SwapIcon } from '../components/icons';
 import { BarcodeScanner, isScanningSupported } from '../components/BarcodeScanner';
+import { CollapsibleSection } from '../components/CollapsibleSection';
+import { IngredientPicker } from '../components/IngredientPicker';
 import { Sheet } from '../components/Sheet';
+
+/**
+ * Kept out of the swap picker's suggestions unless the recipe already contains
+ * one — a household preference, not a data-integrity rule. See
+ * `no-tomatoes-in-recipes`: the library stays tomato-free except for dishes that
+ * are definitionally a tomato dish, and a recipe that already uses one of these
+ * plainly is.
+ */
+const TOMATO_INGREDIENT_IDS: ReadonlySet<Id> = new Set([
+  'tomato', 'cherry-tomato', 'canned-tomatoes', 'tomato-paste', 'passata', 'sun-dried-tomatoes',
+]);
 
 const AISLE_LABELS: Record<string, string> = {
   produce: 'Produce', bakery: 'Bakery', meat: 'Meat', seafood: 'Seafood',
@@ -36,10 +53,18 @@ interface Row {
   readonly meta: string;
   readonly badges: readonly { text: string; tone?: 'warn' | 'accent' }[];
   readonly checked: boolean;
+  /** Taken off this week's list. Off the shop and out of the counts, not deleted. */
+  readonly removed: boolean;
+  /** Off the list because the cupboard already has it. Always implies `removed`. */
+  readonly inStock: boolean;
   readonly amountCents?: number;
+  /** What this line is expected to cost, until a real price is entered at the shelf. */
+  readonly estimatedCents: number;
   readonly custom?: CustomItem;
   readonly ingredientId?: string;
   readonly usedBy: readonly string[];
+  /** As `usedBy`, but with what a swap needs: which recipe, which slots. */
+  readonly usedByRecipes: readonly UsedByRecipe[];
 }
 
 export function GroceryScreen({
@@ -48,12 +73,15 @@ export function GroceryScreen({
   state: AppState;
   onPlan: () => void;
 }): JSX.Element {
-  const { plan, groceryLines, groceryList, ingredients, ctx, settings } = state;
+  const {
+    plan, groceryLines, removedLines, groceryList, ingredients, recipes, pantry, ctx, settings,
+  } = state;
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hideDone, setHideDone] = useState(false);
   const [pricing, setPricing] = useState<Row | null>(null);
   const [adding, setAdding] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [swapping, setSwapping] = useState<Row | null>(null);
 
   // No default argument: `useLiveQuery`'s third parameter infers `never[]` from an
   // empty literal and poisons the element type. `?? []` after the fact keeps the
@@ -66,6 +94,24 @@ export function GroceryScreen({
   ) ?? [];
 
   const checks = useLiveQuery(() => db.checks.toArray(), []) ?? [];
+
+  /**
+   * Lines said to be in the cupboard already, for this plan.
+   *
+   * Scoped to the plan for the same reason the ticks are: a check row outlives
+   * the week it was written for, and "we have rice" was said about one shop.
+   */
+  const inStockIds = useMemo(
+    () => new Set(checks.filter((c) => c.inStock === true && c.planId === plan?.id)
+      .map((c) => c.ingredientId)),
+    [checks, plan?.id],
+  );
+
+  /** What is already on the pantry roster, so the offer is not made twice. */
+  const inPantry = useMemo(
+    () => new Set(pantry.map((p) => p.ingredientId)),
+    [pantry],
+  );
   const priceByIngredient = useMemo(
     () => new Map(checks.filter((c) => c.amountCents !== undefined)
       .map((c) => [c.ingredientId, c.amountCents!])),
@@ -85,7 +131,7 @@ export function GroceryScreen({
   );
 
   const rows = useMemo<Row[]>(() => {
-    const planned: Row[] = groceryLines.map((line) => ({
+    const plannedRow = (line: DisplayLine, removed: boolean): Row => ({
       key: `p:${line.ingredientId}`,
       name: line.name,
       category: line.category,
@@ -103,10 +149,21 @@ export function GroceryScreen({
         ...(line.wasteCost > 0.35 ? [{ text: 'may spoil', tone: 'warn' as const }] : []),
       ],
       checked: line.checked,
+      removed,
+      inStock: inStockIds.has(line.ingredientId),
       amountCents: priceByIngredient.get(line.ingredientId),
+      estimatedCents: line.estimatedCents,
       ingredientId: line.ingredientId,
       usedBy: line.usedBy,
-    }));
+      usedByRecipes: line.usedByRecipes,
+    });
+
+    // Both halves of the same list, built the same way, because what was taken
+    // off has to be nameable to be offered back.
+    const planned: Row[] = [
+      ...groceryLines.map((line) => plannedRow(line, false)),
+      ...removedLines.map((line) => plannedRow(line, true)),
+    ];
 
     // The week's treat bag. Not grocery lines — they have no grams, no packs and
     // no waste — but they are things to pick up on the same trip, so they belong
@@ -123,11 +180,17 @@ export function GroceryScreen({
         meta: treat.note,
         badges: [{ text: TREAT_KIND_LABELS[treat.kind], tone: 'accent' as const }],
         checked: check?.checked ?? false,
+        // Off this list, not out of the week: the treat bag is the week screen's,
+        // and the ✕ down there is the one that means "not this week at all".
+        removed: check?.removed === true,
+        inStock: check?.inStock === true,
         // The catalogue price is an estimate and stays out of the running total
         // until a real one is entered at the shelf, like every other line.
         amountCents: check?.amountCents,
+        estimatedCents: treat.priceCents,
         ingredientId: treat.id,
         usedBy: [],
+        usedByRecipes: [],
       }];
     });
 
@@ -139,18 +202,43 @@ export function GroceryScreen({
       meta: 'added by you',
       badges: [{ text: 'added', tone: 'accent' as const }],
       checked: item.checked,
+      removed: item.removed === true,
+      inStock: item.inStock === true,
       amountCents: item.amountCents,
+      // Nothing prices an item added by hand, so it adds nothing to the projected
+      // total until it is entered at the shelf like everything else.
+      estimatedCents: 0,
       custom: item,
       usedBy: [],
+      usedByRecipes: [],
     }));
 
     return [...planned, ...treats, ...extra];
-  }, [groceryLines, customItems, priceByIngredient, plan?.treats, treatChecks]);
+  }, [groceryLines, removedLines, customItems, priceByIngredient, plan?.treats, treatChecks,
+      inStockIds]);
 
-  const done = rows.filter((r) => r.checked).length;
-  const total = rows.length;
-  const enteredCents = rows.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
-  const pricedCount = rows.filter((r) => r.amountCents !== undefined).length;
+  /**
+   * The shop, and what has been taken out of it.
+   *
+   * Every count is over the first list. A line you are not buying is not one of
+   * the things left to find, and a price entered against it before it came off is
+   * not money this trip is going to cost.
+   */
+  const shopping = rows.filter((r) => !r.removed);
+  const takenOff = rows.filter((r) => r.removed);
+
+  const done = shopping.filter((r) => r.checked).length;
+  const total = shopping.length;
+  const enteredCents = shopping.reduce((sum, r) => sum + (r.amountCents ?? 0), 0);
+  const pricedCount = shopping.filter((r) => r.amountCents !== undefined).length;
+
+  // What is left to find its way into `enteredCents`: the model's guess for every
+  // line not yet priced at the shelf. Added to what has actually been recorded,
+  // rather than replacing it, so a real price always displaces its own estimate.
+  const remainingEstimateCents = shopping
+    .filter((r) => r.amountCents === undefined)
+    .reduce((sum, r) => sum + r.estimatedCents, 0);
+  const projectedCents = enteredCents + remainingEstimateCents;
 
   const estimatedCents = useMemo(() => {
     if (!plan || !ctx) return 0;
@@ -165,7 +253,9 @@ export function GroceryScreen({
     return meals + treats;
   }, [plan, ctx]);
 
-  if (!plan || total === 0) {
+  // `rows` rather than `total`: a list every line of which has been taken off is
+  // not an empty list, and "nothing to buy yet" would hide the way back to it.
+  if (!plan || rows.length === 0) {
     return (
       <main className="screen">
         <div className="header"><h1>Shopping list</h1></div>
@@ -179,12 +269,59 @@ export function GroceryScreen({
   }
 
   const planId = plan.id;
-  const visible = hideDone ? rows.filter((r) => !r.checked) : rows;
+  const visible = hideDone ? shopping.filter((r) => !r.checked) : shopping;
   const groups = groupByAisle(visible);
 
   async function toggle(row: Row): Promise<void> {
     if (row.custom) await updateCustomItem(row.custom.id, { checked: !row.checked });
     else if (row.ingredientId) await setChecked(planId, row.ingredientId, !row.checked);
+  }
+
+  /**
+   * Takes a line off this week's list, or puts it back.
+   *
+   * Three kinds of line and two mechanisms, because an item added by hand is a
+   * record of its own while a planned line is derived and has nowhere to keep
+   * anything. Both are hidden rather than deleted, so the way back off the bottom
+   * of the screen is the same for all three.
+   */
+  async function setRowRemoved(row: Row, removed: boolean): Promise<void> {
+    if (row.custom) await updateCustomItem(row.custom.id, { removed, inStock: undefined });
+    else if (row.ingredientId) await setRemoved(planId, row.ingredientId, removed);
+  }
+
+  /**
+   * Takes a line off because the cupboard has it — the same removal, with the
+   * reason kept.
+   *
+   * Worth keeping because the two are not the same afterwards. "Not this week"
+   * is a decision that expires on its own; "we have this" is a fact about a
+   * cupboard, and a fact about a cupboard is the one kind that might be worth
+   * writing down.
+   */
+  async function setRowInStock(row: Row, inStock: boolean): Promise<void> {
+    if (row.custom) {
+      await updateCustomItem(row.custom.id, {
+        removed: inStock, inStock: inStock ? true : undefined,
+      });
+    } else if (row.ingredientId) {
+      await setInStock(planId, row.ingredientId, inStock);
+    }
+  }
+
+  /**
+   * Whether to offer this a permanent home in the pantry.
+   *
+   * Only for things that keep, and only for what is not on the roster already.
+   * `worthKeeping` says why offering it for parsley would be a bug rather than a
+   * convenience: a stocked pantry item is free to the planner, so a herb in there
+   * silently discounts every week after this one.
+   */
+  function canKeep(row: Row): boolean {
+    if (!row.inStock || row.custom || !row.ingredientId) return false;
+    if (inPantry.has(row.ingredientId)) return false;
+    const ing = ingredients.get(row.ingredientId);
+    return ing !== undefined && worthKeeping(ing);
   }
 
   return (
@@ -197,12 +334,21 @@ export function GroceryScreen({
           </span>
         </div>
         <div className="progress">
-          <div style={{ width: `${(done / total) * 100}%` }} />
+          <div style={{ width: total === 0 ? '0%' : `${(done / total) * 100}%` }} />
+        </div>
+        {/* Projected is what this trip is expected to come to: prices already
+            entered, plus the model's estimate for whatever is not priced yet. It
+            moves as you shop, converging on the current total by the till. */}
+        <div className="row between" style={{ marginTop: 6 }}>
+          <span className="tiny faint">Projected</span>
+          <span className="small strong" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {formatMoney(projectedCents, settings.currency)}
+          </span>
         </div>
         {/* The running total is the point of entering prices at the shelf: you
             find out you are over before the till, not after. */}
         {pricedCount > 0 && (
-          <div className="row between" style={{ marginTop: 6 }}>
+          <div className="row between" style={{ marginTop: 2 }}>
             <span className="tiny faint">{pricedCount} of {total} priced</span>
             <span className="small strong" style={{ fontVariantNumeric: 'tabular-nums' }}>
               {formatMoney(enteredCents, settings.currency)}
@@ -220,8 +366,12 @@ export function GroceryScreen({
       </div>
 
       {groups.map(([category, items]) => (
-        <section key={category}>
-          <h2 className="aisle">{AISLE_LABELS[category] ?? category}</h2>
+        <CollapsibleSection
+          key={category}
+          id={`grocery:${category}`}
+          title={AISLE_LABELS[category] ?? category}
+          closedNote={`${items.filter((r) => r.checked).length}/${items.length}`}
+        >
           {items.map((row) => (
             <div className={`gline${row.checked ? ' done' : ''}`} key={row.key}>
               <button
@@ -258,10 +408,122 @@ export function GroceryScreen({
                   ? formatMoney(row.amountCents, settings.currency)
                   : '＋$'}
               </button>
+
+              {/* Only for a planned line — a swap edits the recipe behind it,
+                  which a custom item or a treat does not have. */}
+              {row.usedByRecipes.length > 0 && (
+                <button
+                  className="btn small ghost"
+                  aria-label={`Swap ${row.name} for something else`}
+                  onClick={() => setSwapping(row)}
+                >
+                  <SwapIcon size={15} />
+                </button>
+              )}
+
+              {/* On the line itself rather than behind opening it: this is
+                  pressed while standing at the shelf looking at the thing, not
+                  after reading about it, so making it wait for a second tap
+                  would cost more than it saves. */}
+              <button
+                className="btn small ghost"
+                aria-label={`Already have ${row.name} — take it off the list`}
+                onClick={() => void setRowInStock(row, true)}
+              >
+                <HouseIcon size={15} />
+              </button>
+
+              {/* The same ✕ the week screen puts on a meal, meaning the same
+                  thing one step further along: not this week. Here it is the
+                  trolley it comes out of rather than the week — the meal that
+                  wanted it is untouched, which is why it can say "already have
+                  this" without lying to the planner about next week. */}
+              <button
+                className="btn small ghost"
+                // Not "Remove", which beside an ingredient could mean out of the
+                // meal, or out of the library. It means neither.
+                aria-label={`Take ${row.name} off the list`}
+                onClick={() => void setRowRemoved(row, true)}
+              >
+                ✕
+              </button>
             </div>
           ))}
-        </section>
+        </CollapsibleSection>
       ))}
+
+      {/* The way back, and the only one. Kept on the same screen rather than
+          offered for ten seconds after the press, because the mistake this
+          insures against is not always noticed in the ten seconds after it: a ✕
+          on a phone in a shop is a thumb's width from the price beside it, and
+          the line simply leaves the aisle it was in. A list is also a thing
+          people put down and pick up again. */}
+      {takenOff.length > 0 && (
+        <CollapsibleSection
+          id="grocery:taken-off"
+          title="Taken off the list"
+          closedNote={`${takenOff.length}`}
+        >
+          <p className="tiny faint" style={{ margin: '0 0 8px' }}>
+            Not being bought, and not in the total. The meals that wanted them are
+            unchanged, so next week's list starts with them back on it — including
+            the ones you already have, unless you keep them in the pantry.
+          </p>
+          {takenOff.map((row) => (
+            <div className="gline off" key={row.key}>
+              <span className="grow">
+                <span className="gname">{row.name}</span>
+                <span className="gmeta">
+                  {/* Which of the two things this line is doing down here. Both
+                      are "not being bought"; only one of them is a fact that
+                      could still be true next week. */}
+                  {row.inStock && <span className="badge">already have</span>}
+                  {[row.qtyText, AISLE_LABELS[row.category] ?? row.category]
+                    .filter(Boolean).join(' · ')}
+                </span>
+              </span>
+
+              <button
+                className="btn small"
+                aria-label={row.inStock
+                  ? `Put ${row.name} back on the list — you need it after all`
+                  : `Put ${row.name} back on the list`}
+                onClick={() => void setRowRemoved(row, false)}
+              >
+                Put back
+              </button>
+
+              {/*
+                The offer, and only an offer. Marking a line in stock is about
+                this shop; a pantry row is a standing claim about a cupboard, and
+                promoting one silently would be the app deciding that half a bag
+                of rice is a policy. It shows up only for things that keep, so it
+                never suggests filing a bunch of parsley.
+
+                On its own row under the name rather than beside Put back. Two
+                buttons and a struck-through name do not fit across a phone, and
+                the one that needs the room is this one: "Put back" is obvious and
+                this is not, so it is the one that gets to say what it does.
+              */}
+              {canKeep(row) && (
+                <div className="gline-more">
+                  <button
+                    className="btn small ghost icon-btn"
+                    aria-label={`Add ${row.name} to the pantry, so it stops being added here`}
+                    onClick={() => void keepInPantry(planId, row.ingredientId!)}
+                  >
+                    <HouseIcon size={15} />
+                    Add to pantry
+                  </button>
+                  <span className="tiny faint">
+                    Stops it being added at all, until you say it has run out.
+                  </span>
+                </div>
+              )}
+            </div>
+          ))}
+        </CollapsibleSection>
+      )}
 
       <button
         className="btn primary block"
@@ -287,6 +549,15 @@ export function GroceryScreen({
           planId={planId}
           currency={settings.currency}
           onClose={() => setAdding(false)}
+        />
+      )}
+      {swapping && (
+        <SwapIngredientSheet
+          row={swapping}
+          planId={planId}
+          ingredients={ingredients}
+          recipes={recipes}
+          onClose={() => setSwapping(null)}
         />
       )}
       {finishing && (
@@ -488,6 +759,67 @@ function AddItemSheet({
         </>
       )}
     </Sheet>
+  );
+}
+
+/**
+ * Swaps one ingredient in a recipe for another — feta for a cheaper cheese, a
+ * vegetable for whatever is on sale — from the shopping list.
+ *
+ * Two steps folded into one sheet: which meal, when the ingredient is used by
+ * more than one this week, then what to swap it for. The recipe book gains the
+ * result as a new variant; this week's plan is repointed at it. See
+ * `swapIngredientInRecipe`.
+ */
+function SwapIngredientSheet({
+  row, planId, ingredients, recipes, onClose,
+}: {
+  row: Row;
+  planId: string;
+  ingredients: ReadonlyMap<Id, Ingredient>;
+  recipes: ReadonlyMap<Id, Recipe>;
+  onClose: () => void;
+}): JSX.Element {
+  const [target, setTarget] = useState<UsedByRecipe | null>(
+    row.usedByRecipes.length === 1 ? row.usedByRecipes[0] : null,
+  );
+
+  if (!target) {
+    return (
+      <Sheet title={`Swap ${row.name} in which meal?`} onClose={onClose}>
+        {row.usedByRecipes.map((r) => (
+          <button
+            key={r.recipeId}
+            className="card tight row between"
+            style={{ width: '100%', textAlign: 'left' }}
+            onClick={() => setTarget(r)}
+          >
+            <span className="grow">{r.name}</span>
+          </button>
+        ))}
+      </Sheet>
+    );
+  }
+
+  // Tomato-free unless the recipe has already opted in by using one — see the
+  // constant's own comment.
+  const recipe = recipes.get(target.recipeId);
+  const alreadyTomato = recipe?.ingredients.some((ri) => TOMATO_INGREDIENT_IDS.has(ri.ingredientId))
+    ?? false;
+  const exclude = new Set<Id>(row.ingredientId ? [row.ingredientId] : []);
+  if (!alreadyTomato) for (const id of TOMATO_INGREDIENT_IDS) exclude.add(id);
+
+  return (
+    <IngredientPicker
+      title={`Swap ${row.name} in "${target.name}" for…`}
+      ingredients={ingredients}
+      exclude={exclude}
+      onPick={(ing) => {
+        void swapIngredientInRecipe(planId, target.recipeId, row.ingredientId!, ing);
+        onClose();
+      }}
+      onClose={onClose}
+    />
   );
 }
 

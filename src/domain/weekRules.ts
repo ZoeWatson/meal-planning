@@ -35,7 +35,7 @@
 import type { FilterContext, RecipeFilter } from './filters';
 import { testRecipe } from './filters';
 import type { CuisineRegionId, DishTypeId } from './taxonomy';
-import { CUISINE_REGION_LABELS, DISH_TYPE_PHRASES } from './taxonomy';
+import { CUISINE_REGION_LABELS, CUISINE_REGIONS, DISH_TYPE_PHRASES } from './taxonomy';
 import type { Id, MealType, PlanSlot, Recipe } from './types';
 
 export type RuleComparison = 'at-least' | 'at-most';
@@ -174,6 +174,37 @@ export const RULE_SUBJECTS: readonly RuleSubject[] = [
 
 export function getSubject(id: RuleSubjectId): RuleSubject {
   return RULE_SUBJECTS.find((s) => s.id === id) ?? RULE_SUBJECTS[0];
+}
+
+/**
+ * How many library recipes each compiled rule matches, keyed by rule id.
+ *
+ * One place for this lookup because it is built from `CompiledRule[]` twice
+ * over — the Settings editor uses it to warn "only 2 recipes match", and the
+ * This week screen's own rule editor needs the same number for the same
+ * reason, and a rule id should not be able to mean two different counts.
+ */
+export function availableCounts(compiled: readonly CompiledRule[]): ReadonlyMap<string, number> {
+  return new Map(compiled.map((c) => [c.rule.id, c.matches.size]));
+}
+
+/**
+ * Tags worth offering for the `tag` subject, commonest first.
+ *
+ * Cuisines are excluded because they already have their own subject
+ * (`region`) — offering them again as tags would be the same rule sentence
+ * built two different ways.
+ */
+export function ruleTagVocabulary(recipes: Iterable<Recipe>): string[] {
+  const cuisines = new Set(CUISINE_REGIONS.flatMap((r) => r.cuisines));
+  const counts = new Map<string, number>();
+  for (const recipe of recipes) {
+    for (const tag of recipe.tags) {
+      if (cuisines.has(tag)) continue;
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
 }
 
 /**

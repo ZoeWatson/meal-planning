@@ -227,6 +227,15 @@ button { cursor: pointer; }
 
 .btn:active { background: var(--surface-2); }
 
+/* A button with an icon ahead of its label, e.g. "Add to pantry". The label is
+   the thing being pressed; the icon is a hint that arrives half a beat before
+   it, which is why it comes first and stays small next to a 13px word. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -277,17 +286,13 @@ button { cursor: pointer; }
 
 /* ------------------------------------------------------- grocery list */
 
-.aisle {
-  margin: 20px 0 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
 .gline {
   display: flex;
+  /* So the expanded line can drop a full-width row underneath the controls
+     without being a second element outside the card. Nothing wraps while a line
+     is closed — the fixed controls come to about 180px, and the name between
+     them shrinks rather than pushing anything down. */
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
   width: 100%;
@@ -304,6 +309,33 @@ button { cursor: pointer; }
 .gline:active { background: var(--surface-2); }
 .gline.done { opacity: 0.5; }
 .gline.done .gname { text-decoration: line-through; }
+
+/* Taken off the list, and kept at the bottom of it with the way back. Struck
+   through like a ticked line, and left readable where a ticked one fades: this
+   is a list of things you are being asked whether you meant to lose, so the
+   names on it have to be legible at a glance. */
+.gline.off { align-items: center; }
+.gline.off .gname { text-decoration: line-through; color: var(--text-dim); }
+
+/* The ✕ that takes a line off the list. One glyph, so it gives back the side
+   padding an ordinary small button carries: on a 375px phone that width is the
+   difference between an ingredient's name on one line and on two. Direct child,
+   so it is the ✕ on the line and not a button in the line's expanded half. */
+.gline > .btn.small.ghost { padding: 7px 5px; }
+
+/* What an opened line offers doing about itself. Full width on its own row, and
+   ruled off from the line above so the button reads as belonging to this line
+   rather than floating between two of them. */
+.gline-more {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
 
 .tickbox {
   flex: 0 0 auto;

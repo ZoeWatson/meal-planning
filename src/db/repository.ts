@@ -17,8 +17,9 @@ import {
   addDays, estimateKeeping, localDate,
   type CookedMeal, type Leftover, type MealLogEntry, type MealSource, type StorageKind,
 } from '../domain/cooking';
-import { afterStockChange } from '../domain/pantry';
-import { placeRecipe } from '../domain/planner/generate';
+import { DEFAULT_NECESSITY, afterStockChange } from '../domain/pantry';
+import { dropSlot, placeRecipe, reinstateSlot } from '../domain/planner/generate';
+import { swapRecipeIngredient } from '../domain/variants';
 import type { TreatItem } from '../domain/treats';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
@@ -124,6 +125,47 @@ export async function setSlotRecipe(planId: Id, slotId: Id, recipeId: Id | null)
 }
 
 /**
+ * Swaps one ingredient for another inside a recipe — feta for a cheaper cheese,
+ * a vegetable for whatever is on sale today — from the shopping list.
+ *
+ * Writes a new variant rather than editing `recipeId` in place, so the recipe
+ * book keeps the original intact and gains a reusable alternative, then repoints
+ * every slot in this plan that was cooking that recipe at the variant — the
+ * swap reaches this week's shop without reaching into any other week that also
+ * uses the recipe.
+ */
+export async function swapIngredientInRecipe(
+  planId: Id,
+  recipeId: Id,
+  fromIngredientId: Id,
+  toIngredient: Ingredient,
+): Promise<Id | undefined> {
+  const recipe = await db.recipes.get(recipeId);
+  if (!recipe) return undefined;
+
+  const swapped = swapRecipeIngredient(recipe, fromIngredientId, toIngredient);
+  if (!swapped) return undefined;
+
+  const variant: Recipe = {
+    ...recipe,
+    id: newId('recipe'),
+    name: swapped.name,
+    ingredients: swapped.ingredients,
+    variantOf: swapped.variantOf,
+    variantLabel: swapped.variantLabel,
+    builtIn: false,
+  };
+
+  await syncedPut('recipes', variant as unknown as Record<string, unknown>);
+  await editPlan(planId, (plan) => ({
+    ...plan,
+    slots: plan.slots.map((s) => (s.recipeId === recipeId ? { ...s, recipeId: variant.id } : s)),
+  }));
+
+  return variant.id;
+}
+
+/**
  * Adds a recipe to the week by hand, straight from the library.
  *
  * Where it lands is `placeRecipe`'s decision, made next to the code that builds
@@ -138,6 +180,27 @@ export async function addRecipeToPlan(
     ...plan,
     slots: placeRecipe(plan.slots, recipe, servings),
   }));
+}
+
+/**
+ * Takes a meal out of the week.
+ *
+ * The inverse of `addRecipeToPlan`, and it shortens the week rather than leaving
+ * a hole in it — `dropSlot` is where that choice is argued.
+ */
+export async function removeSlot(planId: Id, slotId: Id): Promise<void> {
+  await editPlan(planId, (plan) => ({ ...plan, slots: dropSlot(plan.slots, slotId) }));
+}
+
+/**
+ * Puts a removed meal back. What Undo on the week screen calls.
+ *
+ * The slot travels in from the screen rather than being read back out of
+ * anything: it is no longer in the plan, which is the point, and the week screen
+ * is the only thing that still has a copy.
+ */
+export async function restoreSlot(planId: Id, slot: PlanSlot, index: number): Promise<void> {
+  await editPlan(planId, (plan) => ({ ...plan, slots: reinstateSlot(plan.slots, slot, index) }));
 }
 
 /**
@@ -205,23 +268,109 @@ export function checkId(planId: Id, ingredientId: Id): string {
   return `${planId}:${ingredientId}`;
 }
 
-export async function setChecked(planId: Id, ingredientId: Id, checked: boolean): Promise<void> {
-  const entry: GroceryCheck = {
-    id: checkId(planId, ingredientId),
+/**
+ * Writes one line's state, leaving the rest of the record alone.
+ *
+ * Read-modify-write, and every write to this table goes through it. Ticking a
+ * line, pricing it and taking it off the list are three gestures against one
+ * row, and a write that rebuilt the row out of its own argument silently dropped
+ * whatever the other two had put there — which is how a price entered at the
+ * shelf disappeared the moment the box beside it was ticked.
+ *
+ * An `undefined` in the patch clears its field rather than storing a key holding
+ * nothing: "no price entered" is the absence of `amountCents`, and that is what
+ * the screen asks.
+ */
+async function putCheck(
+  planId: Id,
+  ingredientId: Id,
+  patch: Partial<Pick<GroceryCheck, 'checked' | 'amountCents' | 'removed' | 'inStock'>>,
+): Promise<void> {
+  const id = checkId(planId, ingredientId);
+  const existing = await db.checks.get(id);
+
+  const next: GroceryCheck = {
+    checked: false,
+    ...existing,
+    ...patch,
+    id,
     planId,
     ingredientId,
-    checked,
     updatedAtISO: new Date().toISOString(),
   };
-  await syncedPut('checks', entry as unknown as Record<string, unknown>);
+
+  await syncedPut('checks', Object.fromEntries(
+    Object.entries(next).filter(([, value]) => value !== undefined),
+  ));
 }
 
+export async function setChecked(planId: Id, ingredientId: Id, checked: boolean): Promise<void> {
+  await putCheck(planId, ingredientId, { checked });
+}
+
+/**
+ * Takes one line off this week's shopping list, or puts it back.
+ *
+ * Off the LIST, and nothing else: the meal that wanted the ingredient still
+ * wants it, and the week is untouched. Taking a treat off does not empty it out
+ * of the treat bag either — the ✕ on the week screen is the one that means "not
+ * part of my week", and this one means "not in the trolley".
+ *
+ * Anything derived would be rebuilt without it and come straight back, which is
+ * why this is stored at all; `withoutRemoved` in `grocery.ts` is where that is
+ * argued.
+ */
+export async function setRemoved(planId: Id, ingredientId: Id, removed: boolean): Promise<void> {
+  // A line back on the list has no reason for being off it. Left standing, a
+  // stale `inStock` would relabel the line "already have" the next time it came
+  // off for some quite different reason.
+  await putCheck(planId, ingredientId, { removed, ...(removed ? {} : { inStock: undefined }) });
+}
+
+/**
+ * Takes a line off this week's list because the cupboard already has it.
+ *
+ * `setRemoved` with a reason attached, rather than a second way to hide a line:
+ * both put it in the same place, and the way back is the same one. All this adds
+ * is what the line says about itself while it is down there, which is the whole
+ * difference between "not this week" and "got it".
+ *
+ * It deliberately does NOT touch the pantry. Two reasons, and the second is the
+ * important one. A pantry row is a standing claim about a cupboard, and this is a
+ * remark about one shop — but more than that, a stocked pantry item is free to
+ * the planner and invisible to the list builder, so writing one here would delete
+ * the line rather than hide it, and there would be nothing left to offer back.
+ * Promoting one to the pantry is a separate, deliberate act; `worthKeeping` in
+ * `domain/pantry.ts` says which are worth offering it for.
+ */
+export async function setInStock(planId: Id, ingredientId: Id, inStock: boolean): Promise<void> {
+  await putCheck(planId, ingredientId, {
+    removed: inStock,
+    inStock: inStock ? true : undefined,
+  });
+}
+
+/**
+ * Clears this plan's ticks, and the prices entered against them.
+ *
+ * What was taken off the list stays off. Neither of the two things that call
+ * this asked for it back — Untick all is about ticks, and a finished shop is
+ * over — and a line reappearing at the top of the list because the boxes had
+ * been cleared reads as the ✕ never having worked.
+ */
 export async function clearChecks(planId: Id): Promise<void> {
-  const keys = await db.checks.where('planId').equals(planId).primaryKeys();
-  // Deleted one at a time so each gets its own tombstone. Without those, the other
-  // device's next sync would simply re-upload its copies and every box would tick
-  // itself again.
-  for (const key of keys) await syncedDelete('checks', key);
+  const rows = await db.checks.where('planId').equals(planId).toArray();
+
+  for (const row of rows) {
+    if (row.removed) {
+      await putCheck(planId, row.ingredientId, { checked: false, amountCents: undefined });
+      continue;
+    }
+    // Deleted one at a time so each gets its own tombstone. Without those, the other
+    // device's next sync would simply re-upload its copies and every box would tick
+    // itself again.
+    await syncedDelete('checks', row.id);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +391,34 @@ export async function upsertPantryItem(item: PantryItem): Promise<void> {
 
 export async function removePantryItem(ingredientId: Id): Promise<void> {
   await syncedDelete('pantry', ingredientId);
+}
+
+/**
+ * Turns "I already have this" into a standing pantry row.
+ *
+ * The deliberate second act after marking a line as in stock, offered only for
+ * things that keep — `worthKeeping` in `domain/pantry.ts` says which, and why
+ * offering it for parsley would be a bug rather than a convenience.
+ *
+ * It arrives `alright-without`, like anything else added to the pantry: it is
+ * here because it was in the cupboard, which is not the same as saying a week
+ * without it is worth a trip. Necessity is set in Settings, where the rest of the
+ * roster is.
+ *
+ * The line's off-list marks are cleared on the way past, and that is not tidying.
+ * A stocked pantry item is invisible to the list builder, so the line stops being
+ * built at all — and if the item is later run down to `out`, the line comes back.
+ * A `removed` flag left behind from today would hide it when it did.
+ */
+export async function keepInPantry(planId: Id, ingredientId: Id): Promise<void> {
+  await upsertPantryItem({
+    ingredientId,
+    status: 'stocked',
+    necessity: DEFAULT_NECESSITY,
+    usesSincePurchase: 0,
+    lastPurchasedISO: new Date().toISOString(),
+  });
+  await putCheck(planId, ingredientId, { removed: false, inStock: undefined });
 }
 
 export async function setPantryStock(ingredientId: Id, status: PantryStock): Promise<void> {
@@ -361,7 +538,7 @@ export async function recordShopTotal(
 // --- per-line prices --------------------------------------------------------
 
 /**
- * Sets what one planned line cost.
+ * Sets what one planned line cost, or clears it.
  *
  * Upserts the check record, because a price can be entered for a line that has
  * not been ticked yet — you scan the shelf, then put it in the basket.
@@ -371,17 +548,7 @@ export async function setLinePrice(
   ingredientId: Id,
   amountCents: number | null,
 ): Promise<void> {
-  const id = checkId(planId, ingredientId);
-  const existing = await db.checks.get(id);
-
-  await syncedPut('checks', {
-    id,
-    planId,
-    ingredientId,
-    checked: existing?.checked ?? false,
-    ...(amountCents === null ? {} : { amountCents }),
-    updatedAtISO: new Date().toISOString(),
-  });
+  await putCheck(planId, ingredientId, { amountCents: amountCents ?? undefined });
 }
 
 // --- ad-hoc items -----------------------------------------------------------
@@ -398,12 +565,24 @@ export async function addCustomItem(
   return item;
 }
 
+/**
+ * Changes one ad-hoc item, leaving the rest of the record alone.
+ *
+ * An `undefined` in the patch clears its field rather than storing a key holding
+ * nothing, which is what `putCheck` does with the same fields on a planned line.
+ * The same three things — a price, whether it is off the list, and why — are kept
+ * in two tables depending on where the line came from, and the two shapes have to
+ * match: code that reads them asks `=== undefined`, and one path leaving a key
+ * behind is a difference that only shows up somewhere far from here.
+ */
 export async function updateCustomItem(id: Id, patch: Partial<CustomItem>): Promise<void> {
   const existing = await db.customItems.get(id);
   if (!existing) return;
-  await syncedPut('customItems', {
-    ...existing, ...patch, id, updatedAtISO: new Date().toISOString(),
-  } as unknown as Record<string, unknown>);
+
+  const next = { ...existing, ...patch, id, updatedAtISO: new Date().toISOString() };
+  await syncedPut('customItems', Object.fromEntries(
+    Object.entries(next).filter(([, value]) => value !== undefined),
+  ));
 }
 
 export async function removeCustomItem(id: Id): Promise<void> {

@@ -5,11 +5,12 @@
  * The grocery list, plan nutrition, waste figures and filter results are all
  * computed from the plan plus the library, every time.
  *
- * The exception is `checks`: which boxes are ticked. That is the one piece of
- * state created by a human standing in an aisle, and it is the only thing two
- * devices can ever genuinely disagree about. Keeping it in its own table with its
- * own timestamp is what will make sync a last-write-wins merge on a handful of
- * booleans rather than a conflict resolution problem over whole documents.
+ * The exception is `checks`: what a human standing in an aisle did to the list —
+ * which boxes are ticked, what each line cost, and which lines were taken off it
+ * altogether. That is the only thing two devices can ever genuinely disagree
+ * about. Keeping it in its own table with its own timestamp is what will make
+ * sync a last-write-wins merge on a handful of booleans rather than a conflict
+ * resolution problem over whole documents.
  */
 
 import Dexie, { type Table } from 'dexie';
@@ -46,6 +47,34 @@ export interface GroceryCheck {
    * per line instead of two racing each other.
    */
   readonly amountCents?: number;
+  /**
+   * Taken off this week's list by hand.
+   *
+   * Here rather than anywhere in the plan, because it is not a change to the
+   * plan: the meal still wants the ingredient, it is simply not being bought this
+   * week. A derived list has nowhere to hold that, so it rides along with the
+   * tick — same line, same week, same shopper, same merge.
+   *
+   * Written as `false` rather than cleared when a line goes back on the list. The
+   * record carries the tick and the price entered against that line too, and
+   * dropping the whole thing to save a boolean would take those with it.
+   */
+  readonly removed?: boolean;
+  /**
+   * Why it came off: because the cupboard already has it.
+   *
+   * A reason beside `removed` rather than a second way of removing things. "Not
+   * buying this" and "not buying this, I have it" put the same line in the same
+   * place, and two mechanisms that hid lines independently would need two ways
+   * back and could disagree about whether a line was hidden at all.
+   *
+   * It says nothing about the pantry proper. That is a standing claim about a
+   * cupboard — "we keep olive oil in" — and writing every "I have parsley" into
+   * it would fill the roster with herbs and, worse, make them free to the planner
+   * for every week after this one. `worthKeeping` in `domain/pantry.ts` is what
+   * decides which of these are worth offering a pantry row for, and says why.
+   */
+  readonly inStock?: boolean;
   /** The field sync reconciles last-write-wins. */
   readonly updatedAtISO: string;
 }

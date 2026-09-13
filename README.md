@@ -24,6 +24,30 @@ npm run sync-server    # optional, for syncing between devices
   the meal joins the week at the portions the rest of that week's meals use. It
   takes a slot the planner could not fill, or makes one, and arrives pinned so
   the next regenerate keeps it.
+- **Take a meal out**, with the ✕ on its card, for the Thursday you are eating
+  out. The week gets shorter rather than gaining a hole to fill, and the shopping
+  list drops exactly that meal's share of every ingredient — its half of the
+  coriander, and the whole bunch if nothing else wanted any. Undo puts it back
+  where it was, portions and pin and all. It is an edit to this week and not a
+  change to how big a week is: the next regenerate, or Shuffle all over that kind
+  of meal, rebuilds the section to the shape Settings asks for.
+- **Take something off the shopping list**, with the ✕ on its line — the olive oil
+  you turn out to have, the treat you have gone off. It leaves the shop, the count
+  and the running total, and nothing else moves: the meal that wanted it still
+  wants it, and the treat is still in the week's bag. The list is rebuilt from the
+  week constantly, so this is remembered rather than derived — beside the ticks,
+  and for this week only. What came off waits at the bottom of the list with a
+  Put back beside it, a way back that does not expire rather than an undo that
+  does, and next week's list starts with it back on.
+- **"Already have it"** — the same removal, for the commonest reason a line comes
+  off, with that reason kept. Open a line and say it, and it joins what is at the
+  bottom of the list marked as something you own rather than something you decided
+  against. For the things that keep, it then offers to put them in the pantry
+  properly, which is the difference between not buying rice this week and not
+  being asked about rice again. Only the things that keep: a stocked pantry item
+  is free to the planner, so filing a bunch of parsley in there would quietly
+  discount every week after this one. It is offered and never done for you, and
+  the test for what keeps is the one the waste model already makes.
 - **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
   cooking time, in-season, ingredient count.
 - **Browsing by type and region.** The Recipes tab groups the library by kind of

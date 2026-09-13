@@ -52,6 +52,17 @@ export interface CustomItem {
   readonly category: string;
   readonly amountCents?: number;
   readonly checked: boolean;
+  /**
+   * Taken off this week's list, but not thrown away.
+   *
+   * Hidden rather than deleted so that the way back is the same one every other
+   * line on the list has. An item added by hand is the one kind that could simply
+   * be typed in again, and "press ✕, then retype it" is not an undo. Finishing
+   * the shop clears these out along with the rest.
+   */
+  readonly removed?: boolean;
+  /** Off the list because the cupboard has it. See `GroceryCheck.inStock`. */
+  readonly inStock?: boolean;
   /** Set when the item came from a scan, so the next scan recognises it. */
   readonly barcode?: string;
   readonly updatedAtISO: string;

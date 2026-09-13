@@ -174,6 +174,47 @@ function freeSlotId(slots: readonly PlanSlot[], mealType: MealType): Id {
   return `${mealType}-${i}`;
 }
 
+/**
+ * Takes a meal out of the week.
+ *
+ * The week gets SHORTER rather than gaining an empty slot, and that is the whole
+ * difference between this and clearing a slot's recipe. An empty slot is a hole
+ * the week still wants filled: it is what the "could not be filled" warning
+ * counts, and what the card's own Shuffle offers to fill. A meal you have taken
+ * out is not wanted, and a week with three dinners left in it should say three.
+ *
+ * The removal is an edit to this week, not a change to how big a week is — the
+ * next Regenerate, or Shuffle all over that kind of meal, rebuilds the section to
+ * whatever shape Settings asks for. Which is the right way round: "not this
+ * Thursday" and "we eat four dinners a week" are different statements, and only
+ * the second one belongs in Settings.
+ */
+export function dropSlot(slots: readonly PlanSlot[], slotId: Id): readonly PlanSlot[] {
+  return slots.filter((s) => s.id !== slotId);
+}
+
+/**
+ * Puts a removed meal back where it was — recipe, portions and pin and all.
+ *
+ * What Undo calls. `index` is where the slot sat before it went, which is a
+ * position rather than an anchor: the week can have moved underneath it in the
+ * meantime, so it is clamped rather than trusted.
+ *
+ * A slot whose id the week has since handed out again is dropped instead. That is
+ * not hypothetical — a section shuffle numbers its new slots around whichever ids
+ * are free, so the one just vacated is the first it reaches for — and two slots
+ * answering to one id means every per-slot write from then on lands on both.
+ */
+export function reinstateSlot(
+  slots: readonly PlanSlot[],
+  slot: PlanSlot,
+  index: number,
+): readonly PlanSlot[] {
+  if (slots.some((s) => s.id === slot.id)) return slots;
+  const at = Math.max(0, Math.min(index, slots.length));
+  return [...slots.slice(0, at), slot, ...slots.slice(at)];
+}
+
 const MEAL_ORDER: readonly MealType[] = ['full', 'light', 'snack'];
 
 /**
