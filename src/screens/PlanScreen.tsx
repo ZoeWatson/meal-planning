@@ -613,30 +613,46 @@ function WeekRulesReport({
           ? state.ingredients.get(status.rule.ingredientId)?.name
           : undefined;
         const reason = impossibleReason(status);
+        const description = describeRule(status.rule, name);
         return (
-          <button
+          <div
             key={status.rule.id}
-            className="tiny"
-            style={{
-              display: 'block', width: '100%', textAlign: 'left', marginTop: 6,
-              background: 'none', border: 0, padding: 0, color: 'inherit',
-            }}
-            onClick={() => setEditingId(status.rule.id)}
+            className="row"
+            style={{ alignItems: 'flex-start', marginTop: 6, gap: 6 }}
           >
-            <span
-              aria-hidden
-              style={{ color: status.satisfied ? 'var(--accent)' : 'var(--warn)' }}
+            <button
+              className="tiny grow"
+              style={{
+                display: 'block', textAlign: 'left',
+                background: 'none', border: 0, padding: 0, color: 'inherit',
+              }}
+              onClick={() => setEditingId(status.rule.id)}
             >
-              {status.satisfied ? '✓' : '✗'}
-            </span>{' '}
-            <span className="dim">{describeRule(status.rule, name)}</span>{' '}
-            {/* The tick is decorative because the numbers already carry the
-                verdict: "at least 3 … — 1 in this week" says it without help. */}
-            <span className="faint">— {status.matched} in this week</span>
-            {!status.satisfied && reason !== null && (
-              <div className="faint" style={{ marginLeft: 14 }}>{reason}</div>
-            )}
-          </button>
+              <span
+                aria-hidden
+                style={{ color: status.satisfied ? 'var(--accent)' : 'var(--warn)' }}
+              >
+                {status.satisfied ? '✓' : '✗'}
+              </span>{' '}
+              <span className="dim">{description}</span>{' '}
+              {/* The tick is decorative because the numbers already carry the
+                  verdict: "at least 3 … — 1 in this week" says it without help. */}
+              <span className="faint">— {status.matched} in this week</span>
+              {!status.satisfied && reason !== null && (
+                <div className="faint" style={{ marginLeft: 14 }}>{reason}</div>
+              )}
+            </button>
+            {/* The same quick ✕ every other list on this screen uses — a meal
+                slot, a treat, a grab-bag item — so removing a rule does not need
+                a trip through the sheet the way changing one does. */}
+            <button
+              className="btn small ghost"
+              aria-label={`Remove rule: ${description}`}
+              onClick={() => void remove(status.rule.id)}
+            >
+              ✕
+            </button>
+          </div>
         );
       })}
 
