@@ -6,7 +6,7 @@ import {
 } from '../state/useAppState';
 import {
   removeSlot, removeTreat, restoreSlot, setSlotPinned, setSlotRecipe, setSlotServings,
-  setTreatPinned,
+  setTreatPinned, updateSettings,
 } from '../db/repository';
 import { scorePlan } from '../domain/planner/scoring';
 import { applyFilter } from '../domain/filters';
@@ -17,7 +17,10 @@ import {
 import { formatMoneyShort } from '../domain/budget';
 import { checkRecipe, describeMatches } from '../domain/allergens';
 import { isOnList } from '../domain/pantry';
-import { type RuleStatus, describeRule, evaluateRules, impossibleReason } from '../domain/weekRules';
+import {
+  type RuleStatus, type WeekRule, availableCounts, describeRule, evaluateRules,
+  impossibleReason, ruleTagVocabulary,
+} from '../domain/weekRules';
 import type { Id, MealType, PlanSlot, Recipe, WeekPlan } from '../domain/types';
 import { PinIcon, ShuffleIcon } from '../components/icons';
 import { CollapsibleSection } from '../components/CollapsibleSection';
@@ -25,6 +28,7 @@ import { RecipeDetail } from '../components/RecipeDetail';
 import { Sheet } from '../components/Sheet';
 import { GrabBagSections } from './GrabBagSection';
 import { PantryReview } from './PantrySection';
+import { RuleCard } from './WeekRulesSettings';
 
 const MEAL_LABELS: Record<MealType, string> = {
   full: 'Full meals',
@@ -545,6 +549,13 @@ export function PlanScreen({
  * Shuffle again; the sentence beside it is what makes the number mean anything a
  * week after the rule was written. An unmet rule the library cannot satisfy says
  * so rather than inviting a shuffle that cannot help.
+ *
+ * The rule itself is still a setting, not a fact about this week — the standing
+ * answer to "what do we want out of a week" lives in Settings, same as ever, and
+ * this report still just says whether the week in front of you honoured it. But
+ * the sentence you'd otherwise have to go find in Settings is sitting right
+ * here, so a line opens the same editor Settings uses, in a sheet, rather than
+ * sending you off to a different tab to change the one thing you just read.
  */
 function WeekRulesReport({
   statuses,
@@ -554,6 +565,21 @@ function WeekRulesReport({
   state: AppState;
 }): JSX.Element {
   const unmet = statuses.filter((s) => !s.satisfied).length;
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const rules = state.settings.weekRules;
+  const editing = rules.find((r) => r.id === editingId) ?? null;
+  const available = useMemo(() => availableCounts(state.ctx?.rules ?? []), [state.ctx?.rules]);
+  const tags = useMemo(() => ruleTagVocabulary(state.recipes.values()), [state.recipes]);
+
+  async function write(next: WeekRule): Promise<void> {
+    await updateSettings({ weekRules: rules.map((r) => (r.id === next.id ? next : r)) });
+  }
+
+  async function remove(id: string): Promise<void> {
+    setEditingId(null);
+    await updateSettings({ weekRules: rules.filter((r) => r.id !== id) });
+  }
 
   return (
     <div
@@ -573,7 +599,15 @@ function WeekRulesReport({
           : undefined;
         const reason = impossibleReason(status);
         return (
-          <div className="tiny" style={{ marginTop: 6 }} key={status.rule.id}>
+          <button
+            key={status.rule.id}
+            className="tiny"
+            style={{
+              display: 'block', width: '100%', textAlign: 'left', marginTop: 6,
+              background: 'none', border: 0, padding: 0, color: 'inherit',
+            }}
+            onClick={() => setEditingId(status.rule.id)}
+          >
             <span
               aria-hidden
               style={{ color: status.satisfied ? 'var(--accent)' : 'var(--warn)' }}
@@ -587,15 +621,31 @@ function WeekRulesReport({
             {!status.satisfied && reason !== null && (
               <div className="faint" style={{ marginLeft: 14 }}>{reason}</div>
             )}
-          </div>
+          </button>
         );
       })}
 
       {unmet > 0 && (
         <div className="tiny faint" style={{ marginTop: 8 }}>
-          Shuffle to try again, or change what you are asking for under Week rules
-          in Settings. Pinned meals are kept, so a pin can be what is in the way.
+          Shuffle to try again, or tap a rule above to change what you are asking
+          for. Pinned meals are kept, so a pin can be what is in the way.
         </div>
+      )}
+
+      {editing && (
+        <Sheet title="Edit week rule" onClose={() => setEditingId(null)}>
+          <RuleCard
+            rule={editing}
+            tags={tags}
+            available={available.get(editing.id)}
+            ingredientName={
+              editing.ingredientId ? state.ingredients.get(editing.ingredientId)?.name : undefined
+            }
+            state={state}
+            onChange={(next) => void write(next)}
+            onRemove={() => void remove(editing.id)}
+          />
+        </Sheet>
       )}
     </div>
   );

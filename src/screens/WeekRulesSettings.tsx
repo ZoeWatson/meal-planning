@@ -21,7 +21,7 @@ import { IngredientPicker } from '../components/IngredientPicker';
 import { CUISINE_REGIONS, DISH_TYPES } from '../domain/taxonomy';
 import {
   type WeekRule, DEFAULT_RULE_MAX_INGREDIENTS, DEFAULT_RULE_MINUTES, RULE_SUBJECTS,
-  describeRule, getSubject, isConfigured, newRule, withSubject,
+  availableCounts, describeRule, getSubject, isConfigured, newRule, ruleTagVocabulary, withSubject,
 } from '../domain/weekRules';
 import type { MealType } from '../domain/types';
 
@@ -40,23 +40,10 @@ export function WeekRulesSettings({ state }: { state: AppState }): JSX.Element {
    * rules the planner is already using rather than recomputed here. Two answers
    * to "does anything match this" is one answer too many.
    */
-  const available = useMemo(
-    () => new Map((ctx?.rules ?? []).map((c) => [c.rule.id, c.matches.size])),
-    [ctx?.rules],
-  );
+  const available = useMemo(() => availableCounts(ctx?.rules ?? []), [ctx?.rules]);
 
   /** Tags worth offering, commonest first. Cuisines are excluded: they have a subject. */
-  const tags = useMemo(() => {
-    const cuisines = new Set(CUISINE_REGIONS.flatMap((r) => r.cuisines));
-    const counts = new Map<string, number>();
-    for (const recipe of recipes.values()) {
-      for (const tag of recipe.tags) {
-        if (cuisines.has(tag)) continue;
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag);
-  }, [recipes]);
+  const tags = useMemo(() => ruleTagVocabulary(recipes.values()), [recipes]);
 
   async function write(next: readonly WeekRule[]): Promise<void> {
     await updateSettings({ weekRules: next });
@@ -97,7 +84,7 @@ export function WeekRulesSettings({ state }: { state: AppState }): JSX.Element {
   );
 }
 
-function RuleCard({
+export function RuleCard({
   rule,
   tags,
   available,
