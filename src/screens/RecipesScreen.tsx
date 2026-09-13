@@ -4,6 +4,10 @@ import type { AppState } from '../state/useAppState';
 import { FILTER_PRESETS, explainFilter, type RecipeFilter } from '../domain/filters';
 import { recipeNutrition } from '../domain/nutrition';
 import { checkRecipe, describeMatches } from '../domain/allergens';
+import {
+  CUISINE_REGIONS, DISH_TYPES, DISH_TYPE_LABELS, TAXONOMY_TAGS, cuisineLabel,
+  cuisineOf, primaryDishType, regionOf,
+} from '../domain/taxonomy';
 import { formatQuantity } from '../domain/units';
 import { scaledGrams, type Recipe } from '../domain/types';
 import { Sheet } from '../components/Sheet';
@@ -19,11 +23,23 @@ const REJECTION_LABELS: Record<string, string> = {
   calories: 'calories',
   fibre: 'fibre',
   tags: 'tags',
+  'dish-type': 'kind of dish',
+  region: 'region',
   season: 'season',
   search: 'search',
   'too-many-ingredients': 'ingredient count',
   origin: 'source',
 };
+
+/**
+ * Which way the library is sorted into groups.
+ *
+ * Two axes rather than one nesting, because they answer different moods. "I want
+ * pasta" and "I want something Japanese" are both common; "I want Japanese
+ * pasta" is not, and building the screen around it would cost every other
+ * browse a second tap.
+ */
+type BrowseAxis = 'type' | 'region';
 
 export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   const { recipes, ingredients, ctx, settings } = state;
@@ -32,6 +48,9 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   const [open, setOpen] = useState<Recipe | null>(null);
   const [showAvoided, setShowAvoided] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [axis, setAxis] = useState<BrowseAxis>('type');
+  /** The group being browsed, or null for the whole library. */
+  const [group, setGroup] = useState<string | null>(null);
 
   const filter = useMemo<RecipeFilter>(() => {
     const merged: RecipeFilter[] = FILTER_PRESETS
@@ -73,6 +92,46 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
     return { safe: safeList, avoided: avoidList };
   }, [matched, ingredients, settings.allergens]);
 
+  /**
+   * The groups on offer, counted over what the search and chips have already
+   * left — so the counts say what tapping will actually give you rather than
+   * what the untouched library holds. Empty groups are dropped: a chip reading
+   * "Africa 0" is a chip whose only function is to disappoint.
+   */
+  const groups = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const recipe of safe) {
+      const key = axis === 'type'
+        ? primaryDishType(recipe, ingredients)
+        : regionOf(recipe);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const order = axis === 'type'
+      ? DISH_TYPES.map((t) => ({ id: t.id as string, label: t.label }))
+      : CUISINE_REGIONS.map((r) => ({ id: r.id as string, label: r.label }));
+    return order
+      .filter((g) => (counts.get(g.id) ?? 0) > 0)
+      .map((g) => ({ ...g, count: counts.get(g.id) as number }));
+  }, [safe, axis, ingredients]);
+
+  /**
+   * Grouped AFTER filtering rather than through the filter, because the counts
+   * above have to come from the same pass. `RecipeFilter` can do this — the week
+   * rules use `dishTypes` and `regions` — but doing it here would mean running
+   * the filter twice to find out what each chip is worth.
+   */
+  const shown = useMemo(() => {
+    if (group === null) return safe;
+    return safe.filter((r) =>
+      (axis === 'type' ? primaryDishType(r, ingredients) : regionOf(r)) === group);
+  }, [safe, group, axis, ingredients]);
+
+  /** Switching axis abandons the group, which belonged to the other one. */
+  function browseBy(next: BrowseAxis): void {
+    setAxis(next);
+    setGroup(null);
+  }
+
   function toggle(id: string): void {
     setActive((prev) => {
       const next = new Set(prev);
@@ -87,7 +146,7 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
       <div className="header">
         <h1>Recipes</h1>
         <div className="sub">
-          {safe.length} of {recipes.size}
+          {shown.length} of {recipes.size}
           {avoided.length > 0 && ` · ${avoided.length} hidden by your allergies`}
         </div>
       </div>
@@ -116,6 +175,39 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
             onClick={() => toggle(preset.id)}
           >
             {preset.label}
+          </button>
+        ))}
+      </div>
+
+      {/* --- Browsing ----------------------------------------------------- */}
+      <div className="segmented" style={{ marginTop: 10 }}>
+        <button aria-pressed={axis === 'type'} onClick={() => browseBy('type')}>
+          By type
+        </button>
+        <button aria-pressed={axis === 'region'} onClick={() => browseBy('region')}>
+          By region
+        </button>
+      </div>
+
+      <div className="chips" style={{ marginTop: 8 }}>
+        <button
+          className="chip"
+          aria-pressed={group === null}
+          onClick={() => setGroup(null)}
+        >
+          All
+        </button>
+        {groups.map((g) => (
+          <button
+            key={g.id}
+            className="chip"
+            aria-pressed={group === g.id}
+            // The visible label is a word and a number, and the number means
+            // nothing to anyone reading by ear.
+            aria-label={`${g.label}, ${g.count} recipes`}
+            onClick={() => setGroup(group === g.id ? null : g.id)}
+          >
+            {g.label} <span className="faint">{g.count}</span>
           </button>
         ))}
       </div>
@@ -156,7 +248,7 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         );
       })}
 
-      {safe.length === 0 && (
+      {shown.length === 0 && (
         <div className="empty">
           <h2>Nothing matches</h2>
           {/* A bare "no results" is a dead end; naming the binding constraint
