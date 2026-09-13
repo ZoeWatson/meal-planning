@@ -7,16 +7,20 @@ import type { Id, Ingredient } from '../domain/types';
 import { Sheet } from '../components/Sheet';
 
 /**
- * Allergies and exclusions.
+ * Allergies.
  *
- * Two lists that behave differently on purpose. Allergens are safety-critical:
- * they rule out whole groups, and anything matching gets a visible warning
- * wherever it could still appear. "Never plan" is a preference: it filters
- * quietly, because nobody needs a red banner about mushrooms.
+ * Half of a pair that behaves differently on purpose, and is two components for
+ * that reason rather than one with a divider down the middle. Allergens are
+ * safety-critical: they rule out whole groups, and anything matching gets a
+ * visible warning wherever it could still appear. `DislikeSettings` below is a
+ * preference and filters quietly, because nobody needs a red banner about
+ * mushrooms.
+ *
+ * Neither writes its own heading. Settings folds them as separate sections, and
+ * a component that prints a heading cannot be put behind one.
  */
-export function AllergySection({ state }: { state: AppState }): JSX.Element {
-  const { settings, ingredients, recipes, allergenExclusions } = state;
-  const [picking, setPicking] = useState(false);
+export function AllergySettings({ state }: { state: AppState }): JSX.Element {
+  const { settings, ingredients, recipes } = state;
 
   const active = settings.allergens;
 
@@ -46,20 +50,8 @@ export function AllergySection({ state }: { state: AppState }): JSX.Element {
     });
   }
 
-  async function removeExcluded(ingredientId: Id): Promise<void> {
-    await updateSettings({
-      excludedIngredients: settings.excludedIngredients.filter((i) => i !== ingredientId),
-    });
-  }
-
   return (
     <>
-      <h2 className="section-title">Allergies</h2>
-      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
-        Anything selected here is removed from plans, the shopping list and the
-        grab bags — and flagged wherever a recipe could still slip through.
-      </p>
-
       {ALLERGEN_GROUPS.map((group) => {
         const on = active.includes(group.id);
         return (
@@ -117,14 +109,29 @@ export function AllergySection({ state }: { state: AppState }): JSX.Element {
           </div>
         </div>
       )}
+    </>
+  );
+}
 
-      {/* --- dislikes ---------------------------------------------------- */}
-      <h2 className="section-title">Never plan these</h2>
-      <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
-        Individual ingredients you would rather not see. Filtered quietly — this is
-        for dislikes, not allergies.
-      </p>
+/**
+ * Individual ingredients to keep out of plans — dislikes, not allergies.
+ *
+ * Deliberately plain. Nothing here is red, nothing warns, and nothing is flagged
+ * on a recipe later: a quiet filter is the whole promise, and dressing it like
+ * the allergen list above would teach people that the red styling means nothing.
+ */
+export function DislikeSettings({ state }: { state: AppState }): JSX.Element {
+  const { settings, ingredients, allergenExclusions } = state;
+  const [picking, setPicking] = useState(false);
 
+  async function removeExcluded(ingredientId: Id): Promise<void> {
+    await updateSettings({
+      excludedIngredients: settings.excludedIngredients.filter((i) => i !== ingredientId),
+    });
+  }
+
+  return (
+    <>
       {settings.excludedIngredients.length === 0 && (
         <div className="card small dim">Nothing excluded.</div>
       )}

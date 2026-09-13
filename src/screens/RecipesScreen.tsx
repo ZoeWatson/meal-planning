@@ -2,14 +2,18 @@ import { useMemo, useState } from 'react';
 
 import type { AppState } from '../state/useAppState';
 import { addRecipeToPlan } from '../db/repository';
-import { FILTER_PRESETS, explainFilter, type RecipeFilter } from '../domain/filters';
+import {
+  DEFAULT_SORT_ID, FILTER_GROUPS, FILTER_PRESETS, RECIPE_SORTS, explainFilter, presetLabel,
+  sortRecipes, type RecipeFilter,
+} from '../domain/filters';
 import { recipeNutrition } from '../domain/nutrition';
 import { checkRecipe, describeMatches } from '../domain/allergens';
 import {
   CUISINE_REGIONS, DISH_TYPES, DISH_TYPE_LABELS, TAXONOMY_TAGS, cuisineLabel,
   cuisineOf, primaryDishType, regionOf,
 } from '../domain/taxonomy';
-import type { Recipe } from '../domain/types';
+import type { MealType, Recipe } from '../domain/types';
+import { CollapsibleSection } from '../components/CollapsibleSection';
 import { RecipeDetail } from '../components/RecipeDetail';
 import { Sheet } from '../components/Sheet';
 import { AddRecipeSheet } from './AddRecipeSheet';
@@ -32,6 +36,13 @@ const REJECTION_LABELS: Record<string, string> = {
   origin: 'source',
 };
 
+const MEAL_FILTERS: ReadonlyArray<{ id: MealType | 'any'; label: string }> = [
+  { id: 'any', label: 'Any' },
+  { id: 'full', label: 'Full' },
+  { id: 'light', label: 'Light' },
+  { id: 'snack', label: 'Snacks' },
+];
+
 /**
  * Which way the library is sorted into groups.
  *
@@ -42,9 +53,31 @@ const REJECTION_LABELS: Record<string, string> = {
  */
 type BrowseAxis = 'type' | 'region';
 
+/**
+ * The recipe library.
+ *
+ * BROWSING AND FILTERING ARE DIFFERENT JOBS and the screen now says so. Browsing
+ * — which kind of dish, where it is from — is why you opened the tab, so it sits
+ * in the open above the list and its groups are wrapped rather than scrolled
+ * sideways: fourteen kinds of dish you can see is a menu, and fourteen you have
+ * to flick through is a rumour.
+ *
+ * Filtering is narrowing something down, which you do second and less often, so
+ * it folds. It ships folded and says on its own heading what is currently
+ * switched on — the one thing a folded filter panel absolutely must do, since a
+ * hidden filter quietly removing half the library is how a good screen becomes a
+ * bug report.
+ *
+ * The filters inside it are in three labelled rows rather than one strip of
+ * seven chips. "I am vegetarian", "I have twenty minutes" and "I want something
+ * worth eating" are separate decisions, and a single row makes you read all
+ * seven to find the one you are making.
+ */
 export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   const { recipes, ingredients, ctx, settings } = state;
   const [active, setActive] = useState<Set<string>>(new Set());
+  const [mealType, setMealType] = useState<MealType | 'any'>('any');
+  const [sortId, setSortId] = useState<string>(DEFAULT_SORT_ID);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Recipe | null>(null);
   const [showAvoided, setShowAvoided] = useState(false);
@@ -60,13 +93,14 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
 
     return {
       search: search.trim() || undefined,
+      mealTypes: mealType === 'any' ? undefined : [mealType],
       diets: merged.flatMap((f) => f.diets ?? []),
       maxTotalMinutes: minDefined(merged.map((f) => f.maxTotalMinutes)),
       maxIngredientCount: minDefined(merged.map((f) => f.maxIngredientCount)),
       highProteinOnly: merged.some((f) => f.highProteinOnly),
       seasonalOnly: merged.some((f) => f.seasonalOnly),
     };
-  }, [active, search]);
+  }, [active, mealType, search]);
 
   const { matched, rejections } = useMemo(() => {
     if (!ctx) return { matched: [] as Recipe[], rejections: new Map<string, number>() };
@@ -125,10 +159,43 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
    * the filter twice to find out what each chip is worth.
    */
   const shown = useMemo(() => {
-    if (group === null) return safe;
-    return safe.filter((r) =>
-      (axis === 'type' ? primaryDishType(r, ingredients) : regionOf(r)) === group);
-  }, [safe, group, axis, ingredients]);
+    const inGroup = group === null
+      ? safe
+      : safe.filter((r) =>
+        (axis === 'type' ? primaryDishType(r, ingredients) : regionOf(r)) === group);
+    return sortRecipes(inGroup, sortId, ingredients);
+  }, [safe, group, axis, ingredients, sortId]);
+
+  /**
+   * What the filter panel is doing, for its own folded heading.
+   *
+   * Named rather than counted. "3 filters" tells you something is on and leaves
+   * you to open the panel to find out what; "Vegetarian · Under 30 min" is the
+   * answer itself, and it is what stops a folded panel from being a place
+   * results go missing.
+   *
+   * Named only while naming fits. Past three it becomes two names and a count,
+   * because a heading is one line: the alternative is a list the CSS has to cut
+   * off mid-word, and "Vegetarian · Vegan · Gluten fr…" hides the fact that
+   * there are four more behind it.
+   */
+  const filterNote = useMemo(() => {
+    const parts: string[] = [];
+    if (mealType !== 'any') {
+      parts.push(MEAL_FILTERS.find((m) => m.id === mealType)!.label);
+    }
+    for (const preset of FILTER_PRESETS) {
+      if (active.has(preset.id)) parts.push(presetLabel(preset.id));
+    }
+    if (sortId !== DEFAULT_SORT_ID) {
+      parts.push(RECIPE_SORTS.find((s) => s.id === sortId)!.label.toLowerCase());
+    }
+    if (parts.length === 0) return 'none';
+    if (parts.length <= 3) return parts.join(' · ');
+    return `${parts.slice(0, 2).join(' · ')} +${parts.length - 2} more`;
+  }, [active, mealType, sortId]);
+
+  const anyFilter = active.size > 0 || mealType !== 'any' || sortId !== DEFAULT_SORT_ID;
 
   /** Switching axis abandons the group, which belonged to the other one. */
   function browseBy(next: BrowseAxis): void {
@@ -143,6 +210,18 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
       else next.add(id);
       return next;
     });
+  }
+
+  /**
+   * Leaves the search box and the browse group alone on purpose. Both are
+   * visible whatever this panel is doing, so clearing them from inside it would
+   * be a button reaching outside its own section to change something you can
+   * see.
+   */
+  function clearFilters(): void {
+    setActive(new Set());
+    setMealType('any');
+    setSortId(DEFAULT_SORT_ID);
   }
 
   return (
@@ -170,20 +249,10 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         style={{ marginTop: 10 }}
       />
 
-      <div className="chips" style={{ marginTop: 10 }}>
-        {FILTER_PRESETS.map((preset) => (
-          <button
-            key={preset.id}
-            className="chip"
-            aria-pressed={active.has(preset.id)}
-            onClick={() => toggle(preset.id)}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </div>
-
       {/* --- Browsing ----------------------------------------------------- */}
+      {/* In the open, and above the filters, because it is what the tab is for.
+          The filters narrow a library; these two chip rows are how you walk
+          around it. */}
       <div className="segmented" style={{ marginTop: 10 }}>
         <button aria-pressed={axis === 'type'} onClick={() => browseBy('type')}>
           By type
@@ -193,7 +262,7 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         </button>
       </div>
 
-      <div className="chips" style={{ marginTop: 8 }}>
+      <div className="chips wrap" style={{ marginTop: 8 }}>
         <button
           className="chip"
           aria-pressed={group === null}
@@ -215,6 +284,65 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
           </button>
         ))}
       </div>
+
+      {/* --- Filters ------------------------------------------------------ */}
+      <CollapsibleSection
+        id="recipes:filters"
+        title="Filter & sort"
+        defaultOpen={false}
+        closedNote={filterNote}
+        noteTone={anyFilter ? 'active' : 'quiet'}
+      >
+        <h3 className="sub-title">Meal</h3>
+        <div className="segmented">
+          {MEAL_FILTERS.map((m) => (
+            <button
+              key={m.id}
+              aria-pressed={mealType === m.id}
+              onClick={() => setMealType(m.id)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {FILTER_GROUPS.map((fg) => (
+          <div key={fg.id}>
+            <h3 className="sub-title">{fg.label}</h3>
+            <div className="chips wrap">
+              {FILTER_PRESETS.filter((p) => p.group === fg.id).map((preset) => (
+                <button
+                  key={preset.id}
+                  className="chip"
+                  aria-pressed={active.has(preset.id)}
+                  onClick={() => toggle(preset.id)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <h3 className="sub-title">Order</h3>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <select
+            aria-label="Sort recipes"
+            value={sortId}
+            onChange={(e) => setSortId(e.target.value)}
+          >
+            {RECIPE_SORTS.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {anyFilter && (
+          <button className="btn block" style={{ marginTop: 10 }} onClick={clearFilters}>
+            Clear filters
+          </button>
+        )}
+      </CollapsibleSection>
 
       {/* Only when there is nothing to add to. Every Add button below is dead in
           that state, and a row of greyed-out buttons with no reason given is the
@@ -275,6 +403,12 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
                   .map(([reason, n]) => `${REJECTION_LABELS[reason] ?? reason} (${n})`)
                   .join(', ')}.`}
           </p>
+          {/* The filter panel is folded by default, so the controls doing this
+              may well be off screen and out of mind. A way back that does not
+              require finding them first. */}
+          {anyFilter && (
+            <button className="btn" onClick={clearFilters}>Clear filters</button>
+          )}
         </div>
       )}
 

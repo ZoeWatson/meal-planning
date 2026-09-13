@@ -36,7 +36,10 @@ import { aggregateNeeds, DEFAULT_WEIGHTS, type PlanningContext } from '../src/do
 import {
   buildVariantIndex, chooseBestVariants, collapseToFamilies, familyIdOf, swapRecipeIngredient,
 } from '../src/domain/variants';
-import { applyFilter } from '../src/domain/filters';
+import {
+  DEFAULT_SORT_ID, FILTER_GROUPS, FILTER_PRESETS, RECIPE_SORTS, applyFilter, presetLabel,
+  sortRecipes,
+} from '../src/domain/filters';
 import { buildGroceryList, withoutRemoved } from '../src/domain/grocery';
 import {
   CUISINE_REGIONS, cuisineLabel, cuisineOf, dishTypesOf, primaryDishType, regionOf,
@@ -1957,6 +1960,118 @@ test('the dish-type filter matches every type, not only the one it files under',
   }).map((r) => r.id).sort();
 
   assert.deepEqual(found, ['noodle-soup', 'rice-noodle-plate', 'untagged-pasta']);
+});
+
+// ---------------------------------------------------------------------------
+
+group('Browsing the library');
+
+const BROWSE_LIBRARY = loadSeedData();
+const BROWSE_RECIPES = BROWSE_LIBRARY.recipes;
+const BROWSE_INGREDIENTS = new Map(BROWSE_LIBRARY.ingredients.map((i) => [i.id, i]));
+
+/** The library in a deliberately unhelpful order, to prove the sort does the work. */
+function shuffledLibrary(): Recipe[] {
+  return [...BROWSE_RECIPES].sort((a, b) => b.name.localeCompare(a.name));
+}
+
+test('every filter preset belongs to a group the UI renders', () => {
+  // The Recipes screen draws the chips group by group. A preset whose group is
+  // not in the list is not a preset with a cosmetic problem — it is a filter
+  // nobody can reach, and nothing else would notice.
+  const known = new Set(FILTER_GROUPS.map((g) => g.id));
+  for (const preset of FILTER_PRESETS) {
+    assert.ok(known.has(preset.group), `"${preset.id}" is in unknown group "${preset.group}"`);
+  }
+});
+
+test('every filter group has at least one preset in it', () => {
+  for (const fg of FILTER_GROUPS) {
+    assert.ok(
+      FILTER_PRESETS.some((p) => p.group === fg.id),
+      `"${fg.label}" would render as an empty heading`,
+    );
+  }
+});
+
+test('preset ids and labels line up', () => {
+  assert.equal(presetLabel('quick'), 'Under 30 min');
+  // An unknown id is echoed rather than thrown over: this feeds a folded
+  // heading, and a summary line is not worth crashing a screen for.
+  assert.equal(presetLabel('no-such-preset'), 'no-such-preset');
+});
+
+test('the default sort is alphabetical', () => {
+  const sorted = sortRecipes(shuffledLibrary(), DEFAULT_SORT_ID, BROWSE_INGREDIENTS);
+  const names = sorted.map((r) => r.name);
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
+});
+
+test('quickest first really is quickest first', () => {
+  const sorted = sortRecipes(shuffledLibrary(), 'quickest', BROWSE_INGREDIENTS);
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1].prepMinutes + sorted[i - 1].cookMinutes;
+    const here = sorted[i].prepMinutes + sorted[i].cookMinutes;
+    assert.ok(prev <= here, `${sorted[i - 1].name} (${prev}) came before ${sorted[i].name} (${here})`);
+  }
+});
+
+test('fewest ingredients first really is fewest first', () => {
+  const sorted = sortRecipes(shuffledLibrary(), 'simplest', BROWSE_INGREDIENTS);
+  for (let i = 1; i < sorted.length; i++) {
+    assert.ok(
+      sorted[i - 1].ingredients.length <= sorted[i].ingredients.length,
+      `${sorted[i - 1].name} came before ${sorted[i].name}`,
+    );
+  }
+});
+
+test('ties break by name, so the order never reshuffles itself', () => {
+  // Half the library shares a cooking time. Without the tiebreak the order
+  // within a tie is whatever the database handed back, which changes the moment
+  // anything is imported.
+  const sorted = sortRecipes(shuffledLibrary(), 'quickest', BROWSE_INGREDIENTS);
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const here = sorted[i];
+    if (prev.prepMinutes + prev.cookMinutes !== here.prepMinutes + here.cookMinutes) continue;
+    assert.ok(
+      prev.name.localeCompare(here.name) <= 0,
+      `tied at ${prev.prepMinutes + prev.cookMinutes} min but ${prev.name} came before ${here.name}`,
+    );
+  }
+});
+
+test('sorting never loses or invents a recipe', () => {
+  // A sort is not a filter. Most protein reads nutrition, which half the library
+  // cannot fully supply, and a recipe that vanishes when you change the order
+  // would look exactly like a bug.
+  for (const sort of RECIPE_SORTS) {
+    const sorted = sortRecipes(BROWSE_RECIPES, sort.id, BROWSE_INGREDIENTS);
+    assert.equal(sorted.length, BROWSE_RECIPES.length, `${sort.label} changed the count`);
+    assert.deepEqual(
+      new Set(sorted.map((r) => r.id)).size,
+      BROWSE_RECIPES.length,
+      `${sort.label} duplicated a recipe`,
+    );
+  }
+});
+
+test('an unknown sort id falls back rather than throwing', () => {
+  // It arrives from component state that outlives a release. A sort removed in
+  // an update must not take the screen with it.
+  const sorted = sortRecipes(shuffledLibrary(), 'sort-that-no-longer-exists', BROWSE_INGREDIENTS);
+  assert.deepEqual(
+    sorted.map((r) => r.id),
+    sortRecipes(shuffledLibrary(), DEFAULT_SORT_ID, BROWSE_INGREDIENTS).map((r) => r.id),
+  );
+});
+
+test('sorting does not modify the list it was given', () => {
+  const original = shuffledLibrary();
+  const before = original.map((r) => r.id);
+  sortRecipes(original, 'quickest', BROWSE_INGREDIENTS);
+  assert.deepEqual(original.map((r) => r.id), before);
 });
 
 // ---------------------------------------------------------------------------

@@ -187,13 +187,120 @@ export function explainFilter(
   return { matched, rejections };
 }
 
-/** Presets for one-tap filter chips in the UI. */
-export const FILTER_PRESETS: ReadonlyArray<{ id: string; label: string; filter: RecipeFilter }> = [
-  { id: 'quick', label: 'Under 30 min', filter: { maxTotalMinutes: 30 } },
-  { id: 'high-protein', label: 'High protein', filter: { highProteinOnly: true } },
-  { id: 'vegetarian', label: 'Vegetarian', filter: { diets: ['vegetarian'] } },
-  { id: 'vegan', label: 'Vegan', filter: { diets: ['vegan'] } },
-  { id: 'gluten-free', label: 'Gluten free', filter: { diets: ['gluten-free'] } },
-  { id: 'in-season', label: 'In season', filter: { seasonalOnly: true } },
-  { id: 'simple', label: '5 ingredients or fewer', filter: { maxIngredientCount: 5 } },
+/**
+ * What kind of question a preset answers.
+ *
+ * Seven chips in one row is a row you read left to right hunting for the one you
+ * want. Three short labelled rows is three glances, because "I am vegetarian",
+ * "I have twenty minutes" and "I want something worth eating" are separate
+ * decisions that happen to be made on the same screen.
+ */
+export type FilterGroupId = 'diet' | 'effort' | 'quality';
+
+export const FILTER_GROUPS: ReadonlyArray<{ id: FilterGroupId; label: string }> = [
+  { id: 'diet', label: 'Diet' },
+  { id: 'effort', label: 'Effort' },
+  { id: 'quality', label: 'What is in it' },
 ];
+
+export interface FilterPreset {
+  readonly id: string;
+  readonly label: string;
+  readonly group: FilterGroupId;
+  readonly filter: RecipeFilter;
+}
+
+/** Presets for one-tap filter chips in the UI. */
+export const FILTER_PRESETS: readonly FilterPreset[] = [
+  { id: 'vegetarian', label: 'Vegetarian', group: 'diet', filter: { diets: ['vegetarian'] } },
+  { id: 'vegan', label: 'Vegan', group: 'diet', filter: { diets: ['vegan'] } },
+  { id: 'gluten-free', label: 'Gluten free', group: 'diet', filter: { diets: ['gluten-free'] } },
+  { id: 'quick', label: 'Under 30 min', group: 'effort', filter: { maxTotalMinutes: 30 } },
+  { id: 'simple', label: '5 ingredients or fewer', group: 'effort', filter: { maxIngredientCount: 5 } },
+  { id: 'high-protein', label: 'High protein', group: 'quality', filter: { highProteinOnly: true } },
+  { id: 'in-season', label: 'In season', group: 'quality', filter: { seasonalOnly: true } },
+];
+
+const PRESETS_BY_ID: ReadonlyMap<string, FilterPreset> =
+  new Map(FILTER_PRESETS.map((p) => [p.id, p]));
+
+/** The label for an active preset, for UI summarising what is switched on. */
+export function presetLabel(id: string): string {
+  return PRESETS_BY_ID.get(id)?.label ?? id;
+}
+
+// ---------------------------------------------------------------------------
+// Order
+// ---------------------------------------------------------------------------
+
+/**
+ * How a list of recipes is ordered on screen.
+ *
+ * Here rather than in the screen because the comparators are the same pure
+ * functions over the same data the filters read, and because "quickest first"
+ * has to mean prep AND cook — the same total the `maxTotalMinutes` filter uses,
+ * from one place, rather than a second definition drifting inside a component.
+ *
+ * Ordering is NOT filtering and stays separate from `RecipeFilter` for that
+ * reason: the planner consumes filters and has its own scoring, and giving it a
+ * field it must ignore would invite somebody to make it obey one.
+ */
+export interface RecipeSort {
+  readonly id: string;
+  readonly label: string;
+  /** Ties are broken by name in `sortRecipes`, so this need not be total. */
+  readonly compare: (
+    a: Recipe,
+    b: Recipe,
+    ingredients: ReadonlyMap<Id, Ingredient>,
+  ) => number;
+}
+
+function totalMinutes(recipe: Recipe): number {
+  return recipe.prepMinutes + recipe.cookMinutes;
+}
+
+export const RECIPE_SORTS: readonly RecipeSort[] = [
+  { id: 'name', label: 'A to Z', compare: () => 0 },
+  { id: 'quickest', label: 'Quickest first', compare: (a, b) => totalMinutes(a) - totalMinutes(b) },
+  {
+    id: 'simplest',
+    label: 'Fewest ingredients',
+    compare: (a, b) => a.ingredients.length - b.ingredients.length,
+  },
+  {
+    id: 'protein',
+    label: 'Most protein',
+    // Recipes whose ingredients carry too little nutrition data to add up are
+    // sorted as zero rather than dropped. A sort is not a filter, and a recipe
+    // that vanishes when you change the order looks like a bug.
+    compare: (a, b, ingredients) =>
+      proteinFor(b, ingredients) - proteinFor(a, ingredients),
+  },
+];
+
+function proteinFor(recipe: Recipe, ingredients: ReadonlyMap<Id, Ingredient>): number {
+  const n = recipeNutrition(recipe, ingredients);
+  return n.coverage > 0.7 ? n.proteinG : 0;
+}
+
+export const DEFAULT_SORT_ID = RECIPE_SORTS[0].id;
+
+/**
+ * Orders a list of recipes, breaking every tie by name.
+ *
+ * The tiebreak is the point. Half the library shares a cooking time and a third
+ * of it shares an ingredient count, so without it the order within a tie is
+ * whatever the database handed back — which changes when anything is imported,
+ * and makes a list appear to reshuffle itself for no reason.
+ */
+export function sortRecipes(
+  recipes: readonly Recipe[],
+  sortId: string,
+  ingredients: ReadonlyMap<Id, Ingredient>,
+): Recipe[] {
+  const sort = RECIPE_SORTS.find((s) => s.id === sortId) ?? RECIPE_SORTS[0];
+  return [...recipes].sort(
+    (a, b) => sort.compare(a, b, ingredients) || a.name.localeCompare(b.name),
+  );
+}

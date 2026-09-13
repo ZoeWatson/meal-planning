@@ -48,14 +48,25 @@ npm run sync-server    # optional, for syncing between devices
   is free to the planner, so filing a bunch of parsley in there would quietly
   discount every week after this one. It is offered and never done for you, and
   the test for what keeps is the one the waste model already makes.
-- **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
-  cooking time, in-season, ingredient count.
 - **Browsing by type and region.** The Recipes tab groups the library by kind of
   dish — pasta, soups, curries, bakes — or by where the food is from, both
   derived rather than stored: a recipe is pasta if it is tagged pasta or if there
   is pasta in it, which is how the half of the library that never said so gets
   filed correctly. Filing and filtering answer differently on purpose. A
   minestrone with ditalini in it is a soup, and a search for pasta still finds it.
+  Every group is on screen at once rather than on a strip you scroll sideways,
+  and each carries the count you would get by tapping it — counted over whatever
+  the search and the filters have already left, so it promises what it can
+  deliver. Groups that would come back empty are not offered.
+- **Filters, folded.** Meal type, diet (vegetarian, vegan, gluten free), effort
+  (under 30 minutes, five ingredients or fewer), high protein — computed from
+  ingredients rather than tagged — and in-season. They sit behind one fold below
+  the browse chips, in labelled rows rather than one strip of seven, because
+  browsing is why you opened the tab and narrowing is what you do second. The
+  fold says on its own heading what is switched on: a hidden filter quietly
+  removing half the library is how a good screen becomes a bug report. And the
+  list can be ordered — A to Z, quickest, fewest ingredients, most protein —
+  with ties broken by name, so it never appears to reshuffle itself.
 - **Week rules** — "at least three meals under 30 minutes", "two pasta nights",
   "something using the halloumi", "at most one curry". A rule is a filter plus a
   count, which is the thing no per-recipe filter can say: asking a filter for
@@ -108,6 +119,14 @@ npm run sync-server    # optional, for syncing between devices
   for when it comes back. Switching the summary, the meals or the pantry review
   off only takes them off the screen. The week screen itself carries no settings:
   it is the week, and the knobs that shape it live in one place.
+- **Settings is an index.** Every section folds, every section ships folded, and
+  each one says on its heading what it is currently set to — "Region · British
+  Columbia", "Week shape · 5 full · 2 light · 3 snacks". The screen you land on
+  is therefore a one-line summary of the entire app that happens to open, rather
+  than thirty controls laid end to end with the one you came for somewhere in
+  the middle. Related sections sit under a band label; the bands are captions and
+  not a second layer of folding, because burying Allergies two taps deep to save
+  a line of screen is not a trade worth making.
 - **Metric and imperial**, toggled at display time.
 - **Import a recipe** from a link, a photo or a block of text. All three become
   the same editable draft, reviewed line by line before anything is saved.
