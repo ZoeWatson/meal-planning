@@ -18,6 +18,7 @@ import {
 import { TREAT_KIND_LABELS, getTreat } from '../domain/treats';
 import { CheckIcon, HouseIcon } from '../components/icons';
 import { BarcodeScanner, isScanningSupported } from '../components/BarcodeScanner';
+import { CollapsibleSection } from '../components/CollapsibleSection';
 import { Sheet } from '../components/Sheet';
 
 const AISLE_LABELS: Record<string, string> = {
@@ -322,8 +323,12 @@ export function GroceryScreen({
       </div>
 
       {groups.map(([category, items]) => (
-        <section key={category}>
-          <h2 className="aisle">{AISLE_LABELS[category] ?? category}</h2>
+        <CollapsibleSection
+          key={category}
+          id={`grocery:${category}`}
+          title={AISLE_LABELS[category] ?? category}
+          closedNote={`${items.filter((r) => r.checked).length}/${items.length}`}
+        >
           {items.map((row) => (
             <div className={`gline${row.checked ? ' done' : ''}`} key={row.key}>
               <button
@@ -389,7 +394,7 @@ export function GroceryScreen({
               </button>
             </div>
           ))}
-        </section>
+        </CollapsibleSection>
       ))}
 
       {/* The way back, and the only one. Kept on the same screen rather than
@@ -399,8 +404,11 @@ export function GroceryScreen({
           the line simply leaves the aisle it was in. A list is also a thing
           people put down and pick up again. */}
       {takenOff.length > 0 && (
-        <section>
-          <h2 className="aisle">Taken off the list</h2>
+        <CollapsibleSection
+          id="grocery:taken-off"
+          title="Taken off the list"
+          closedNote={`${takenOff.length}`}
+        >
           <p className="tiny faint" style={{ margin: '0 0 8px' }}>
             Not being bought, and not in the total. The meals that wanted them are
             unchanged, so next week's list starts with them back on it — including
@@ -459,7 +467,7 @@ export function GroceryScreen({
               )}
             </div>
           ))}
-        </section>
+        </CollapsibleSection>
       )}
 
       <button
