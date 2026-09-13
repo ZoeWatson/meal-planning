@@ -50,6 +50,7 @@ import { CaretIcon } from '../components/icons';
 import { Sheet } from '../components/Sheet';
 import { ImportSheet } from './ImportSheet';
 import { SyncSheet } from './SyncSheet';
+import { TransferSheet } from './TransferSheet';
 import { WorksCitedSheet } from './WorksCitedSheet';
 import type { MealType } from '../domain/types';
 
@@ -71,6 +72,7 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const [kitchen, setKitchen] = useState(false);
   const [cited, setCited] = useState(false);
 
@@ -460,12 +462,24 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
           whose whole contents is "open this", and four one-button sections was
           four headings pretending to be settings. */}
       <SettingsBand id="app" label="Sync & data">
+        {/* The file first, deliberately. It needs nothing but the two devices,
+            where the one below it needs a server somebody has to run. */}
+        <button className="btn block" style={{ marginBottom: 8 }} onClick={() => setTransferring(true)}>
+          Move data between devices
+        </button>
+        <p className="tiny faint" style={{ margin: '-4px 0 12px' }}>
+          Export a file, open it on your phone or laptop, and the two catch up.
+          Each record keeps whichever version was written last, so it is safe to
+          carry in both directions.
+        </p>
+
         <button className="btn block" style={{ marginBottom: 8 }} onClick={() => setSyncing(true)}>
           Sync settings
         </button>
         <p className="tiny faint" style={{ margin: '-4px 0 12px' }}>
-          Everything works offline first and lives on this device. Link a second
-          device to keep plans and shopping lists in step.
+          Everything works offline first and lives on this device. The same catching
+          up, done over the network instead of by hand — it needs a sync server you
+          run yourself.
         </p>
 
         <button className="btn block" style={{ marginBottom: 8 }} onClick={() => setImporting(true)}>
@@ -510,6 +524,7 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
 
       {importing && <ImportSheet onClose={() => setImporting(false)} />}
       {syncing && <SyncSheet onClose={() => setSyncing(false)} />}
+      {transferring && <TransferSheet onClose={() => setTransferring(false)} />}
       {cited && <WorksCitedSheet onClose={() => setCited(false)} />}
       {kitchen && (
         <Sheet title="Staples & leftovers" onClose={() => setKitchen(false)}>

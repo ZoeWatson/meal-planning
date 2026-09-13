@@ -15,6 +15,19 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      /**
+       * Registered by hand in `main.tsx` rather than injected into the page,
+       * because there are now two things this build runs inside and only one of
+       * them wants a service worker.
+       *
+       * In the browser it is what makes the app work with the radio off. Inside
+       * the Android app it is worse than useless: the assets are already on the
+       * device, so it caches local files against no network, and its cache
+       * outlives an APK update — which means a worker installed by last month's
+       * build can keep serving last month's app over the top of the new one, with
+       * no address bar to reload from and nothing on screen to explain it.
+       */
+      injectRegister: null,
       includeAssets: ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
       manifest: {
         name: 'Meal Planning',

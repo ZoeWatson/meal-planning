@@ -1,0 +1,73 @@
+# Builds the sideloadable Android APK.
+#
+# This exists because the APK needs a JDK, the Android SDK and Gradle — about ten
+# gigabytes of toolchain to produce one file — and GitHub's runners already have
+# all of it. Nothing has to be installed to get an app onto a phone.
+#
+# The output is a *debug* APK, which matters for one reason worth knowing before
+# you install it: debug and release builds are signed with different keys, and
+# Android refuses to upgrade an app in place across a change of key. Staying on
+# debug builds forever is fine and everything upgrades normally. Switching to a
+# release build later means uninstalling first, which takes the app's database
+# with it — so export a transfer file from Settings before doing that.
+
+name: Android APK
+
+on:
+  # Every push to main, so the artifact is always the current app rather than
+  # whatever was current the last time somebody remembered to press a button.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches netlify.toml. Two of workbox's transitive dependencies are
+          # pinned for Node 18 and run fine on 20; the Capacitor 6 CLI needs 18+.
+          node-version: '20'
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Android Gradle Plugin 8.2 requires 17. Newer JDKs are not a free
+          # upgrade here — AGP checks the version and refuses ones it predates.
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck and test
+        # The APK is built from whatever this produces, so a broken build should
+        # fail here rather than be discovered on a phone in a supermarket.
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Copy web assets into the Android project
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meal-planning-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          # Long enough to still be there when you next pick up the phone, short
+          # enough not to accumulate a year of builds nobody wants.
+          retention-days: 30
+          if-no-files-found: error

@@ -4,7 +4,11 @@ A weekly meal planner that picks meals which **share ingredients**, so nothing i
 bought for a single recipe and left to rot — and the grocery list to match.
 
 Offline-first and phone-first: generate a plan on a laptop, tick the list off in a
-supermarket with no signal, and it catches up when you reconnect.
+supermarket with no signal, and bring the two back into step afterwards — with a
+file you carry across, or a sync server if you would rather run one.
+
+It installs from the browser on a computer and as an APK on Android. There is no
+backend in either case; the data lives on the device.
 
 ```bash
 npm install
@@ -139,7 +143,12 @@ npm run sync-server    # optional, for syncing between devices
 - **Import a recipe** from a link, a photo or a block of text. All three become
   the same editable draft, reviewed line by line before anything is saved.
 - **Bulk import** with a prose-line parser, and export as backup.
-- **Sync** between devices, last-write-wins over hybrid logical clocks.
+- **Two devices, kept in step** — last-write-wins over hybrid logical clocks,
+  carried either over the network or by hand. **Settings → Move data between
+  devices** exports the change log as a file; importing it on the other device
+  merges rather than overwrites, so a list ticked in a shop and a plan edited on a
+  laptop both survive the trip, and the same file is a backup. The sync server
+  does the same thing continuously for anyone willing to run one.
 - **Spending tracker.** Price items at the shelf with a running total, record what
   the till actually said, log meals out, and track a monthly goal. Barcode
   scanning where the browser supports it. All money is integer cents.
@@ -167,11 +176,12 @@ src/domain/        pure logic — no React, no database, all testable
   planner/         scoring and week generation
   import/          format, validator, prose parser, stub generator
                    capture from links, photos and text; near-miss matching
-  sync/            clocks and merge rules
+  sync/            clocks, merge rules, and the transfer file format
 src/db/            Dexie schema and the single write choke point
-src/sync/          transport and orchestration
+src/sync/          the two transports — server and file — and orchestration
 src/screens/       the six tabs
 server/            reference sync server (no dependencies)
+android/           Capacitor wrapper for the sideloaded Android app
 scripts/           tests and CLI tooling
 docs/              import format reference
 ```
@@ -191,6 +201,7 @@ npm run demo           # end-to-end planner run, printed
 npm run import         # bulk import CLI — see docs/import-format.md
 npm run ocr-assets     # stage the on-device OCR runtime (also runs on install)
 npm run sync-server    # reference sync server — see server/README.md
+npm run android:sync   # build, then copy the result into the Android project
 ```
 
 ## Adding recipes
@@ -214,6 +225,43 @@ whatever is missing.
 
 Both routes go through the same importer. There is no laxer path into the
 library.
+
+## On a phone and on a computer
+
+The same build runs both ways, with the same data model and no backend either
+way. What differs is only how it is installed.
+
+**On a computer**, install it from the browser — Chrome and Edge offer this in the
+address bar. The app then asks the browser to mark its storage persistent, which
+is what stops IndexedDB being evicted under disk pressure or after a stretch of
+not opening it. It is a request, not a guarantee, which is the other reason to
+export a transfer file now and then.
+
+**On Android**, install the APK. It is built by GitHub Actions rather than
+locally, because the toolchain is about ten gigabytes and nothing about this app
+needs it on your machine:
+
+1. Push to `main`, or run the **Android APK** workflow by hand from the Actions
+   tab.
+2. Download the `meal-planning-apk` artifact from the finished run and unzip it.
+3. Copy the APK to the phone and open it. Android will ask once for permission to
+   install from this source.
+
+Two things worth knowing before you install it:
+
+- It is a **debug-signed** build. Debug and release builds carry different
+  signatures and Android will not upgrade across a change of signature, so
+  switching to release signing later means uninstalling first — which deletes the
+  app's database. Export a transfer file before doing that. Staying on debug
+  builds indefinitely is fine; they upgrade over each other normally.
+- The launcher icon is still Capacitor's default. `public/icon-512.png` is the
+  right artwork; putting it in place means generating the Android mipmaps from it.
+
+`appId` in `capacitor.config.ts` is effectively permanent — changing it installs a
+second, separate app with its own empty database rather than updating the first.
+
+To build locally instead, install JDK 17 and the Android SDK, then
+`npm run android:sync && cd android && ./gradlew assembleDebug`.
 
 ## Notes
 

@@ -11,10 +11,9 @@
 
 import { db } from '../db/database';
 import {
-  applyRemote, enqueueEverything, getSyncMeta, localHlcFor, observeRemoteStamp, updateSyncMeta,
+  applyChanges, enqueueEverything, getSyncMeta, updateSyncMeta,
 } from '../db/syncWrites';
-import { collapse, mergeChange, pruneSupersededOutbox } from '../domain/sync/merge';
-import { parse } from '../domain/sync/hlc';
+import { pruneSupersededOutbox } from '../domain/sync/merge';
 import {
   SyncError, type Change, type SyncStatus, type SyncTransport,
 } from '../domain/sync/types';
@@ -85,7 +84,7 @@ async function runSync(): Promise<SyncOutcome> {
       hasMore = result.hasMore;
 
       if (result.changes.length > 0) {
-        applied += await applyIncoming(result.changes);
+        applied += (await applyChanges(result.changes)).applied;
         dropped += await reconcileOutbox(result.changes);
       }
 
@@ -103,25 +102,6 @@ async function runSync(): Promise<SyncOutcome> {
     await updateSyncMeta({ lastError: message });
     throw err;
   }
-}
-
-/** Applies pulled changes that beat the local copy. */
-async function applyIncoming(changes: readonly Change[]): Promise<number> {
-  let applied = 0;
-
-  for (const change of collapse(changes)) {
-    // Advance the local clock past everything seen, whether or not it wins, so
-    // this device's next write is guaranteed to compare later than it.
-    await observeRemoteStamp(parse(change.hlc));
-
-    const local = await localHlcFor(change.collection, change.id);
-    if (mergeChange(change, local).action === 'apply') {
-      await applyRemote(change);
-      applied++;
-    }
-  }
-
-  return applied;
 }
 
 /** Drops queued local changes the server has already superseded. */
