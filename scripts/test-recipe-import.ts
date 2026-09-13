@@ -448,7 +448,7 @@ test('different foods sharing a word are not suggested for each other', () => {
 test('something genuinely absent suggests nothing', () => {
   const seed = loadSeedData();
   assert.equal(suggestIngredients('unobtainium', seed.ingredients).length, 0);
-  assert.equal(suggestIngredients('gochujang', seed.ingredients).length, 0);
+  assert.equal(suggestIngredients('doubanjiang', seed.ingredients).length, 0);
 });
 
 test('adding an alias is idempotent and case-insensitive', () => {
