@@ -7,6 +7,7 @@ import { DERIVABLE_DIETS } from '../domain/nutrition';
 import { AllergySection } from './AllergySection';
 import { KitchenScreen } from './KitchenScreen';
 import { GrabBagControls } from '../components/GrabBagControls';
+import { GRAB_BAGS } from '../domain/grabbag';
 import { Sheet } from '../components/Sheet';
 import { ImportSheet } from './ImportSheet';
 import { SyncSheet } from './SyncSheet';
@@ -209,13 +210,21 @@ export function SettingsScreen({ state }: { state: AppState }): JSX.Element {
         </div>
       </div>
 
-      {/* --- Grab bag ----------------------------------------------------- */}
-      <h2 className="section-title">Produce grab bag</h2>
+      {/* --- Grab bags ---------------------------------------------------- */}
+      <h2 className="section-title">Grab bags</h2>
       <p className="tiny faint" style={{ margin: '-4px 0 8px' }}>
-        Random in-season produce added each week to break the rut. Changes apply to
-        this week's bag straight away; redraw it from the plan screen.
+        A few things added to the week because they are worth having in, not
+        because a recipe asked for them. How much of each you want; whether you
+        want it at all is above, under This week screen. Changes apply to this
+        week's bags straight away; redraw them from the This week screen.
       </p>
-      <GrabBagControls state={state} />
+      {GRAB_BAGS.map((bag) => (
+        <div key={bag.id}>
+          <h3 className="sub-title">{bag.title}</h3>
+          <p className="tiny faint" style={{ margin: '-2px 0 8px' }}>{bag.blurb}</p>
+          <GrabBagControls state={state} bag={bag.id} />
+        </div>
+      ))}
 
       {/* --- Kitchen ------------------------------------------------------ */}
       <h2 className="section-title">Kitchen</h2>

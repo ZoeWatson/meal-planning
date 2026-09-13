@@ -467,37 +467,138 @@ test('an alias is enough — imports rarely use the tidy name', () => {
   assert.equal(kindOf('Courgette', ['zucchini']), 'vegetable');
 });
 
+group('Grab bag shelves');
+
+const LIBRARY: readonly Ingredient[] = loadSeedData().ingredients;
+
+function named(name: string): Ingredient {
+  const ing = LIBRARY.find((i) => i.name === name);
+  if (!ing) assert.fail(`the library has no "${name}" — this test's fixtures have moved`);
+  return ing;
+}
+
+test('nothing is on two shelves at once', () => {
+  // The draw counts each lane's target separately and holds on to what it has
+  // already drawn, so an ingredient claimed by two bags would be drawn once and
+  // counted twice — a bag that comes back one short for no visible reason. Cheap
+  // to assert over the whole library, and impossible to spot by eye.
+  for (const ing of LIBRARY) {
+    const claimed = GRAB_BAGS.filter((bag) => bag.holds(ing)).map((b) => b.id);
+    assert.ok(claimed.length <= 1, `${ing.name} is in ${claimed.join(' and ')}`);
+  }
+});
+
+test('pasta is told apart from the rest of the grain shelf', () => {
+  for (const name of ['Spaghetti', 'Penne', 'Orzo', 'Lasagne sheets', 'Soba noodles',
+                      'Potato gnocchi', 'Glass noodles']) {
+    assert.ok(isPasta(named(name)), name);
+  }
+  // The rest of the aisle it shares. Rice is not pasta however close it is shelved.
+  for (const name of ['Long grain rice', 'Rolled oats', 'Polenta', 'Crackers',
+                      'Pearl barley', 'Rice paper wrappers']) {
+    assert.ok(!isPasta(named(name)), name);
+  }
+});
+
+test('couscous is pasta, and the singulariser nearly hid it', () => {
+  // `singular` turns "couscous" into "couscou", so a word list written in plain
+  // English and compared raw silently never matched it. Both sides go through the
+  // same mill now, and this is the regression guard for that.
+  assert.ok(isPasta(named('Couscous')));
+});
+
+test('cheese is told apart from the rest of the dairy shelf', () => {
+  for (const name of ['Brie', 'Cream cheese', 'Paneer', 'Gruyère', 'Burrata',
+                      'Pecorino romano', 'Comté']) {
+    assert.ok(isCheese(named(name)), name);
+  }
+  // Everything else in the fridge door. "Sour cream" and "Cream cheese" are one
+  // word apart, and only one of them is a cheese.
+  for (const name of ['Milk', 'Butter', 'Cream', 'Sour cream', 'Greek yogurt', 'Eggs']) {
+    assert.ok(!isCheese(named(name)), name);
+  }
+});
+
+test('the bread bag is the whole bakery shelf', () => {
+  const bakery = LIBRARY.filter((i) => i.category === 'bakery');
+  assert.ok(bakery.length >= 25, 'the point of the bread bag is that there are lots of breads');
+  assert.ok(bakery.every((i) => bagOf(i) === 'bread'));
+});
+
+test('every name in the library belongs to exactly one ingredient', () => {
+  // Import resolves a written line by name or alias, last one indexed winning. A
+  // collision therefore does not fail — it silently re-points every recipe using
+  // that word at a different ingredient. Adding seventy ingredients in one go is
+  // exactly when that happens, and nothing else would catch it.
+  const key = (text: string): string => text.trim().toLowerCase().replace(/\s+/g, ' ');
+  const owner = new Map<string, string>();
+  for (const ing of LIBRARY) {
+    for (const text of [ing.id, ing.name, ...ing.aliases]) {
+      const existing = owner.get(key(text));
+      assert.ok(
+        existing === undefined || existing === ing.id,
+        `"${text}" is claimed by both ${existing} and ${ing.id}`,
+      );
+      owner.set(key(text), ing.id);
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+
 group('Grab bag draw');
 
-function planningContext(): PlanningContext {
-  const seed = loadSeedData();
-  const settings: PlannerSettings = {
+function testSettings(overrides: Partial<PlannerSettings> = {}): PlannerSettings {
+  return {
     unitSystem: 'metric',
     regionId: 'bc-canada',
     diets: [],
     allergens: [],
     excludedIngredients: [],
+    weekRules: [],
     weeklyTimeBudgetMinutes: 240,
     repeatWindowWeeks: 3,
+    produceBagEnabled: true,
     wildcardCount: 4,
     wildcardSplit: false,
     wildcardFruitCount: 2,
     wildcardVegCount: 2,
+    // The dry shelves ship switched on, but they start off here so that a test
+    // about the produce bag is about the produce bag. They are switched on
+    // deliberately, below.
+    breadBagEnabled: false,
+    breadBagCount: 2,
+    pastaBagEnabled: false,
+    pastaBagCount: 1,
+    cheeseBagEnabled: false,
+    cheeseBagCount: 1,
+    treatBagEnabled: true,
+    treatCount: 3,
+    ...overrides,
   };
+}
+
+function planningContext(overrides: Partial<PlannerSettings> = {}): PlanningContext {
+  const seed = loadSeedData();
   return {
     ingredients: new Map<Id, Ingredient>(seed.ingredients.map((i) => [i.id, i])),
     recipes: new Map<Id, Recipe>(seed.recipes.map((r) => [r.id, r])),
     staples: [],
     pantry: new Map(),
     sales: new Map(),
-    settings,
+    settings: testSettings(overrides),
     recentlyUsed: new Map(),
     month: 8,
     region: getRegion('bc-canada'),
   };
 }
 
-const SIZES: WildcardSizes = { split: false, count: 5, fruitCount: 2, vegCount: 3 };
+/** The lanes those settings produce — the same call the app makes. */
+function lanes(overrides: Partial<PlannerSettings> = {}): BagLane[] {
+  return grabBagLanes(testSettings(overrides));
+}
+
+const PRODUCE_5 = lanes({ wildcardCount: 5, wildcardFruitCount: 2, wildcardVegCount: 3 });
 
 function kindsOf(ctx: PlanningContext, items: readonly WildcardItem[]): string[] {
   return items.map((w) => {
@@ -507,9 +608,17 @@ function kindsOf(ctx: PlanningContext, items: readonly WildcardItem[]): string[]
   });
 }
 
+function bagsOf(ctx: PlanningContext, items: readonly WildcardItem[]): (GrabBagId | null)[] {
+  return items.map((w) => {
+    const ing = ctx.ingredients.get(w.ingredientId);
+    if (!ing) assert.fail(`drew ${w.ingredientId}, which is not in the library`);
+    return bagOf(ing);
+  });
+}
+
 test('an unsplit bag comes back at the asked-for size, with no repeats', () => {
   const ctx = planningContext();
-  const bag = fitWildcards(ctx, SIZES, 1234);
+  const bag = fitWildcards(ctx, PRODUCE_5, 1234);
 
   assert.equal(bag.length, 5);
   assert.equal(new Set(bag.map((w) => w.ingredientId)).size, 5, 'drew the same thing twice');
@@ -519,7 +628,11 @@ test('a split bag hits both targets, not just the total', () => {
   const ctx = planningContext();
   // The reason the toggle exists: one weighted pool can legitimately return five
   // vegetables, and "some fruit this week" has to be guaranteed, not hoped for.
-  const bag = fitWildcards(ctx, { ...SIZES, split: true }, 99);
+  const bag = fitWildcards(
+    ctx,
+    lanes({ wildcardSplit: true, wildcardFruitCount: 2, wildcardVegCount: 3 }),
+    99,
+  );
   const kinds = kindsOf(ctx, bag);
 
   assert.equal(kinds.filter((k) => k === 'fruit').length, 2, 'fruit');
@@ -532,7 +645,11 @@ test('a bag bigger than the library is capped, not padded', () => {
     (i) => i.category === 'produce' && produceKind(i) === 'fruit',
   ).length;
 
-  const bag = fitWildcards(ctx, { split: true, count: 0, fruitCount: 50, vegCount: 0 }, 7);
+  const bag = fitWildcards(
+    ctx,
+    lanes({ wildcardSplit: true, wildcardFruitCount: 50, wildcardVegCount: 0 }),
+    7,
+  );
 
   assert.equal(bag.length, fruitAvailable, 'asked for fifty, library has fewer');
   assert.ok(kindsOf(ctx, bag).every((k) => k === 'fruit'), 'padded the fruit bag with vegetables');
@@ -540,8 +657,8 @@ test('a bag bigger than the library is capped, not padded', () => {
 
 test('topping up keeps what is already in the bag and adds no duplicates', () => {
   const ctx = planningContext();
-  const start = fitWildcards(ctx, { ...SIZES, count: 2 }, 4242);
-  const grown = fitWildcards(ctx, { ...SIZES, count: 5 }, 555, start);
+  const start = fitWildcards(ctx, lanes({ wildcardCount: 2 }), 4242);
+  const grown = fitWildcards(ctx, PRODUCE_5, 555, start);
 
   assert.equal(grown.length, 5);
   assert.equal(new Set(grown.map((w) => w.ingredientId)).size, 5);
@@ -552,11 +669,11 @@ test('topping up keeps what is already in the bag and adds no duplicates', () =>
 
 test('shrinking drops un-promoted items first', () => {
   const ctx = planningContext();
-  const start = fitWildcards(ctx, { ...SIZES, count: 4 }, 8080);
+  const start = fitWildcards(ctx, lanes({ wildcardCount: 4 }), 8080);
   // Promote the last one, which is exactly the one a naive trim would discard.
   const promoted = start.map((w, i) => (i === start.length - 1 ? { ...w, promoted: true } : w));
 
-  const shrunk = fitWildcards(ctx, { ...SIZES, count: 2 }, 8081, promoted);
+  const shrunk = fitWildcards(ctx, lanes({ wildcardCount: 2 }), 8081, promoted);
 
   assert.equal(shrunk.length, 2);
   assert.ok(
@@ -566,22 +683,101 @@ test('shrinking drops un-promoted items first', () => {
 });
 
 test('excluded produce never turns up in the bag', () => {
-  const base = planningContext();
   // Derived rather than listed: the assertion is about every fruit being
   // excluded, and a hardcoded list quietly stops meaning that as the library grows.
-  const everyFruit = [...base.ingredients.values()]
+  const everyFruit = LIBRARY
     .filter((i) => i.category === 'produce' && produceKind(i) === 'fruit')
     .map((i) => i.id);
-  const ctx: PlanningContext = {
-    ...base,
-    settings: { ...base.settings, excludedIngredients: everyFruit },
-  };
+  const ctx = planningContext({ excludedIngredients: everyFruit });
 
   // Every fruit in the library is excluded, so the fruit bag must come back empty
   // rather than quietly reaching for something the user said no to.
-  const bag = fitWildcards(ctx, { split: true, count: 0, fruitCount: 3, vegCount: 2 }, 31337);
+  const bag = fitWildcards(
+    ctx,
+    lanes({ wildcardSplit: true, wildcardFruitCount: 3, wildcardVegCount: 2 }),
+    31337,
+  );
   assert.ok(kindsOf(ctx, bag).every((k) => k === 'vegetable'));
   assert.equal(bag.length, 2);
+});
+
+test('each bag draws from its own shelf and hits its own size', () => {
+  const all = {
+    wildcardCount: 5,
+    breadBagEnabled: true, breadBagCount: 3,
+    pastaBagEnabled: true, pastaBagCount: 2,
+    cheeseBagEnabled: true, cheeseBagCount: 4,
+  };
+  const ctx = planningContext(all);
+  const bag = fitWildcards(ctx, lanes(all), 4711);
+
+  const drawn = bagsOf(ctx, bag);
+  assert.equal(drawn.filter((b) => b === 'produce').length, 5, 'produce');
+  assert.equal(drawn.filter((b) => b === 'bread').length, 3, 'bread');
+  assert.equal(drawn.filter((b) => b === 'pasta').length, 2, 'pasta');
+  assert.equal(drawn.filter((b) => b === 'cheese').length, 4, 'cheese');
+  assert.equal(new Set(bag.map((w) => w.ingredientId)).size, bag.length, 'drew the same thing twice');
+});
+
+test('a bag switched off is emptied, and the others are left alone', () => {
+  // The switch is not the same thing as a size of zero: the size is kept, so
+  // turning the bag back on restores the bag the user had.
+  const on = { breadBagEnabled: true, cheeseBagEnabled: true, cheeseBagCount: 2 };
+  const ctx = planningContext(on);
+  const full = fitWildcards(ctx, lanes(on), 606);
+  assert.ok(bagsOf(ctx, full).includes('cheese'), 'nothing to switch off');
+
+  const trimmed = fitWildcards(ctx, lanes({ ...on, cheeseBagEnabled: false }), 607, full);
+  const drawn = bagsOf(ctx, trimmed);
+
+  assert.ok(!drawn.includes('cheese'), 'the cheese bag was switched off and is still there');
+  assert.equal(
+    drawn.filter((b) => b === 'bread').length,
+    bagsOf(ctx, full).filter((b) => b === 'bread').length,
+    'switching off the cheese bag disturbed the bread bag',
+  );
+});
+
+test('a promoted item in a bag that is switched off goes with it', () => {
+  // Promotion says "build the week around this", not "keep this whatever
+  // happens". The switch is the stronger statement, and a promoted cheese
+  // surviving in a bag the user has turned off would be a ghost that nothing on
+  // screen explains.
+  const on = { cheeseBagEnabled: true, cheeseBagCount: 2 };
+  const ctx = planningContext(on);
+  const full = fitWildcards(ctx, lanes(on), 909).map((w) => ({ ...w, promoted: true }));
+
+  const trimmed = fitWildcards(ctx, lanes({ ...on, cheeseBagEnabled: false }), 910, full);
+  assert.ok(!bagsOf(ctx, trimmed).includes('cheese'));
+});
+
+test('diets rule an ingredient out of the draw, not just out of the recipes', () => {
+  // Every vegetable passes every diet, so the produce bag never exercised this.
+  // A cheese bag fails it on the first draw, by offering a vegan some manchego.
+  const on = { produceBagEnabled: false, cheeseBagEnabled: true, cheeseBagCount: 20 };
+  const vegan = planningContext({ ...on, diets: ['vegan'] });
+
+  const bag = fitWildcards(vegan, lanes(on), 31415);
+
+  assert.ok(bag.length > 0, 'there is at least one cheese a vegan can have');
+  for (const w of bag) {
+    const ing = vegan.ingredients.get(w.ingredientId)!;
+    assert.ok(!(ing.excludesDiets ?? []).includes('vegan'), `offered a vegan ${ing.name}`);
+  }
+});
+
+test('an ingredient that has left the library is dropped rather than kept', () => {
+  // A plan synced from a build whose library had something this one does not.
+  // Rendering it as a blank row would look like a bug.
+  const ctx = planningContext();
+  const stale: WildcardItem[] = [
+    { ingredientId: 'dragonfruit-of-the-ancients', grams: 100, promoted: true },
+  ];
+
+  const bag = fitWildcards(ctx, PRODUCE_5, 8, stale);
+
+  assert.equal(bag.length, 5);
+  assert.ok(bag.every((w) => ctx.ingredients.get(w.ingredientId) !== undefined));
 });
 
 // ---------------------------------------------------------------------------

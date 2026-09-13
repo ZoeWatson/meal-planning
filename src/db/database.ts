@@ -180,10 +180,23 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id'> = {
   excludedIngredients: [],
   weeklyTimeBudgetMinutes: 300,
   repeatWindowWeeks: 3,
+  produceBagEnabled: true,
   wildcardCount: 6,
   wildcardSplit: false,
   wildcardFruitCount: 2,
   wildcardVegCount: 4,
+  // The three dry-shelf bags ship ON. They are the feature, and a feature that
+  // arrives switched off is a feature nobody finds. The sizes are small on
+  // purpose: one loaf, one box of pasta and one cheese is a week's worth of
+  // "something different", and the point of these bags is variety rather than
+  // volume. Two breads because bread freezes, so the second one costs nothing
+  // if it is not eaten.
+  breadBagEnabled: true,
+  breadBagCount: 2,
+  pastaBagEnabled: true,
+  pastaBagCount: 1,
+  cheeseBagEnabled: true,
+  cheeseBagCount: 1,
   cycleDays: 7,
   monthlyBudgetCents: null,
   currency: 'CAD',

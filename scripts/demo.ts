@@ -12,7 +12,8 @@ import { buildGroceryList, renderGroceryList } from '../src/domain/grocery';
 import { FILTER_PRESETS, explainFilter } from '../src/domain/filters';
 import { recipeNutrition } from '../src/domain/nutrition';
 import { DEFAULT_REGION_ID, getRegion } from '../src/domain/seasonality';
-import { generateWeekPlan, pickWildcards } from '../src/domain/planner/generate';
+import { fitWildcards, generateWeekPlan } from '../src/domain/planner/generate';
+import { grabBagLanes } from '../src/domain/grabbag';
 import type { PlanningContext } from '../src/domain/planner/scoring';
 import type {
   Id, Ingredient, PantryItem, PlannerSettings, Recipe, SalePrice, SlotSpec, StapleItem,
@@ -54,10 +55,17 @@ const settings: PlannerSettings = {
   excludedIngredients: [],
   weeklyTimeBudgetMinutes: 240,
   repeatWindowWeeks: 3,
+  produceBagEnabled: true,
   wildcardCount: 4,
   wildcardSplit: false,
   wildcardFruitCount: 2,
   wildcardVegCount: 2,
+  breadBagEnabled: true,
+  breadBagCount: 2,
+  pastaBagEnabled: true,
+  pastaBagCount: 1,
+  cheeseBagEnabled: true,
+  cheeseBagCount: 1,
 };
 
 // Things bought every week regardless of the plan.
@@ -129,7 +137,7 @@ const spec: SlotSpec = {
   servingsPerMeal: { full: 4, light: 2, snack: 2 },
 };
 
-const wildcards = pickWildcards(ctx, settings.wildcardCount, 42);
+const wildcards = fitWildcards(ctx, grabBagLanes(settings), 42);
 const result = generateWeekPlan(ctx, { spec, wildcards, seed: 12345 });
 
 console.log(`candidates: ${result.candidateCount}   unfilled slots: ${result.unfilledSlots}`);

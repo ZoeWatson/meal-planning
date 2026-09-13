@@ -15,6 +15,7 @@ import { buildGroceryList, renderGroceryList, type DisplayLine } from '../domain
 import { getRegion } from '../domain/seasonality';
 import { excludedByAllergens } from '../domain/allergens';
 import { DEFAULT_WASTE_SETTINGS } from '../domain/waste';
+import { type GrabBagId, bagOf, grabBagLanes } from '../domain/grabbag';
 import { type WildcardSizes, fitWildcards, generateWeekPlan } from '../domain/planner/generate';
 import type { PlanningContext } from '../domain/planner/scoring';
 import type { RecipeFilter } from '../domain/filters';
@@ -191,7 +192,7 @@ export async function generateAndSave(
   const result = generateWeekPlan(ctx, {
     spec: settings.spec,
     pinnedSlots,
-    wildcards: fitWildcards(ctx, wildcardSizes(settings), seed, keptWildcards),
+    wildcards: fitWildcards(ctx, grabBagLanes(settings), seed, keptWildcards),
     filter: options.filter,
     seed,
   });
@@ -214,29 +215,49 @@ export function wildcardSizes(settings: PlannerSettings): WildcardSizes {
  * Redraws the grab bag without touching the meals.
  *
  * The bag and the plan answer different questions — "what should I cook" versus
+/**
+ * Redraws a grab bag without touching the meals.
+ *
+ * The bags and the plan answer different questions — "what should I cook" versus
  * "what else is worth having in the house" — and a draw you do not like is not a
  * reason to lose a week of meals you do. Promoted items survive, because those
  * are the ones the plan was built around.
+ *
+ * One bag at a time, because they are separate suggestions: liking the produce
+ * and wanting a different cheese is the ordinary case, and a single button that
+ * rerolled all four would make the cheese cost the produce. Everything outside
+ * the named bag is passed straight back through, so it comes out untouched.
+ * Omitting `bag` redraws the lot.
  */
-export async function redrawWildcards(ctx: PlanningContext, plan: WeekPlan): Promise<void> {
+export async function redrawWildcards(
+  ctx: PlanningContext,
+  plan: WeekPlan,
+  bag?: GrabBagId,
+): Promise<void> {
   const settings = await getSettings();
-  const keep = plan.wildcards.filter((w) => w.promoted);
+  const keep = plan.wildcards.filter((w) => {
+    if (w.promoted) return true;
+    if (bag === undefined) return false;
+    const ing = ctx.ingredients.get(w.ingredientId);
+    return ing !== undefined && bagOf(ing) !== bag;
+  });
   const seed = Math.floor(Math.random() * 2 ** 31);
-  await setWildcards(plan.id, fitWildcards(ctx, wildcardSizes(settings), seed, keep));
+  await setWildcards(plan.id, fitWildcards(ctx, grabBagLanes(settings), seed, keep));
 }
 
 /**
- * Brings the current bag to whatever size the settings now ask for, keeping the
- * items already in it.
+ * Brings every bag to whatever size the settings now ask for, keeping the items
+ * already in them.
  *
- * Called after a size or split change so the control the user just moved has a
- * visible effect immediately. Only what is needed changes: raising the count adds
- * items, lowering it removes them, and nothing already on screen is reshuffled.
+ * Called after a size, split or on/off change so the control the user just moved
+ * has a visible effect immediately. Only what is needed changes: raising a count
+ * adds items, lowering it removes them, switching a bag off empties that bag, and
+ * nothing already on screen is reshuffled.
  */
 export async function resizeWildcards(ctx: PlanningContext, plan: WeekPlan): Promise<void> {
   const settings = await getSettings();
   const seed = Math.floor(Math.random() * 2 ** 31);
-  const next = fitWildcards(ctx, wildcardSizes(settings), seed, plan.wildcards);
+  const next = fitWildcards(ctx, grabBagLanes(settings), seed, plan.wildcards);
 
   const unchanged =
     next.length === plan.wildcards.length &&

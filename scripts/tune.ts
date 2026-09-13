@@ -40,10 +40,17 @@ const settings: PlannerSettings = {
   excludedIngredients: [],
   weeklyTimeBudgetMinutes: 240,
   repeatWindowWeeks: 3,
+  produceBagEnabled: true,
   wildcardCount: 4,
   wildcardSplit: false,
   wildcardFruitCount: 2,
   wildcardVegCount: 2,
+  breadBagEnabled: true,
+  breadBagCount: 2,
+  pastaBagEnabled: true,
+  pastaBagCount: 1,
+  cheeseBagEnabled: true,
+  cheeseBagCount: 1,
 };
 
 const staples: StapleItem[] = [
