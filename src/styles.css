@@ -151,6 +151,43 @@ button { cursor: pointer; }
   color: var(--text-faint);
 }
 
+/* A heading that folds its section away. The caret's padding costs the heading
+   height, so the margins give some of it back and the line lands where an
+   unfoldable one does. */
+.section-title.folds { margin: 16px 0 6px; }
+
+/* The whole heading line, not just the caret: the text is 12px, which is not a
+   touch target, and a 14px caret on its own is less of one. Stretching the
+   button across the heading makes the entire line tappable. */
+.section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.section-toggle:active { color: var(--text-dim); }
+.section-toggle svg { flex: 0 0 auto; transition: transform 140ms ease; }
+.section-toggle[aria-expanded='true'] svg { transform: rotate(90deg); }
+
+/* What a folded section is holding. Reads as a count rather than as more
+   heading, so it drops the heading's uppercase and tracking. */
+.fold-note {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* Subdivides a section — the fruit/veg halves of the grab bag. Quieter than
    `.section-title` so the section still reads as one thing. */
 .sub-title {

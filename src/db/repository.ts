@@ -18,10 +18,11 @@ import {
   type CookedMeal, type Leftover, type MealLogEntry, type MealSource, type StorageKind,
 } from '../domain/cooking';
 import { afterStockChange } from '../domain/pantry';
+import { placeRecipe } from '../domain/planner/generate';
 import type { TreatItem } from '../domain/treats';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
 import type {
-  Id, PantryItem, PantryNecessity, PantryStock, SalePrice, StapleItem, WeekPlan,
+  Id, PantryItem, PantryNecessity, PantryStock, PlanSlot, SalePrice, StapleItem, WeekPlan,
   WildcardItem,
 } from '../domain/types';
 
@@ -120,6 +121,35 @@ export async function setSlotRecipe(planId: Id, slotId: Id, recipeId: Id | null)
     ...plan,
     slots: plan.slots.map((s) => (s.id === slotId ? { ...s, recipeId } : s)),
   }));
+}
+
+/**
+ * Adds a recipe to the week by hand, straight from the library.
+ *
+ * Where it lands is `placeRecipe`'s decision, made next to the code that builds
+ * slots in the first place; this is only the write.
+ */
+export async function addRecipeToPlan(
+  planId: Id,
+  recipe: Pick<Recipe, 'id' | 'mealType'>,
+  servings: number,
+): Promise<void> {
+  await editPlan(planId, (plan) => ({
+    ...plan,
+    slots: placeRecipe(plan.slots, recipe, servings),
+  }));
+}
+
+/**
+ * Replaces the week's meals wholesale. Used by the per-section regenerate, which
+ * rewrites one meal type and hands back the rest of the week unchanged.
+ *
+ * In place rather than as a new plan, unlike Regenerate. A new plan id would
+ * untick the whole shopping list and push the week just replaced into the repeat
+ * history, and "give me different snacks" asked for neither.
+ */
+export async function setSlots(planId: Id, slots: readonly PlanSlot[]): Promise<void> {
+  await editPlan(planId, (plan) => ({ ...plan, slots }));
 }
 
 export async function setWildcardPromoted(planId: Id, ingredientId: Id, promoted: boolean): Promise<void> {

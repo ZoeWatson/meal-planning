@@ -95,3 +95,20 @@ export const ShuffleIcon = ({ size = 17 }: IconProps) => (
     <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
   </Svg>
 );
+
+/**
+ * The fold marker on a section heading.
+ *
+ * One glyph, pointing right, turned by CSS when the section opens. Two icons
+ * would be two shapes to keep in step, and swapping them mid-animation is how a
+ * caret ends up snapping through 90 degrees instead of turning.
+ *
+ * Heavier stroke than the rest: at 14px the shared 1.8 weight scales down to
+ * roughly a hairline, and a hairline caret reads as an artefact.
+ */
+export const CaretIcon = ({ size = 14 }: IconProps) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
+    strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 4.5 16.5 12 9 19.5" />
+  </svg>
+);

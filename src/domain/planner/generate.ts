@@ -72,7 +72,7 @@ export interface GenerateOptions {
  */
 export function filterCandidates(
   ctx: PlanningContext,
-  opts: GenerateOptions,
+  opts: Pick<GenerateOptions, 'filter'>,
 ): ReturnType<typeof explainFilter> {
   const base = opts.filter ?? {};
 
@@ -104,7 +104,10 @@ function buildSlotSkeleton(spec: SlotSpec, pinned: readonly PlanSlot[]): PlanSlo
     const alreadyPinned = pinned.filter((s) => s.mealType === mealType).length;
     for (let i = alreadyPinned; i < total; i++) {
       slots.push({
-        id: `${mealType}-${i}`,
+        // Numbered around what the pinned slots already answer to rather than from
+        // the pinned count: pinning the third full meal and regenerating used to
+        // mint a second slot called `full-2`, and every write to one hit both.
+        id: freeSlotId(slots, mealType),
         mealType,
         recipeId: null,
         servings: spec.servingsPerMeal[mealType],
@@ -114,6 +117,61 @@ function buildSlotSkeleton(spec: SlotSpec, pinned: readonly PlanSlot[]): PlanSlo
   }
 
   return slots;
+}
+
+/**
+ * Puts a recipe into the week by hand.
+ *
+ * Picked by name from the library rather than by the optimizer, so it goes into
+ * an empty slot of its own meal type if the week has one — that is exactly the
+ * hole the "could not be filled" warning is about — and otherwise gets a slot of
+ * its own. It never displaces a meal the optimizer chose: what is already there
+ * is on screen, and trading one for the other is the user's call to make, not
+ * this function's to make quietly.
+ *
+ * It lands pinned. The alternative is that the next Shuffle all throws away the
+ * one meal in the week that was asked for by name.
+ *
+ * Adding a recipe the week already holds changes nothing. A plan carries a recipe
+ * at most once everywhere else in the app — the pick sheet will not offer one the
+ * week already has — and this is that same rule rather than a new one.
+ */
+export function placeRecipe(
+  slots: readonly PlanSlot[],
+  recipe: Pick<Recipe, 'id' | 'mealType'>,
+  servings: number,
+): readonly PlanSlot[] {
+  if (slots.some((s) => s.recipeId === recipe.id)) return slots;
+
+  const empty = slots.findIndex((s) => s.recipeId === null && s.mealType === recipe.mealType);
+  const placed: PlanSlot = {
+    // Filling an empty slot keeps that slot's id, so anything already keyed to it
+    // — a ticked grocery line, a pin — goes on meaning what it meant.
+    id: empty === -1 ? freeSlotId(slots, recipe.mealType) : slots[empty].id,
+    mealType: recipe.mealType,
+    recipeId: recipe.id,
+    servings: Math.max(1, Math.round(servings)),
+    pinned: true,
+  };
+
+  return empty === -1
+    ? [...slots, placed]
+    : slots.map((slot, i) => (i === empty ? placed : slot));
+}
+
+/**
+ * The first `mealType-n` no slot in this plan is using.
+ *
+ * Slot ids are unique within a plan and nowhere else, and they are numbered from
+ * zero per meal type. Anything minting a new one has to step around what is
+ * already there, or two slots answer to the same id and every per-slot write —
+ * pin, portions, shuffle — lands on both.
+ */
+function freeSlotId(slots: readonly PlanSlot[], mealType: MealType): Id {
+  const taken = new Set(slots.map((s) => s.id));
+  let i = 0;
+  while (taken.has(`${mealType}-${i}`)) i++;
+  return `${mealType}-${i}`;
 }
 
 const MEAL_ORDER: readonly MealType[] = ['full', 'light', 'snack'];
@@ -349,11 +407,241 @@ export function generateWeekPlan(ctx: PlanningContext, opts: GenerateOptions): G
   };
 }
 
-export interface WildcardDrawOptions {
-  /** Restrict the pool to one half of the produce shelf. Omit to draw from all of it. */
-  readonly kind?: ProduceKind;
-  /** Ingredients already in the bag. Never drawn again, so a top-up cannot duplicate. */
+/**
+ * What rerolling one kind of meal needs to know.
+ *
+ * The whole-week options minus the three that mean nothing here: the meals being
+ * kept arrive inside `slots` rather than as `pinnedSlots`, and neither the treat
+ * bag nor a new plan id is any of this function's business.
+ */
+export type RerollOptions = Pick<
+  GenerateOptions, 'spec' | 'wildcards' | 'filter' | 'weights' | 'restarts' | 'seed'
+>;
+
+/**
+ * Rerolls one kind of meal and leaves the rest of the week standing.
+ *
+ * Not the same thing as generating a week and keeping the parts you liked,
+ * because the parts kept still have to COUNT. Overlap between meals is the entire
+ * point of the optimizer, so a new set of light meals is chosen knowing which
+ * packs the full meals have already opened — which is also why generation fills
+ * full → light → snack in that order. The untouched slots are handed to the
+ * scorer whole and merely withheld from the search.
+ *
+ * Pinned meals of the rerolled type survive, as a pin does everywhere else, and
+ * the section is brought to the size Settings asks for — the rule Regenerate
+ * follows, narrowed to one heading, so there is still exactly one answer to "how
+ * many light meals do I have".
+ *
+ * Returns the whole week, not the section: a caller stitching two lists back
+ * together would be a second place that knows how slots are ordered.
+ */
+export function regenerateMeals(
+  ctx: PlanningContext,
+  slots: readonly PlanSlot[],
+  mealType: MealType,
+  opts: RerollOptions,
+): PlanSlot[] {
+  const skeleton = sectionSkeleton(slots, opts.spec, mealType);
+  const { matched } = filterCandidates(ctx, opts);
+
+  const outgoing = new Set<Id>(
+    slots
+      .filter((s) => s.mealType === mealType && !s.pinned && s.recipeId !== null)
+      .map((s) => s.recipeId as Id),
+  );
+
+  const wildcards = opts.wildcards ?? [];
+  const weights = opts.weights ?? DEFAULT_WEIGHTS;
+
+  const searched = search(
+    ctx,
+    pruneOutgoing(collapseToFamilies(matched), mealType, outgoing, skeleton),
+    skeleton,
+    new Set([mealType]),
+    wildcards,
+    weights,
+    opts.seed ?? Math.floor(Math.random() * 2 ** 31),
+    opts.restarts ?? 6,
+  ).slots;
+
+  // Only the rerolled section may be substituted. The meals left standing are
+  // being kept, and swapping the mushroom inside one is not keeping it.
+  return [
+    ...chooseBestVariants(
+      searched,
+      wildcards,
+      ctx,
+      weights,
+      new Set(matched.map((r) => r.id)),
+      buildVariantIndex(ctx.recipes.values()),
+      (slot) => slot.mealType === mealType,
+    ),
+  ];
+}
+
+/**
+ * The candidate pool with the meals on their way out taken off it.
+ *
+ * Rerolling a section while the rest of the week stands still has ONE best
+ * answer, and the optimizer finds it every time: press Regenerate on the light
+ * meals twice and the same three come back, which reads as a broken button
+ * rather than as a confident one. Restarts do not help — they vary where the
+ * search starts, not where a frozen week lets it finish.
+ *
+ * So the rejected meals are excluded from their own replacement. Pressing the
+ * button IS the rejection, which makes this the cheapest honest answer and the
+ * same bargain the grab bag strikes by drawing at random rather than optimizing:
+ * the optimizer's rut is a feature everywhere except the button for escaping it.
+ *
+ * Unless there is nothing to replace them with. A library holding four light
+ * recipes cannot honour a rejection and still fill three slots, and an empty slot
+ * is by far the worse of the two answers, so there they go back in.
+ */
+function pruneOutgoing(
+  candidates: readonly Recipe[],
+  mealType: MealType,
+  outgoing: ReadonlySet<Id>,
+  skeleton: readonly PlanSlot[],
+): readonly Recipe[] {
+  if (outgoing.size === 0) return candidates;
+
+  // What the rest of the week is already having is spoken for too — greedy build
+  // will not serve the same recipe twice, so those cannot count toward filling.
+  const taken = new Set(skeleton.map((s) => s.recipeId).filter((id): id is Id => id !== null));
+  const toFill = skeleton.filter((s) => s.mealType === mealType && s.recipeId === null).length;
+  const fresh = candidates.filter(
+    (r) => r.mealType === mealType && !outgoing.has(r.id) && !taken.has(r.id),
+  ).length;
+
+  return fresh >= toFill ? candidates.filter((r) => !outgoing.has(r.id)) : candidates;
+}
+
+/**
+ * The week with one kind of meal emptied out and resized, ready to be filled.
+ *
+ * Everything of another type is carried across exactly as it stands — recipe,
+ * portions, pin and all — because the point of rerolling a section is that the
+ * rest of the week does not move. An unpinned slot of the rerolled type keeps
+ * neither its recipe nor the portions it was set to: it is about to become a
+ * different meal, and the portions belonged to the old one.
+ */
+function sectionSkeleton(
+  slots: readonly PlanSlot[],
+  spec: SlotSpec,
+  mealType: MealType,
+): PlanSlot[] {
+  const out = slots.filter((s) => s.mealType !== mealType);
+  const kept = slots.filter((s) => s.mealType === mealType && s.pinned && s.recipeId !== null);
+  out.push(...kept);
+
+  for (let i = kept.length; i < spec[mealType]; i++) {
+    out.push({
+      // Numbered around what is already taken, for the reason `freeSlotId` gives:
+      // two slots answering to one id means every per-slot write lands on both.
+      id: freeSlotId(out, mealType),
+      mealType,
+      recipeId: null,
+      servings: spec.servingsPerMeal[mealType],
+      pinned: false,
+    });
+  }
+
+  return out;
+}
+
+/**
+ * What redrawing a single meal needs to know.
+ *
+ * The section options plus the recipes this slot has already been offered and
+ * had turned down. They cannot be inferred from the week — the whole point is
+ * that they are no longer in it — so the caller holding the button holds them.
+ */
+export type SlotRerollOptions = RerollOptions & {
   readonly exclude?: ReadonlySet<Id>;
+};
+
+/**
+ * Throws out one meal and draws another for its slot, leaving the rest of the
+ * week exactly where it is.
+ *
+ * The narrowest version of the same bargain the section reroll makes: not
+ * fancying Tuesday's curry is not a reason to lose the other three dinners, and
+ * a section regenerate makes the curry cost them. Candidates are still priced
+ * against the whole week, so the replacement is chosen knowing which packs the
+ * other meals have already opened.
+ *
+ * Deliberately a softmax draw over the best few rather than a `search` — no
+ * local search, no restarts. With one slot open there is only one move to make,
+ * so steepest descent would find the single cheapest recipe every time and the
+ * button would hand back the same meal on every press. Randomness among good
+ * answers is the feature here, not a compromise.
+ *
+ * Portions go back to whatever the spec says, for the reason `sectionSkeleton`
+ * gives: this is about to be a different meal, and the portions belonged to the
+ * old one.
+ *
+ * Returns `null` rather than the week unchanged when there is nothing to draw —
+ * a pinned slot, or a pool emptied by filters, by the rest of the week and by
+ * what has already been passed over. A caller can then say so, which is the
+ * difference between a button that declines and a button that looks broken.
+ */
+export function rerollSlot(
+  ctx: PlanningContext,
+  slots: readonly PlanSlot[],
+  slotId: Id,
+  opts: SlotRerollOptions,
+): PlanSlot[] | null {
+  const index = slots.findIndex((s) => s.id === slotId);
+  if (index === -1) return null;
+
+  const slot = slots[index];
+  // A pin means keep, here as everywhere else. The screen disables the button
+  // over a pinned meal, so this is the rule living next to the code that knows
+  // what a pin is rather than only in the markup.
+  if (slot.pinned) return null;
+
+  // Everything the week is already having, which at this point still includes
+  // the meal being thrown out — that is exactly the one not to draw again.
+  const taken = new Set(slots.map((s) => s.recipeId).filter((id): id is Id => id !== null));
+
+  const { matched } = filterCandidates(ctx, opts);
+  const pool = matched.filter(
+    (r) => r.mealType === slot.mealType && !taken.has(r.id) && !opts.exclude?.has(r.id),
+  );
+  if (pool.length === 0) return null;
+
+  const weights = opts.weights ?? DEFAULT_WEIGHTS;
+  const wildcards = opts.wildcards ?? [];
+
+  const trial = [...slots];
+  const scored = pool.map((recipe) => {
+    trial[index] = { ...slot, recipeId: recipe.id };
+    return { recipe, cost: scorePlan(trial, wildcards, ctx, weights).total };
+  });
+  scored.sort((a, b) => a.cost - b.cost);
+
+  // One entry per variant family, and it is the member this particular week
+  // suits best. The swap sheet shows a handful of alternatives; three
+  // near-identical donburi would spend most of them on one dish. Scoring first
+  // and thinning afterwards is what makes the survivor the right member.
+  const byFamily = new Set<Id>();
+  const distinct = scored.filter(({ recipe }) => {
+    const family = familyIdOf(recipe);
+    if (byFamily.has(family)) return false;
+    byFamily.add(family);
+    return true;
+  });
+
+  const chosen = softmaxPick(distinct, makeRng(opts.seed ?? Math.floor(Math.random() * 2 ** 31)));
+
+  const out = [...slots];
+  out[index] = {
+    ...slot,
+    recipeId: chosen.id,
+    servings: opts.spec.servingsPerMeal[slot.mealType],
+  };
+  return out;
 }
 
 /** How many to draw, and from what. A `BagLane` is one of these. */
