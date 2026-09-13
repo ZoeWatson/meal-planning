@@ -336,6 +336,19 @@ button { cursor: pointer; }
   font-weight: 600;
 }
 
+/* The third state of a filter chip: ruled out rather than merely not chosen.
+   Struck through as well as coloured, because "included" and "excluded" are
+   opposites and the only difference between two accent-and-danger chips is a
+   hue — which is no difference at all to the one person in twelve who cannot
+   tell those two apart. A line through the word is not a colour. */
+.chip.excluded {
+  background: var(--surface-2);
+  border-color: var(--danger);
+  color: var(--danger);
+  font-weight: 600;
+  text-decoration: line-through;
+}
+
 /* ------------------------------------------------------- grocery list */
 
 .gline {

@@ -3,14 +3,14 @@ import { useMemo, useState } from 'react';
 import type { AppState } from '../state/useAppState';
 import { addRecipeToPlan } from '../db/repository';
 import {
-  DEFAULT_SORT_ID, FILTER_GROUPS, FILTER_PRESETS, RECIPE_SORTS, explainFilter, presetLabel,
-  sortRecipes, type RecipeFilter,
+  DEFAULT_SORT_ID, FILTER_SECTIONS, RECIPE_SORTS, composeChipFilter, explainFilter,
+  sortRecipes, type ChipState, type MatchMode,
 } from '../domain/filters';
 import { recipeNutrition } from '../domain/nutrition';
 import { checkRecipe, describeMatches } from '../domain/allergens';
 import {
-  CUISINE_REGIONS, DISH_TYPES, DISH_TYPE_LABELS, TAXONOMY_TAGS, cuisineLabel,
-  cuisineOf, primaryDishType, regionOf,
+  DISH_TYPE_LABELS, TAXONOMY_TAGS, cuisineLabel, cuisineOf, dishTypesOf,
+  primaryDishType, regionOf,
 } from '../domain/taxonomy';
 import type { MealType, Recipe } from '../domain/types';
 import { CollapsibleSection } from '../components/CollapsibleSection';
@@ -34,6 +34,8 @@ const REJECTION_LABELS: Record<string, string> = {
   search: 'search',
   'too-many-ingredients': 'ingredient count',
   origin: 'source',
+  excluded: 'something you ruled out',
+  'no-match': 'none of the chips you included',
 };
 
 const MEAL_FILTERS: ReadonlyArray<{ id: MealType | 'any'; label: string }> = [
@@ -44,63 +46,48 @@ const MEAL_FILTERS: ReadonlyArray<{ id: MealType | 'any'; label: string }> = [
 ];
 
 /**
- * Which way the library is sorted into groups.
- *
- * Two axes rather than one nesting, because they answer different moods. "I want
- * pasta" and "I want something Japanese" are both common; "I want Japanese
- * pasta" is not, and building the screen around it would cost every other
- * browse a second tap.
- */
-type BrowseAxis = 'type' | 'region';
-
-/**
  * The recipe library.
  *
- * BROWSING AND FILTERING ARE DIFFERENT JOBS and the screen now says so. Browsing
- * — which kind of dish, where it is from — is why you opened the tab, so it sits
- * in the open above the list and its groups are wrapped rather than scrolled
- * sideways: fourteen kinds of dish you can see is a menu, and fourteen you have
- * to flick through is a rumour.
+ * EVERY WAY OF NARROWING THE LIBRARY IS IN ONE PANEL. Kind of dish and region
+ * used to be a browse strip above the list, on the argument that browsing and
+ * filtering are different jobs. They are, but they are not different CONTROLS:
+ * the strip could only ever hold one group at a time on one axis, so "pasta or
+ * rice", "Italian but not a salad" and "a curry that is also vegetarian" were
+ * all unaskable, and those are the ordinary shapes of narrowing a library down.
+ * In the panel they compose with the diet and effort chips and with each other,
+ * which is worth more than the tap it costs to open the panel.
  *
- * Filtering is narrowing something down, which you do second and less often, so
- * it folds. It ships folded and says on its own heading what is currently
- * switched on — the one thing a folded filter panel absolutely must do, since a
- * hidden filter quietly removing half the library is how a good screen becomes a
- * bug report.
+ * The panel ships folded and says on its own heading what is currently switched
+ * on — the one thing a folded filter panel absolutely must do, since a hidden
+ * filter quietly removing half the library is how a good screen becomes a bug
+ * report. That matters more now that it holds the browse axes too.
  *
- * The filters inside it are in three labelled rows rather than one strip of
- * seven chips. "I am vegetarian", "I have twenty minutes" and "I want something
- * worth eating" are separate decisions, and a single row makes you read all
- * seven to find the one you are making.
+ * The chips inside it are in five labelled sections rather than one strip.
+ * "I want a curry", "I want something Greek", "I am vegetarian" and "I have
+ * twenty minutes" are separate decisions, and one long row makes you read all
+ * thirty to find the one you are making.
+ *
+ * EACH CHIP HAS THREE STATES, not two: tap to include, tap again to exclude, tap
+ * again to clear. Excluding is not a nicety — "anything but a salad" is how
+ * people actually say what they want at six in the evening, and expressing it
+ * with include-chips means selecting the other thirteen.
  */
 export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   const { recipes, ingredients, ctx, settings } = state;
-  const [active, setActive] = useState<Set<string>>(new Set());
+  /** Only the switched chips are in here; absent means off. */
+  const [chips, setChips] = useState<ReadonlyMap<string, ChipState>>(new Map());
+  const [mode, setMode] = useState<MatchMode>('all');
   const [mealType, setMealType] = useState<MealType | 'any'>('any');
   const [sortId, setSortId] = useState<string>(DEFAULT_SORT_ID);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState<Recipe | null>(null);
   const [showAvoided, setShowAvoided] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [axis, setAxis] = useState<BrowseAxis>('type');
-  /** The group being browsed, or null for the whole library. */
-  const [group, setGroup] = useState<string | null>(null);
 
-  const filter = useMemo<RecipeFilter>(() => {
-    const merged: RecipeFilter[] = FILTER_PRESETS
-      .filter((p) => active.has(p.id))
-      .map((p) => p.filter);
-
-    return {
-      search: search.trim() || undefined,
-      mealTypes: mealType === 'any' ? undefined : [mealType],
-      diets: merged.flatMap((f) => f.diets ?? []),
-      maxTotalMinutes: minDefined(merged.map((f) => f.maxTotalMinutes)),
-      maxIngredientCount: minDefined(merged.map((f) => f.maxIngredientCount)),
-      highProteinOnly: merged.some((f) => f.highProteinOnly),
-      seasonalOnly: merged.some((f) => f.seasonalOnly),
-    };
-  }, [active, mealType, search]);
+  const filter = useMemo(() => composeChipFilter(chips, mode, {
+    search: search.trim() || undefined,
+    mealTypes: mealType === 'any' ? undefined : [mealType],
+  }), [chips, mode, mealType, search]);
 
   const { matched, rejections } = useMemo(() => {
     if (!ctx) return { matched: [] as Recipe[], rejections: new Map<string, number>() };
@@ -128,43 +115,37 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
   }, [matched, ingredients, settings.allergens]);
 
   /**
-   * The groups on offer, counted over what the search and chips have already
-   * left — so the counts say what tapping will actually give you rather than
-   * what the untouched library holds. Empty groups are dropped: a chip reading
-   * "Africa 0" is a chip whose only function is to disappoint.
+   * The type and region chips the library can actually deliver on, by chip id.
+   *
+   * A chip for a kind of dish nobody has a recipe for is a chip whose only
+   * function is to disappoint, and there are twenty-five of these against seven
+   * hand-picked presets — a library with no African recipes and no dips would
+   * otherwise show both.
+   *
+   * Counted over the WHOLE library rather than over what is currently showing,
+   * which is the deliberate half of it. As a browse strip these carried live
+   * counts, because there you were standing inside one group and the number said
+   * what the next tap would give you. As chips among chips there is no one
+   * "rest of the filter" to count against — in `any` mode a chip ADDS recipes
+   * rather than removing them — and a number that means something different
+   * depending on a toggle is worse than no number. What survives is the durable
+   * claim: your library has none of these at all.
    */
-  const groups = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const recipe of safe) {
-      const key = axis === 'type'
-        ? primaryDishType(recipe, ingredients)
-        : regionOf(recipe);
-      counts.set(key, (counts.get(key) ?? 0) + 1);
+  const stocked = useMemo(() => {
+    const ids = new Set<string>();
+    for (const recipe of recipes.values()) {
+      // Every type it is, not the one it files under, because that is what the
+      // `dishTypes` filter behind the chip matches on.
+      for (const type of dishTypesOf(recipe, ingredients)) ids.add(`type:${type}`);
+      ids.add(`region:${regionOf(recipe)}`);
     }
-    const order = axis === 'type'
-      ? DISH_TYPES.map((t) => ({ id: t.id as string, label: t.label }))
-      : CUISINE_REGIONS.map((r) => ({ id: r.id as string, label: r.label }));
-    return order
-      // The one being browsed stays even at zero. A search that empties the
-      // group you are standing in would otherwise take its chip off the screen,
-      // leaving no selected chip, no results, and nothing to press to get back.
-      .filter((g) => (counts.get(g.id) ?? 0) > 0 || g.id === group)
-      .map((g) => ({ ...g, count: counts.get(g.id) ?? 0 }));
-  }, [safe, axis, ingredients, group]);
+    return ids;
+  }, [recipes, ingredients]);
 
-  /**
-   * Grouped AFTER filtering rather than through the filter, because the counts
-   * above have to come from the same pass. `RecipeFilter` can do this — the week
-   * rules use `dishTypes` and `regions` — but doing it here would mean running
-   * the filter twice to find out what each chip is worth.
-   */
-  const shown = useMemo(() => {
-    const inGroup = group === null
-      ? safe
-      : safe.filter((r) =>
-        (axis === 'type' ? primaryDishType(r, ingredients) : regionOf(r)) === group);
-    return sortRecipes(inGroup, sortId, ingredients);
-  }, [safe, group, axis, ingredients, sortId]);
+  const shown = useMemo(
+    () => sortRecipes(safe, sortId, ingredients),
+    [safe, sortId, ingredients],
+  );
 
   /**
    * What the filter panel is doing, for its own folded heading.
@@ -184,30 +165,64 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
     if (mealType !== 'any') {
       parts.push(MEAL_FILTERS.find((m) => m.id === mealType)!.label);
     }
-    for (const preset of FILTER_PRESETS) {
-      if (active.has(preset.id)) parts.push(presetLabel(preset.id));
+
+    // Drawn in panel order rather than the order they were tapped, so the same
+    // set of chips always reads the same way round.
+    let included = 0;
+    const excludedParts: string[] = [];
+    for (const section of FILTER_SECTIONS) {
+      for (const chip of section.chips) {
+        const chipState = chips.get(chip.id);
+        if (chipState === 'include') {
+          parts.push(chip.label);
+          included++;
+        } else if (chipState === 'exclude') {
+          // "not Italy", not "no italy". Half these labels are proper nouns and
+          // the other half are noun phrases the article would have to agree
+          // with — "not Under 30 min" is at worst terse, where "no under 30 min"
+          // is wrong twice over.
+          excludedParts.push(`not ${chip.label}`);
+        }
+      }
     }
+    // After the includes, because "Soups · no fish" is the shape of the thought
+    // and "no fish · Soups" is not.
+    parts.push(...excludedParts);
+
     if (sortId !== DEFAULT_SORT_ID) {
       parts.push(RECIPE_SORTS.find((s) => s.id === sortId)!.label.toLowerCase());
     }
     if (parts.length === 0) return 'none';
-    if (parts.length <= 3) return parts.join(' · ');
-    return `${parts.slice(0, 2).join(' · ')} +${parts.length - 2} more`;
-  }, [active, mealType, sortId]);
 
-  const anyFilter = active.size > 0 || mealType !== 'any' || sortId !== DEFAULT_SORT_ID;
+    const joined = parts.length <= 3
+      ? parts.join(' · ')
+      : `${parts.slice(0, 2).join(' · ')} +${parts.length - 2} more`;
 
-  /** Switching axis abandons the group, which belonged to the other one. */
-  function browseBy(next: BrowseAxis): void {
-    setAxis(next);
-    setGroup(null);
-  }
+    // Only worth saying when it changes the meaning. One included chip matches
+    // the same recipes either way round.
+    return mode === 'any' && included > 1 ? `any of ${joined}` : joined;
+  }, [chips, mode, mealType, sortId]);
 
-  function toggle(id: string): void {
-    setActive((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  const anyFilter = chips.size > 0 || mealType !== 'any' || sortId !== DEFAULT_SORT_ID;
+
+  /**
+   * Include → exclude → off.
+   *
+   * Three states on one tap target rather than a chip with a second little
+   * minus button on it. The chips are 38px tall in a wrapped grid of thirty;
+   * splitting each one into two targets makes both of them too small to hit and
+   * the grid twice as busy to read.
+   *
+   * The cost is that exclude is not discoverable by looking, which the line of
+   * help text above the sections pays for.
+   */
+  function cycle(id: string): void {
+    setChips((prev) => {
+      const next = new Map(prev);
+      const here = next.get(id);
+      if (here === undefined) next.set(id, 'include');
+      else if (here === 'include') next.set(id, 'exclude');
+      else next.delete(id);
       return next;
     });
   }
@@ -219,9 +234,12 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
    * see.
    */
   function clearFilters(): void {
-    setActive(new Set());
+    setChips(new Map());
     setMealType('any');
     setSortId(DEFAULT_SORT_ID);
+    // Leaves the all/any toggle where it is on purpose. With no chips switched
+    // on it filters nothing, so resetting it would change no result and forget a
+    // preference the user set deliberately.
   }
 
   return (
@@ -249,42 +267,6 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         style={{ marginTop: 10 }}
       />
 
-      {/* --- Browsing ----------------------------------------------------- */}
-      {/* In the open, and above the filters, because it is what the tab is for.
-          The filters narrow a library; these two chip rows are how you walk
-          around it. */}
-      <div className="segmented" style={{ marginTop: 10 }}>
-        <button aria-pressed={axis === 'type'} onClick={() => browseBy('type')}>
-          By type
-        </button>
-        <button aria-pressed={axis === 'region'} onClick={() => browseBy('region')}>
-          By region
-        </button>
-      </div>
-
-      <div className="chips wrap" style={{ marginTop: 8 }}>
-        <button
-          className="chip"
-          aria-pressed={group === null}
-          onClick={() => setGroup(null)}
-        >
-          All
-        </button>
-        {groups.map((g) => (
-          <button
-            key={g.id}
-            className="chip"
-            aria-pressed={group === g.id}
-            // The visible label is a word and a number, and the number means
-            // nothing to anyone reading by ear.
-            aria-label={`${g.label}, ${g.count} recipes`}
-            onClick={() => setGroup(group === g.id ? null : g.id)}
-          >
-            {g.label} <span className="faint">{g.count}</span>
-          </button>
-        ))}
-      </div>
-
       {/* --- Filters ------------------------------------------------------ */}
       <CollapsibleSection
         id="recipes:filters"
@@ -293,7 +275,31 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
         closedNote={filterNote}
         noteTone={anyFilter ? 'active' : 'quiet'}
       >
+        {/* At the top, because it changes what every chip below it means. Read
+            after making the selection, it is a control that silently rewrote
+            what you just asked for. */}
+        <h3 className="sub-title" style={{ marginTop: 0 }}>Match</h3>
+        <div className="segmented">
+          <button aria-pressed={mode === 'all'} onClick={() => setMode('all')}>
+            All of them
+          </button>
+          <button aria-pressed={mode === 'any'} onClick={() => setMode('any')}>
+            Any of them
+          </button>
+        </div>
+        <p className="tiny faint" style={{ marginTop: 6, marginBottom: 0 }}>
+          {mode === 'all'
+            ? 'A recipe has to match every chip you switch on.'
+            : 'A recipe only has to match one of the chips you switch on.'}
+          {' '}Tap a chip once to include it, again to rule it out, again to clear
+          it. Anything ruled out stays out either way.
+        </p>
+
         <h3 className="sub-title">Meal</h3>
+        {/* Still one at a time, and still outside the all/any question. It is a
+            different kind of thing — which sitting you are cooking for, not what
+            you fancy — and a week of "full meals OR snacks" is every recipe
+            there is. */}
         <div className="segmented">
           {MEAL_FILTERS.map((m) => (
             <button
@@ -306,23 +312,48 @@ export function RecipesScreen({ state }: { state: AppState }): JSX.Element {
           ))}
         </div>
 
-        {FILTER_GROUPS.map((fg) => (
-          <div key={fg.id}>
-            <h3 className="sub-title">{fg.label}</h3>
-            <div className="chips wrap">
-              {FILTER_PRESETS.filter((p) => p.group === fg.id).map((preset) => (
-                <button
-                  key={preset.id}
-                  className="chip"
-                  aria-pressed={active.has(preset.id)}
-                  onClick={() => toggle(preset.id)}
-                >
-                  {preset.label}
-                </button>
-              ))}
+        {FILTER_SECTIONS.map((section) => {
+          // A chip the library cannot deliver on is dropped, unless it is
+          // switched on: a section whose chips vanished while they were doing
+          // something would leave results narrowed with nothing on screen to
+          // widen them again.
+          //
+          // Only the two derived sections are gated this way. `stocked` is built
+          // from the taxonomy, and the presets — vegetarian, under 30 min — are
+          // seven curated chips rather than twenty-five generated ones.
+          const derived = section.id === 'type' || section.id === 'region';
+          const offered = derived
+            ? section.chips.filter((c) => stocked.has(c.id) || chips.has(c.id))
+            : section.chips;
+          if (offered.length === 0) return null;
+
+          return (
+            <div key={section.id}>
+              <h3 className="sub-title">{section.label}</h3>
+              <div className="chips wrap">
+                {offered.map((chip) => {
+                  const chipState = chips.get(chip.id);
+                  return (
+                    <button
+                      key={chip.id}
+                      className={`chip${chipState === 'exclude' ? ' excluded' : ''}`}
+                      aria-pressed={chipState === 'include'}
+                      // Three states and `aria-pressed` only carries two, so the
+                      // third is said out loud. Read by ear, a struck-through
+                      // chip is otherwise indistinguishable from an untouched one.
+                      aria-label={
+                        chipState === 'exclude' ? `${chip.label}, ruled out` : chip.label
+                      }
+                      onClick={() => cycle(chip.id)}
+                    >
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         <h3 className="sub-title">Order</h3>
         <div className="field" style={{ marginBottom: 0 }}>
@@ -519,9 +550,4 @@ function AddToWeek({ recipe, state }: { recipe: Recipe; state: AppState }): JSX.
       {saving ? '…' : 'Add'}
     </button>
   );
-}
-
-function minDefined(values: Array<number | undefined>): number | undefined {
-  const defined = values.filter((v): v is number => v !== undefined);
-  return defined.length === 0 ? undefined : Math.min(...defined);
 }
