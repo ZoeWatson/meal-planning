@@ -72,6 +72,8 @@ export function recipeToRaw(recipe: Recipe): RawRecipe {
     cookMinutes: recipe.cookMinutes,
     tags: recipe.tags.length > 0 ? [...recipe.tags] : undefined,
     primaryProtein: recipe.primaryProtein,
+    variantOf: recipe.variantOf,
+    variantLabel: recipe.variantLabel,
     diets: recipe.diets.length > 0 ? [...recipe.diets] : undefined,
     source: recipe.source ? { ...recipe.source } : undefined,
   } as RawRecipe);

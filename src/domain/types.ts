@@ -177,6 +177,23 @@ export interface Recipe {
    * overlaps beautifully with itself.
    */
   readonly primaryProtein?: Id;
+  /**
+   * The recipe this one is a variant of — the same dish with one thing swapped.
+   *
+   * A family is ONE choice, not several. The planner puts a single member of it
+   * into the candidate pool and then picks whichever member the week can afford
+   * most cheaply, which is the point: "mushroom donburi" should quietly become
+   * the cremini one in a week that is already buying cremini for something else.
+   *
+   * Treating them as independent recipes instead would be worse than useless —
+   * three near-identical donburi would compete for the same slot and the variety
+   * penalty, which works on proteins and tags, could not tell them apart.
+   *
+   * Variants do not nest: a recipe with `variantOf` set cannot itself be a parent.
+   */
+  readonly variantOf?: Id;
+  /** What is different about this one, e.g. "with cremini". Required on a variant. */
+  readonly variantLabel?: string;
   readonly diets: readonly string[];
   readonly source?: RecipeSource;
   /** True for library recipes, false for ones the user imported themselves. */

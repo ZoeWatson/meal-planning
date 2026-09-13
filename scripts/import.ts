@@ -89,7 +89,8 @@ function commandCheck(path: string, standalone: boolean): void {
   // first version of this) meant a merged bundle reported garlic and salt as
   // missing purely because they live in the base library — which sends you off
   // creating duplicates of ingredients you already have.
-  const result = importBundle(bundle, standalone ? [] : seed.ingredients);
+  const result = importBundle(bundle, standalone ? [] : seed.ingredients,
+    { existingRecipes: standalone ? [] : seed.recipes });
 
   heading(`Checking ${path}`);
   console.log(`ingredients  ${result.ingredients.length}`);
@@ -155,7 +156,8 @@ function commandCheck(path: string, standalone: boolean): void {
 function commandStub(path: string, out: string, standalone: boolean): void {
   const bundle = readBundle(path);
   const seed = loadSeedData();
-  const result = importBundle(bundle, standalone ? [] : seed.ingredients);
+  const result = importBundle(bundle, standalone ? [] : seed.ingredients,
+    { existingRecipes: standalone ? [] : seed.recipes });
   const stubs = stubsFromResult(result);
 
   if (stubs.length === 0) {

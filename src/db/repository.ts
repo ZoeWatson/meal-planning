@@ -531,7 +531,10 @@ export async function logMealOut(input: {
  */
 export async function dryRunImport(bundle: ImportBundle): Promise<ImportResult> {
   const existing = await db.ingredients.toArray();
-  return importBundle(bundle, existing, { builtIn: false });
+  // Recipes already on the device count too, so a file holding only "the same
+  // curry but with squash" can be imported without shipping the curry again.
+  const existingRecipes = await db.recipes.toArray();
+  return importBundle(bundle, existing, { builtIn: false, existingRecipes });
 }
 
 /**

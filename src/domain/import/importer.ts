@@ -84,6 +84,10 @@ export interface RawRecipe {
   cookMinutes: number;
   tags?: string[];
   primaryProtein?: string;
+  /** Id of the recipe this is a variant of. See **Variants** in the format doc. */
+  variantOf?: string;
+  /** What is different about this one, e.g. "with cremini". Required alongside `variantOf`. */
+  variantLabel?: string;
   diets?: string[];
   source?: { title?: string; author?: string; url?: string };
 }
@@ -324,6 +328,8 @@ function parseRecipe(
       primaryProtein: raw.primaryProtein
         ? index.get(normalizeKey(raw.primaryProtein))?.id
         : undefined,
+      variantOf: raw.variantOf,
+      variantLabel: raw.variantLabel,
       diets,
       source: raw.source,
       builtIn,
@@ -348,7 +354,7 @@ function defaultScaling(ing: Ingredient): ScalingRule {
 export function importBundle(
   bundle: ImportBundle,
   existingIngredients: readonly Ingredient[] = [],
-  options: { builtIn?: boolean } = {},
+  options: { builtIn?: boolean; existingRecipes?: readonly Recipe[] } = {},
 ): ImportResult {
   const issues: ImportIssue[] = [];
   const rejected: Array<{ id: string; name: string; reasons: string[] }> = [];
@@ -372,12 +378,14 @@ export function importBundle(
 
   const index = buildIngredientIndex([...existingIngredients, ...newIngredients]);
 
-  const recipes: Recipe[] = [];
+  const parsed: Recipe[] = [];
   (bundle.recipes ?? []).forEach((raw, i) => {
     const outcome = parseRecipe(raw, index, `recipes[${i}]`, issues, options.builtIn ?? false);
-    if ('recipe' in outcome) recipes.push(outcome.recipe);
+    if ('recipe' in outcome) parsed.push(outcome.recipe);
     else rejected.push({ id: raw.id ?? `recipes[${i}]`, name: raw.name ?? '(unnamed)', reasons: outcome.reasons });
   });
+
+  const recipes = checkFamilies(parsed, options.existingRecipes ?? [], issues, rejected);
 
   return {
     ingredients: newIngredients,
@@ -386,6 +394,67 @@ export function importBundle(
     rejected,
     ok: rejected.length === 0 && !issues.some((issue) => issue.severity === 'error'),
   };
+}
+
+/**
+ * Validates variant families, which can only be checked once every recipe in the
+ * bundle has been parsed — `variantOf` points at a sibling, not an ingredient.
+ *
+ * A broken family is rejected rather than flattened into a standalone recipe. The
+ * planner shows one member of a family and substitutes within it; a variant whose
+ * parent never arrived would be offered on its own with a name that only makes
+ * sense next to the parent ("with cremini"), which reads as a bug to everyone who
+ * meets it.
+ */
+function checkFamilies(
+  parsed: readonly Recipe[],
+  existing: readonly Recipe[],
+  issues: ImportIssue[],
+  rejected: Array<{ id: string; name: string; reasons: string[] }>,
+): Recipe[] {
+  // Parents already on the device count, so a variant of a library recipe can be
+  // imported on its own. Without that, "the same curry but with squash" would mean
+  // re-importing the curry, and the two copies would then drift apart.
+  const byId = new Map([...existing, ...parsed].map((r) => [r.id, r]));
+  const kept: Recipe[] = [];
+
+  for (const recipe of parsed) {
+    if (recipe.variantOf === undefined) {
+      if (recipe.variantLabel !== undefined) {
+        issues.push({
+          severity: 'warning', path: `recipes:${recipe.id}`,
+          message: '`variantLabel` without `variantOf` does nothing; it names a variant of something.',
+        });
+      }
+      kept.push(recipe);
+      continue;
+    }
+
+    const reasons: string[] = [];
+    const parent = byId.get(recipe.variantOf);
+
+    if (!parent) {
+      reasons.push(`\`variantOf\` is "${recipe.variantOf}", which is not a recipe here or in the library.`);
+    } else {
+      if (parent.variantOf !== undefined) {
+        reasons.push(`Variants do not nest — "${parent.id}" is itself a variant of "${parent.variantOf}".`);
+      }
+      if (parent.mealType !== recipe.mealType) {
+        reasons.push(
+          `A variant must be the same meal type as its parent (\`${parent.mealType}\`), not \`${recipe.mealType}\`.`,
+        );
+      }
+    }
+
+    if (!recipe.variantLabel || recipe.variantLabel.trim() === '') {
+      reasons.push('A variant needs a `variantLabel` saying what is different about it.');
+    }
+
+    if (reasons.length > 0) rejected.push({ id: recipe.id, name: recipe.name, reasons });
+    else kept.push(recipe);
+  }
+
+  return kept;
 }
 
 /**
