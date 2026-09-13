@@ -17,7 +17,7 @@ import {
   addDays, estimateKeeping, localDate,
   type CookedMeal, type Leftover, type MealLogEntry, type MealSource, type StorageKind,
 } from '../domain/cooking';
-import { afterStockChange } from '../domain/pantry';
+import { DEFAULT_NECESSITY, afterStockChange } from '../domain/pantry';
 import { dropSlot, placeRecipe, reinstateSlot } from '../domain/planner/generate';
 import type { TreatItem } from '../domain/treats';
 import type { Ingredient, MealType, Recipe } from '../domain/types';
@@ -242,7 +242,7 @@ export function checkId(planId: Id, ingredientId: Id): string {
 async function putCheck(
   planId: Id,
   ingredientId: Id,
-  patch: Partial<Pick<GroceryCheck, 'checked' | 'amountCents' | 'removed'>>,
+  patch: Partial<Pick<GroceryCheck, 'checked' | 'amountCents' | 'removed' | 'inStock'>>,
 ): Promise<void> {
   const id = checkId(planId, ingredientId);
   const existing = await db.checks.get(id);
@@ -279,7 +279,33 @@ export async function setChecked(planId: Id, ingredientId: Id, checked: boolean)
  * argued.
  */
 export async function setRemoved(planId: Id, ingredientId: Id, removed: boolean): Promise<void> {
-  await putCheck(planId, ingredientId, { removed });
+  // A line back on the list has no reason for being off it. Left standing, a
+  // stale `inStock` would relabel the line "already have" the next time it came
+  // off for some quite different reason.
+  await putCheck(planId, ingredientId, { removed, ...(removed ? {} : { inStock: undefined }) });
+}
+
+/**
+ * Takes a line off this week's list because the cupboard already has it.
+ *
+ * `setRemoved` with a reason attached, rather than a second way to hide a line:
+ * both put it in the same place, and the way back is the same one. All this adds
+ * is what the line says about itself while it is down there, which is the whole
+ * difference between "not this week" and "got it".
+ *
+ * It deliberately does NOT touch the pantry. Two reasons, and the second is the
+ * important one. A pantry row is a standing claim about a cupboard, and this is a
+ * remark about one shop — but more than that, a stocked pantry item is free to
+ * the planner and invisible to the list builder, so writing one here would delete
+ * the line rather than hide it, and there would be nothing left to offer back.
+ * Promoting one to the pantry is a separate, deliberate act; `worthKeeping` in
+ * `domain/pantry.ts` says which are worth offering it for.
+ */
+export async function setInStock(planId: Id, ingredientId: Id, inStock: boolean): Promise<void> {
+  await putCheck(planId, ingredientId, {
+    removed: inStock,
+    inStock: inStock ? true : undefined,
+  });
 }
 
 /**
@@ -323,6 +349,34 @@ export async function upsertPantryItem(item: PantryItem): Promise<void> {
 
 export async function removePantryItem(ingredientId: Id): Promise<void> {
   await syncedDelete('pantry', ingredientId);
+}
+
+/**
+ * Turns "I already have this" into a standing pantry row.
+ *
+ * The deliberate second act after marking a line as in stock, offered only for
+ * things that keep — `worthKeeping` in `domain/pantry.ts` says which, and why
+ * offering it for parsley would be a bug rather than a convenience.
+ *
+ * It arrives `alright-without`, like anything else added to the pantry: it is
+ * here because it was in the cupboard, which is not the same as saying a week
+ * without it is worth a trip. Necessity is set in Settings, where the rest of the
+ * roster is.
+ *
+ * The line's off-list marks are cleared on the way past, and that is not tidying.
+ * A stocked pantry item is invisible to the list builder, so the line stops being
+ * built at all — and if the item is later run down to `out`, the line comes back.
+ * A `removed` flag left behind from today would hide it when it did.
+ */
+export async function keepInPantry(planId: Id, ingredientId: Id): Promise<void> {
+  await upsertPantryItem({
+    ingredientId,
+    status: 'stocked',
+    necessity: DEFAULT_NECESSITY,
+    usesSincePurchase: 0,
+    lastPurchasedISO: new Date().toISOString(),
+  });
+  await putCheck(planId, ingredientId, { removed: false, inStock: undefined });
 }
 
 export async function setPantryStock(ingredientId: Id, status: PantryStock): Promise<void> {
@@ -469,12 +523,24 @@ export async function addCustomItem(
   return item;
 }
 
+/**
+ * Changes one ad-hoc item, leaving the rest of the record alone.
+ *
+ * An `undefined` in the patch clears its field rather than storing a key holding
+ * nothing, which is what `putCheck` does with the same fields on a planned line.
+ * The same three things — a price, whether it is off the list, and why — are kept
+ * in two tables depending on where the line came from, and the two shapes have to
+ * match: code that reads them asks `=== undefined`, and one path leaving a key
+ * behind is a difference that only shows up somewhere far from here.
+ */
 export async function updateCustomItem(id: Id, patch: Partial<CustomItem>): Promise<void> {
   const existing = await db.customItems.get(id);
   if (!existing) return;
-  await syncedPut('customItems', {
-    ...existing, ...patch, id, updatedAtISO: new Date().toISOString(),
-  } as unknown as Record<string, unknown>);
+
+  const next = { ...existing, ...patch, id, updatedAtISO: new Date().toISOString() };
+  await syncedPut('customItems', Object.fromEntries(
+    Object.entries(next).filter(([, value]) => value !== undefined),
+  ));
 }
 
 export async function removeCustomItem(id: Id): Promise<void> {

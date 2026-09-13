@@ -39,6 +39,15 @@ npm run sync-server    # optional, for syncing between devices
   and for this week only. What came off waits at the bottom of the list with a
   Put back beside it, a way back that does not expire rather than an undo that
   does, and next week's list starts with it back on.
+- **"Already have it"** — the same removal, for the commonest reason a line comes
+  off, with that reason kept. Open a line and say it, and it joins what is at the
+  bottom of the list marked as something you own rather than something you decided
+  against. For the things that keep, it then offers to put them in the pantry
+  properly, which is the difference between not buying rice this week and not
+  being asked about rice again. Only the things that keep: a stocked pantry item
+  is free to the planner, so filing a bunch of parsley in there would quietly
+  discount every week after this one. It is offered and never done for you, and
+  the test for what keeps is the one the waste model already makes.
 - **Filters** — vegetarian, high protein (computed from ingredients, not tagged),
   cooking time, in-season, ingredient count.
 - **Browsing by type and region.** The Recipes tab groups the library by kind of
