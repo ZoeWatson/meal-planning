@@ -37,8 +37,9 @@ import {
   buildVariantIndex, chooseBestVariants, collapseToFamilies, familyIdOf, swapRecipeIngredient,
 } from '../src/domain/variants';
 import {
-  DEFAULT_SORT_ID, FILTER_GROUPS, FILTER_PRESETS, RECIPE_SORTS, applyFilter, presetLabel,
-  sortRecipes,
+  DEFAULT_SORT_ID, FILTER_GROUPS, FILTER_PRESETS, FILTER_SECTIONS, RECIPE_SORTS, applyFilter,
+  composeChipFilter, filterChip, presetLabel, sortRecipes, testRecipe, type ChipState,
+  type RecipeFilter,
 } from '../src/domain/filters';
 import { buildGroceryList, withoutRemoved } from '../src/domain/grocery';
 import {
@@ -1960,6 +1961,160 @@ test('the dish-type filter matches every type, not only the one it files under',
   }).map((r) => r.id).sort();
 
   assert.deepEqual(found, ['noodle-soup', 'rice-noodle-plate', 'untagged-pasta']);
+});
+
+// ---------------------------------------------------------------------------
+
+group('Composing filters');
+
+const TAXONOMY_CTX = {
+  ingredients: TAXONOMY_INGREDIENTS, region: getRegion('bc-canada'), month: 8,
+};
+
+function matching(filter: RecipeFilter): string[] {
+  return applyFilter(TAXONOMY.values(), filter, TAXONOMY_CTX).map((r) => r.id).sort();
+}
+
+const SOUP: RecipeFilter = { dishTypes: ['soup'] };
+const PASTA: RecipeFilter = { dishTypes: ['pasta'] };
+const RICE: RecipeFilter = { dishTypes: ['rice'] };
+const ITALY: RecipeFilter = { regions: ['italy'] };
+
+test('allOf requires every branch, which one repeated field cannot say', () => {
+  // `dishTypes: ['soup', 'pasta']` is an OR — it is one field with two allowed
+  // values. "A soup AND something with pasta in it" needs the nesting, and the
+  // noodle soup is the only dish in the fixture that is both.
+  assert.deepEqual(matching({ allOf: [SOUP, PASTA] }), ['noodle-soup']);
+  assert.deepEqual(matching({ dishTypes: ['soup', 'pasta'] }).length, 3);
+});
+
+test('anyOf requires only one branch', () => {
+  assert.deepEqual(
+    matching({ anyOf: [RICE, PASTA] }),
+    ['noodle-soup', 'rice-noodle-plate', 'rice-plate', 'untagged-pasta'],
+  );
+});
+
+test('noneOf rules its branches out', () => {
+  assert.deepEqual(
+    matching({ allOf: [PASTA], noneOf: [ITALY] }),
+    ['noodle-soup', 'rice-noodle-plate'],
+  );
+});
+
+test('an exclusion still excludes in any mode', () => {
+  // The whole point of keeping exclusions outside the all/any choice. Were they
+  // folded into the OR, "rice or pasta, but nothing Italian" would quietly
+  // return the Italian pasta — it matched one of the branches.
+  assert.deepEqual(
+    matching({ anyOf: [RICE, PASTA], noneOf: [ITALY] }),
+    ['noodle-soup', 'rice-noodle-plate', 'rice-plate'],
+  );
+});
+
+test('empty composition constrains nothing', () => {
+  // This is the no-chips-switched-on case, which is the state the screen spends
+  // most of its life in. An empty `anyOf` read as "match one of nothing" would
+  // empty the library on arrival.
+  assert.deepEqual(matching({ allOf: [], anyOf: [], noneOf: [] }), matching({}));
+  assert.equal(matching({}).length, TAXONOMY.size);
+});
+
+test('an anyOf that fails for one reason says which', () => {
+  // "Ruled out by kind of dish" tells you what to loosen; "ruled out by your
+  // filters" tells you to go and look.
+  const pasta = TAXONOMY.get('untagged-pasta')!;
+  assert.equal(testRecipe(pasta, { anyOf: [SOUP, RICE] }, TAXONOMY_CTX), 'dish-type');
+});
+
+test('an anyOf that fails for several reasons blames none of them', () => {
+  const pasta = TAXONOMY.get('untagged-pasta')!;
+  assert.equal(
+    testRecipe(pasta, { anyOf: [SOUP, { maxTotalMinutes: 1 }] }, TAXONOMY_CTX),
+    'no-match',
+  );
+});
+
+test('a matched exclusion is reported as one', () => {
+  assert.equal(
+    testRecipe(TAXONOMY.get('untagged-pasta')!, { noneOf: [ITALY] }, TAXONOMY_CTX),
+    'excluded',
+  );
+});
+
+// --- the panel itself ------------------------------------------------------
+
+test('every filter chip has an id no other chip shares', () => {
+  // The screen holds one map keyed by chip id across all five sections. Two
+  // chips sharing one would move together and there would be nothing on screen
+  // to suggest why.
+  const seen = new Set<string>();
+  for (const section of FILTER_SECTIONS) {
+    for (const chip of section.chips) {
+      assert.ok(!seen.has(chip.id), `two chips share the id "${chip.id}"`);
+      seen.add(chip.id);
+      assert.equal(filterChip(chip.id)?.label, chip.label);
+    }
+  }
+});
+
+test('every filter section has chips in it', () => {
+  for (const section of FILTER_SECTIONS) {
+    assert.ok(section.chips.length > 0, `"${section.label}" would render as an empty heading`);
+  }
+});
+
+test('the panel offers both browse axes, since they no longer live anywhere else', () => {
+  // Kind of dish and region moved in here from a browse strip of their own. If
+  // a refactor drops the sections, nothing else in the app can reach those
+  // filters and the loss is silent.
+  const ids = FILTER_SECTIONS.map((s) => s.id);
+  assert.ok(ids.includes('type'), 'no kind-of-dish section');
+  assert.ok(ids.includes('region'), 'no region section');
+});
+
+test('included chips AND together, excluded chips come out', () => {
+  const states = new Map<string, ChipState>([
+    ['type:pasta', 'include'],
+    ['region:italy', 'exclude'],
+  ]);
+  assert.deepEqual(
+    matching(composeChipFilter(states, 'all')),
+    ['noodle-soup', 'rice-noodle-plate'],
+  );
+});
+
+test('the same chips in any mode OR together instead', () => {
+  const states = new Map<string, ChipState>([
+    ['type:rice', 'include'],
+    ['type:pasta', 'include'],
+  ]);
+  assert.deepEqual(matching(composeChipFilter(states, 'all')), []);
+  assert.deepEqual(
+    matching(composeChipFilter(states, 'any')),
+    ['noodle-soup', 'rice-noodle-plate', 'rice-plate', 'untagged-pasta'],
+  );
+});
+
+test('the search box narrows even in any mode', () => {
+  // Searching for "rice" and asking for any of two kinds of dish means rice
+  // dishes of those kinds — not every rice dish PLUS every soup in the library.
+  const states = new Map<string, ChipState>([
+    ['type:soup', 'include'],
+    ['type:pasta', 'include'],
+  ]);
+  assert.deepEqual(
+    matching(composeChipFilter(states, 'any', { search: 'rice' })),
+    ['rice-noodle-plate'],
+  );
+});
+
+test('a chip id from an older release is ignored, not obeyed', () => {
+  // Panel state outlives a release. A chip that has since been removed must not
+  // be able to empty the library, and in `all` mode an unresolvable constraint
+  // would do exactly that.
+  const states = new Map<string, ChipState>([['type:no-such-chip', 'include']]);
+  assert.deepEqual(matching(composeChipFilter(states, 'all')), matching({}));
 });
 
 // ---------------------------------------------------------------------------
