@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { promptInstall, type InstallOutcome } from '../pwa/install';
+import type { InstallHow } from '../pwa/installRoute';
 import { useInstallState } from '../pwa/useInstallState';
 import { CheckIcon } from '../components/icons';
 
@@ -13,9 +14,13 @@ import { CheckIcon } from '../components/icons';
  * already done this" is a permanent tax on a one-time action, and the tab bar was
  * built for six.
  *
- * Where there is no prompt to fire — Safari, which has never had one — the
- * directions are not a consolation prize. They are the only route, so they are
- * written as instructions rather than as an apology.
+ * The button is the exception, not the rule: `beforeinstallprompt` is Chromium's
+ * alone. Everywhere else the directions are not a consolation prize but the only
+ * route, so they are written as instructions rather than as an apology — and they
+ * differ per browser, because one set of steps would be wrong for most of them.
+ * Firefox on a computer gets the hardest version of that: it cannot install web
+ * apps at all, and saying so plainly beats sending somebody to hunt through a
+ * menu for an item Mozilla removed.
  */
 export function InstallScreen(): JSX.Element {
   const state = useInstallState();
@@ -82,16 +87,16 @@ export function InstallScreen(): JSX.Element {
             </>
           ) : (
             <p className="tiny faint" style={{ marginTop: 14 }}>
-              {state.how === 'ios'
-                ? 'Safari installs apps from its share menu rather than from a button on the page, so this one has to be done by hand. It takes two taps.'
-                : 'Your browser has not offered an install prompt on this page. It is usually still possible from the menu.'}
+              {EXPLANATION[state.how]}
             </p>
           )}
 
           <h3 className="section-title">
-            {state.kind === 'ready' ? 'Or do it by hand' : 'How to install it'}
+            {state.kind === 'ready' ? 'Or do it by hand'
+              : state.how === 'none' ? 'What you can do instead'
+              : 'How to install it'}
           </h3>
-          {state.kind === 'manual' && state.how === 'ios' ? <IosSteps /> : <MenuSteps />}
+          {state.kind === 'manual' ? <Steps how={state.how} /> : <MenuSteps />}
         </>
       )}
 
@@ -156,6 +161,20 @@ function Step({ n, children }: { n: number; children: React.ReactNode }): JSX.El
   );
 }
 
+const EXPLANATION: Readonly<Record<InstallHow, string>> = {
+  menu: 'Your browser has not offered an install prompt on this page. It is usually still possible from the menu.',
+  ios: 'On an iPhone or iPad, apps are added from the share menu rather than from a button on the page. It takes three taps.',
+  firefox: 'Firefox does not let a page offer an install button, but it can put this on your home screen from its own menu.',
+  none: 'Firefox on a computer cannot install web apps — Mozilla removed the feature and has not brought it back. Nothing is wrong with your browser or with this page.',
+};
+
+function Steps({ how }: { how: InstallHow }): JSX.Element {
+  if (how === 'ios') return <IosSteps />;
+  if (how === 'firefox') return <FirefoxSteps />;
+  if (how === 'none') return <NoInstallSteps />;
+  return <MenuSteps />;
+}
+
 /** Chrome and Edge, on a phone or a computer. */
 function MenuSteps(): JSX.Element {
   return (
@@ -178,7 +197,7 @@ function MenuSteps(): JSX.Element {
   );
 }
 
-/** Safari, which has no prompt and never has had one. */
+/** iOS, where the share menu is the only route and always has been. */
 function IosSteps(): JSX.Element {
   return (
     <>
@@ -193,8 +212,49 @@ function IosSteps(): JSX.Element {
         Tap <strong>Add</strong>, top right.
       </Step>
       <p className="tiny faint" style={{ marginTop: 8 }}>
-        It has to be Safari. Chrome on an iPhone cannot add apps to the home
-        screen — Apple does not let it.
+        Safari, Chrome, Edge and Firefox all work for this on iOS 16.4 and later.
+        On anything older it has to be Safari.
+      </p>
+    </>
+  );
+}
+
+/** Firefox on Android: a shortcut rather than an app entry, but it works. */
+function FirefoxSteps(): JSX.Element {
+  return (
+    <>
+      <Step n={1}>Tap the <strong>⋮</strong> menu, top right.</Step>
+      <Step n={2}>
+        Tap <strong>Add to Home screen</strong>, then confirm.
+      </Step>
+      <p className="tiny faint" style={{ marginTop: 8 }}>
+        Firefox adds a shortcut with a small Firefox badge on it, which opens the
+        app inside Firefox rather than as a separate entry in your app list. It
+        still works offline and your data is still kept on the device. Chrome and
+        Samsung Internet are the two that install it as a proper app.
+      </p>
+    </>
+  );
+}
+
+/** Firefox on a computer, which has no install route at all. */
+function NoInstallSteps(): JSX.Element {
+  return (
+    <>
+      <Step n={1}>
+        Use it in this tab. Everything works — the planner, the shopping list, and
+        your data saved on this computer — and it works with no connection once the
+        page has loaded once. Bookmark it and it is a click away.
+      </Step>
+      <Step n={2}>
+        If you want it as a real window with its own icon, open this page in
+        <strong> Chrome</strong> or <strong>Edge</strong> and install it from there.
+        It is the same app and the same address.
+      </Step>
+      <p className="tiny faint" style={{ marginTop: 8 }}>
+        Your data belongs to the browser that stored it, so a week planned here
+        will not appear in Chrome. <strong>More → Move data between devices</strong>{' '}
+        carries it across if you switch.
       </p>
     </>
   );

@@ -20,6 +20,8 @@
 
 import { Capacitor } from '@capacitor/core';
 
+import { installRouteFor, type BrowserFacts, type InstallHow } from './installRoute';
+
 /** Not in TypeScript's DOM lib: it is Chromium-only and not on a standards track. */
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -32,7 +34,7 @@ export type InstallState =
   /** The browser has offered a prompt and the button will work. */
   | { readonly kind: 'ready' }
   /** No prompt on offer, so the only honest thing to show is directions. */
-  | { readonly kind: 'manual'; readonly how: 'ios' | 'menu' };
+  | { readonly kind: 'manual'; readonly how: InstallHow };
 
 let deferred: BeforeInstallPromptEvent | null = null;
 let installed = false;
@@ -53,19 +55,21 @@ function isStandalone(): boolean {
     || (window.navigator as { standalone?: boolean }).standalone === true;
 }
 
-function isIOS(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return true;
-  // iPadOS 13+ reports itself as a Mac. The touch points are what give it away.
-  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+function facts(): BrowserFacts {
+  if (typeof navigator === 'undefined') return { userAgent: '', platform: '', maxTouchPoints: 0 };
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    maxTouchPoints: navigator.maxTouchPoints,
+  };
 }
 
 function compute(): InstallState {
   if (installed || isStandalone() || Capacitor.isNativePlatform()) return { kind: 'installed' };
   if (deferred) return { kind: 'ready' };
-  // Safari has no install prompt at all and never will — there, directions are
-  // not a fallback, they are the feature.
-  return { kind: 'manual', how: isIOS() ? 'ios' : 'menu' };
+  // Nothing to fire. For most of these browsers directions are not a fallback,
+  // they are the only route — and for one of them there is no route to describe.
+  return { kind: 'manual', how: installRouteFor(facts()) };
 }
 
 function refresh(): void {
