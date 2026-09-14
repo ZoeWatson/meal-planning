@@ -8,10 +8,11 @@
 # No redirect rules either. The six tabs are React state rather than routes, so
 # there are no deep links for a static host to rewrite back to index.html.
 #
-# The app assumes it is served from the root of a domain — vite.config.ts sets
-# no `base` and the manifest's start_url is "/". That holds on Netlify, Vercel
-# and Cloudflare Pages. It does NOT hold on a GitHub Pages project site, which
-# serves under /<repo>/ and would need both changed to match.
+# Where the app is served from is a build input now, not an assumption: vite.config.ts
+# reads `BASE_PATH` and defaults it to "/". Nothing needs setting here, because
+# Netlify serves from the root of a domain and so does Vercel and Cloudflare
+# Pages. A GitHub Pages project site does not — it serves under /<repo>/ — which
+# is why .github/workflows/pages.yml sets BASE_PATH and this file does not.
 
 [build]
   command = "npm run build"

@@ -231,6 +231,17 @@ library.
 The same build runs both ways, with the same data model and no backend either
 way. What differs is only how it is installed.
 
+**From a link.** `.github/workflows/pages.yml` publishes the app to GitHub Pages
+on every push, which is the form to hand to somebody else: they open the link,
+add it to their home screen, and it behaves like an installed app that works with
+no signal — no file to sideload and no warning to click through. Enable it once
+under **Settings → Pages → Source → GitHub Actions**. Their copy is their own;
+there are no accounts and no server, so nobody sees anybody else's plans.
+
+Pages serves a project site under `/<repo>/`, so that workflow sets `BASE_PATH`.
+Everything else — the Android app, and any host serving from a domain root —
+builds with the default and needs nothing.
+
 **On a computer**, install it from the browser — Chrome and Edge offer this in the
 address bar. The app then asks the browser to mark its storage persistent, which
 is what stops IndexedDB being evicted under disk pressure or after a stretch of

@@ -1,0 +1,68 @@
+# Publishes the app to GitHub Pages.
+#
+# This is the link you can send someone: they open it, add it to their home
+# screen, and from then on it behaves like an installed app that works with no
+# signal. No file to sideload, no warning to click through, and updates arrive on
+# their own — which is the whole reason to prefer it to the APK for anyone you
+# cannot stand next to.
+#
+# Pages serves a project site under /<repo>/ rather than the root, so the build
+# is told where it will live. Nothing else in the repo assumes that: the Android
+# app and any root-served host still build with the default.
+#
+# Enable it once under Settings → Pages → Source → GitHub Actions. Until that is
+# done the deploy step fails, and it fails with a clear message.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# What `deploy-pages` needs to publish as this repository.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and a superseded one gives way rather than racing the
+# newer build to publish last.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          # Derived rather than written down, so renaming the repository does not
+          # quietly publish a site whose every asset 404s.
+          BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

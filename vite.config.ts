@@ -10,7 +10,26 @@ import { VitePWA } from 'vite-plugin-pwa';
  * planner runs in the browser, so precaching the shell is genuinely sufficient
  * for full functionality with the radio off. There is no API to be unavailable.
  */
+
+/**
+ * What the app is served under, which is not the same answer for all three
+ * places this build ends up.
+ *
+ * Netlify and Cloudflare serve it from the root of a domain. A GitHub Pages
+ * project site serves it under `/<repo>/`. The Android app serves it from the
+ * root of `https://localhost` inside a WebView.
+ *
+ * Hard-coding any one of those silently breaks the other two — every asset URL
+ * and the manifest's `start_url` are built from this — and the breakage does not
+ * show up until the thing is deployed, as a blank page with 404s in a console
+ * nobody is looking at. So it is a build input with the right default: root,
+ * which is what both the native build and the ordinary static hosts want, and
+ * which `npm run build` therefore gives you without anyone having to know this.
+ */
+const base = process.env.BASE_PATH ?? '/';
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -37,7 +56,12 @@ export default defineConfig({
         background_color: '#faf9f7',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        // Both follow `base`. A manifest that starts at "/" on a site served
+        // under "/meal-planning/" installs an icon that opens the wrong page —
+        // and a scope that does not contain the start URL makes some browsers
+        // decline to install it at all, without saying why.
+        start_url: base,
+        scope: base,
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
