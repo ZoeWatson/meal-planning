@@ -104,6 +104,20 @@ export const SwapIcon = ({ size = 15 }: IconProps) => (
   </Svg>
 );
 
+/**
+ * Installing: something coming down onto a surface that will hold it.
+ *
+ * The arrow points into a line rather than into a tray, because a tray at 22px
+ * is three strokes that merge into a smudge.
+ */
+export const DownloadIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3v11" />
+    <path d="M8 10.5 12 14.5l4-4" />
+    <path d="M4 20h16" />
+  </Svg>
+);
+
 /** The cupboard something is going into, on the button that puts it there. */
 export const HouseIcon = ({ size = 16 }: IconProps) => (
   <Svg size={size}>

@@ -4,6 +4,11 @@ import { Capacitor } from '@capacitor/core';
 import { registerSW } from 'virtual:pwa-register';
 
 import { App } from './App';
+// Imported for its side effect: it registers the `beforeinstallprompt` listener
+// at module load. The event fires before React mounts and is not replayed, so
+// catching it cannot wait for a component. Named here rather than left to the
+// import graph, so that reordering something in App.tsx cannot quietly break it.
+import './pwa/install';
 import { ensureSeeded } from './db/repository';
 import { getSyncMeta } from './db/syncWrites';
 import { startAutoSync } from './sync/syncManager';
